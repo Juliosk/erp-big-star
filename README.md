@@ -7,9 +7,10 @@ arquitetura consolidada e o README de governança técnica em `Arquivos .MD/`.
 
 - Wave: `W1 — Corporate Foundation`
 - Sprint concluída: `2 — M1 Corporate Foundation`
-- Schema atual: Alembic `0009`
+- Sprint em execução: `3 — M2 Product Master`, primeiro lote `030–032`
+- Schema atual: Alembic `0010`
 - APIs atuais: health checks e contexto corporativo `/api/v1/admin`
-- Próxima entrega depende da homologação formal desta Sprint.
+- M2: domínio e persistência por empresa; rotas e telas entram nos próximos lotes.
 
 ## Baseline Python
 
@@ -58,3 +59,6 @@ docs/        # ADRs e documentação técnica
 
 Consulte [a operação da Sprint 2](docs/sprint-2-corporate-foundation.md) para rotas, segurança,
 eventos, migrations e gate de validação.
+
+Consulte [o plano da Sprint 3](docs/sprint-3-product-master.md) para escopo, commits,
+DoR/DoD, pendências de aplicabilidade global e evidências do primeiro lote.

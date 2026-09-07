@@ -1,6 +1,7 @@
 # Sprint 3 — M2 Product Master
 
-Status: em execução; primeiro lote 030–032. Não constitui aprovação da Sprint 3.
+Status: primeiro lote 030–032 implementado e validado tecnicamente; aguardando homologação
+do usuário. Não constitui aprovação da Sprint 3.
 
 ## 1. Objetivo
 
@@ -157,3 +158,32 @@ Usuário autorizado cria produto, lista e consulta somente seu escopo, altera co
 controlada, gerencia lifecycle/barcode e acompanha resultado nas telas; retries não duplicam
 efeitos. Nenhum domínio acessa tabelas M2 diretamente. DoR pendente resolvido e validação
 local pelo usuário antes de avançar à Sprint 4 (M23 Import Core).
+
+## Evidências do lote 030–032 — 2026-09-07
+
+- 030: `0a3f593`, agregado e plano; 031: `e290a6c`, schema/migration.
+- 200 testes aprovados, incluindo PostgreSQL/RabbitMQ e fronteiras arquiteturais.
+- Cobertura `--cov=erp`: 91,97%, com branches; M2: 100,00% (132 statements, 36 branches).
+- Ruff check/format limpos; mypy strict: 150 arquivos sem erros.
+- 0010 aplicada sobre 0009 no banco local; correspondência ORM/schema M2 verificada
+  com `include_schemas=True`, constraints inspecionadas e valores inválidos rejeitados pelo banco.
+- Em banco descartável: `base → 0010 → 0009 → 0010` aprovado; apenas esse banco temporário
+  foi removido após o teste. O banco local homologado não sofreu downgrade.
+- Teste concorrente real: duas sessões leem a mesma versão, uma grava versão 2 e a outra
+  recebe VERSION_CONFLICT. Testes não deixam suas empresas/produtos de fixture persistidos.
+- Um DeprecationWarning de terceiro (Starlette/AnyIO); sem falhas. Dependências não alteradas.
+
+Reprodução dos gates locais:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\ruff.exe check erp tests migrations
+.\.venv\Scripts\ruff.exe format --check erp tests migrations
+.\.venv\Scripts\python.exe -m mypy erp tests migrations
+.\.venv\Scripts\python.exe -m pytest --cov=erp --cov-report=term-missing --cov-report=xml
+.\.venv\Scripts\python.exe -m coverage report --include="erp/modules/product/*" --precision=2
+```
+
+O teste de metadados é restrito ao owner M2. Não equivale a afirmar ausência de drift em todos
+os schemas antigos. O lote não contém RBAC de produto, rotas, Audit/Outbox de comandos ou telas:
+esses itens continuam explicitamente no plano 033–039.
