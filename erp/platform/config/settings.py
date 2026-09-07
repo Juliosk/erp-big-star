@@ -69,6 +69,7 @@ class Settings(BaseSettings):
         PositiveInt,
         PositiveInt,
     ] = (30_000, 120_000, 300_000, 900_000)
+    idempotency_ttl_seconds: int = Field(default=86_400, ge=60)
 
 
 @lru_cache(maxsize=1)
