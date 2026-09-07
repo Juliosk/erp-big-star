@@ -6,6 +6,11 @@ from erp.modules.admin.domain.authentication import (
     Session,
     UserIdentity,
 )
+from erp.modules.admin.domain.authorization import (
+    AuthorizationDecision,
+    AuthorizationPolicy,
+    AuthorizationReason,
+)
 from erp.modules.admin.domain.exceptions import (
     AuthenticationError,
     AuthorizationError,
@@ -21,12 +26,22 @@ from erp.modules.admin.domain.permission import (
     PermissionRegistry,
     PermissionRiskLevel,
 )
+from erp.modules.admin.domain.role import (
+    Role,
+    RoleAssignment,
+    RoleAssignmentSource,
+    resolve_active_permissions,
+)
+from erp.modules.admin.domain.scope import Scope, ScopeType, UserScope
 
 __all__ = [
     "AuthenticatedPrincipal",
     "AuthenticationError",
     "AuthenticationLevel",
+    "AuthorizationDecision",
     "AuthorizationError",
+    "AuthorizationPolicy",
+    "AuthorizationReason",
     "DataClassification",
     "DuplicatePermissionError",
     "InvalidCredentialsError",
@@ -36,6 +51,13 @@ __all__ = [
     "PermissionNotRegisteredError",
     "PermissionRegistry",
     "PermissionRiskLevel",
+    "Role",
+    "RoleAssignment",
+    "RoleAssignmentSource",
+    "Scope",
+    "ScopeType",
     "Session",
     "UserIdentity",
+    "UserScope",
+    "resolve_active_permissions",
 ]

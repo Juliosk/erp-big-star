@@ -122,13 +122,20 @@ def test_login_uses_dummy_hash_for_unknown_identity() -> None:
     assert passwords.dummy_verified is True
 
 
-@pytest.mark.parametrize("enabled", [True, False])
-def test_login_does_not_disclose_invalid_password_or_disabled_identity(enabled: bool) -> None:
+@pytest.mark.parametrize(
+    ("enabled", "password_matches"),
+    [(True, False), (False, True)],
+)
+def test_login_does_not_disclose_invalid_password_or_disabled_identity(
+    enabled: bool,
+    password_matches: bool,
+) -> None:
     identity = UserIdentity(USER_ID, "admin@example.com", "encoded", enabled=enabled)
-    service, _, _, _ = build_service(identity=identity, password_matches=False)
+    service, _, _, _ = build_service(identity=identity, password_matches=password_matches)
+    supplied_password = "correct-password" if password_matches else "wrong"
 
     with pytest.raises(InvalidCredentialsError):
-        asyncio.run(service.login(LoginCommand(identity.username, "wrong")))
+        asyncio.run(service.login(LoginCommand(identity.username, supplied_password)))
 
 
 def test_refresh_and_logout_require_matching_active_session() -> None:
