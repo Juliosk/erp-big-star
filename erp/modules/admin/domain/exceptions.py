@@ -13,4 +13,23 @@ class InvalidSessionError(AuthenticationError):
     """A refresh or logout token does not identify an active session."""
 
 
-__all__ = ["AuthenticationError", "InvalidCredentialsError", "InvalidSessionError"]
+class AuthorizationError(Exception):
+    """Base failure for authorization policy and registry operations."""
+
+
+class DuplicatePermissionError(AuthorizationError):
+    """A permission code was registered more than once."""
+
+
+class PermissionNotRegisteredError(AuthorizationError):
+    """A permission code is absent from the official registry."""
+
+
+__all__ = [
+    "AuthenticationError",
+    "AuthorizationError",
+    "DuplicatePermissionError",
+    "InvalidCredentialsError",
+    "InvalidSessionError",
+    "PermissionNotRegisteredError",
+]
