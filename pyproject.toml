@@ -1,0 +1,80 @@
+[project]
+name = "erp-bigstar"
+version = "0.1.0"
+description = "ERP modular monolith for Big Star and Forma Kids."
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "coverage[toml]==7.16.0",
+    "mypy==2.3.1",
+    "pytest==9.1.1",
+    "pytest-cov==7.1.0",
+    "ruff==0.16.6",
+]
+
+[tool.uv]
+default-groups = ["dev"]
+package = false
+required-version = "==0.12.10"
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+extend-exclude = ["Arquivos .MD"]
+
+[tool.ruff.lint]
+select = [
+    "B",
+    "C4",
+    "DTZ",
+    "E4",
+    "E7",
+    "E9",
+    "F",
+    "I",
+    "ISC",
+    "PIE",
+    "PT",
+    "RET",
+    "RUF",
+    "SIM",
+    "UP",
+]
+ignore = ["ISC001"]
+
+[tool.ruff.format]
+docstring-code-format = true
+indent-style = "space"
+line-ending = "lf"
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+show_error_codes = true
+show_error_context = true
+warn_unreachable = true
+exclude = ['^Arquivos[ ]\.MD[\\/]']
+
+[tool.pytest.ini_options]
+addopts = ["--strict-config", "--strict-markers", "-ra"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+parallel = true
+relative_files = true
+
+[tool.coverage.report]
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "if typing.TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+fail_under = 80
+show_missing = true
+skip_covered = true
+
