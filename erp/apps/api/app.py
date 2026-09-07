@@ -5,11 +5,15 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from erp.apps.api.routes import health_router
 from erp.platform.config import Settings, get_settings
-from erp.platform.database import Database
+from erp.platform.database import Database, ManagedDatabase
 
 
-def create_app(settings: Settings | None = None, database: Database | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    database: ManagedDatabase | None = None,
+) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
     resolved_database = database or Database(resolved_settings)
@@ -29,6 +33,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     )
     application.state.settings = resolved_settings
     application.state.database = resolved_database
+    application.include_router(health_router)
     return application
 
 

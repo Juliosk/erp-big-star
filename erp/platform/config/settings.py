@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     environment: Environment = Environment.LOCAL
     debug: bool = False
     log_level: LogLevel = LogLevel.INFO
+    readiness_database_timeout_seconds: float = Field(default=2.0, gt=0)
 
     postgres_host: str = "127.0.0.1"
     postgres_port: int = Field(default=5432, ge=1, le=65535)
