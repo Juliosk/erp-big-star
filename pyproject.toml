@@ -8,6 +8,7 @@ dependencies = [
     "aio-pika==10.0.1",
     "alembic==1.19.2",
     "asyncpg==0.31.0",
+    "celery==5.6.3",
     "fastapi==0.141.1",
     "pydantic-settings==2.15.0",
     "sqlalchemy[asyncio]==2.0.52",
@@ -68,6 +69,10 @@ show_error_codes = true
 show_error_context = true
 warn_unreachable = true
 exclude = ['^Arquivos[ ]\.MD[\\/]']
+
+[[tool.mypy.overrides]]
+module = ["celery", "celery.*", "kombu", "kombu.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "--strict-markers", "-ra"]
