@@ -3,18 +3,23 @@
 from typing import Annotated, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from erp.modules.admin.application import (
     CompanyView,
+    CorporateCreationService,
+    CreateBranchCommand,
+    CreateCompanyCommand,
     ListCompaniesService,
+    RequestMetadata,
     SecurityContext,
     SecurityContextResolver,
 )
 from erp.modules.admin.domain import CorporateStatus
 from erp.platform.errors import ApplicationError
+from erp.platform.idempotency import require_idempotency_key
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin-corporate"])
 bearer = HTTPBearer(auto_error=False)
@@ -34,6 +39,48 @@ class CompanyResponse(BaseModel):
 
 class CompanyListResponse(BaseModel):
     items: list[CompanyResponse]
+
+
+class BranchResponse(BaseModel):
+    id: UUID
+    company_id: UUID
+    code: str
+    name: str
+    tax_id: str
+    timezone: str
+    status: CorporateStatus
+    version: int
+
+
+class CreateCompanyRequest(BaseModel):
+    group_id: UUID
+    code: str = Field(min_length=2, max_length=30)
+    legal_name: str = Field(min_length=1, max_length=200)
+    trade_name: str | None = Field(default=None, max_length=200)
+    tax_id: str = Field(min_length=14, max_length=18)
+    timezone: str = Field(min_length=1, max_length=100)
+
+
+class CreateBranchRequest(BaseModel):
+    company_id: UUID
+    code: str = Field(min_length=2, max_length=30)
+    name: str = Field(min_length=1, max_length=200)
+    tax_id: str = Field(min_length=14, max_length=18)
+    timezone: str = Field(min_length=1, max_length=100)
+
+
+class CompanyCreationResponse(BaseModel):
+    company: CompanyResponse
+    event_id: UUID
+    audit_event_id: UUID
+    idempotency_replayed: bool
+
+
+class BranchCreationResponse(BaseModel):
+    branch: BranchResponse
+    event_id: UUID
+    audit_event_id: UUID
+    idempotency_replayed: bool
 
 
 async def resolve_security_context(
@@ -77,6 +124,17 @@ def get_company_query_service(request: Request) -> ListCompaniesService:
     return service
 
 
+def get_corporate_creation_service(request: Request) -> CorporateCreationService:
+    service = getattr(request.app.state, "corporate_creation_service", None)
+    if not isinstance(service, CorporateCreationService):
+        raise ApplicationError(
+            code="CORPORATE_COMMAND_UNAVAILABLE",
+            message="Corporate commands are unavailable.",
+            status_code=503,
+        )
+    return service
+
+
 @router.get(
     "/companies",
     response_model=CompanyListResponse,
@@ -96,6 +154,90 @@ async def list_companies(
     return CompanyListResponse(items=[_company_response(company) for company in companies])
 
 
+@router.post(
+    "/companies",
+    response_model=CompanyCreationResponse,
+    status_code=201,
+    responses={403: {"description": "Permission or group scope denied."}},
+)
+async def create_company(
+    body: CreateCompanyRequest,
+    request: Request,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[CorporateCreationService, Depends(get_corporate_creation_service)],
+    idempotency_key: Annotated[str, Depends(require_idempotency_key)],
+) -> CompanyCreationResponse:
+    result = await service.create_company(
+        context,
+        CreateCompanyCommand(
+            group_id=body.group_id,
+            code=body.code,
+            legal_name=body.legal_name,
+            trade_name=body.trade_name,
+            tax_id=body.tax_id,
+            timezone=body.timezone,
+            idempotency_key=idempotency_key,
+            metadata=_metadata(request),
+        ),
+    )
+    response.headers["Idempotency-Replayed"] = str(result.idempotency_replayed).lower()
+    response.headers["Location"] = f"/api/v1/admin/companies/{result.company.id}"
+    response.headers["ETag"] = f'"{result.company.version}"'
+    return CompanyCreationResponse(
+        company=_company_response(result.company),
+        event_id=result.event_id,
+        audit_event_id=result.audit_event_id,
+        idempotency_replayed=result.idempotency_replayed,
+    )
+
+
+@router.post(
+    "/branches",
+    response_model=BranchCreationResponse,
+    status_code=201,
+    responses={403: {"description": "Permission or company/group scope denied."}},
+)
+async def create_branch(
+    body: CreateBranchRequest,
+    request: Request,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[CorporateCreationService, Depends(get_corporate_creation_service)],
+    idempotency_key: Annotated[str, Depends(require_idempotency_key)],
+) -> BranchCreationResponse:
+    result = await service.create_branch(
+        context,
+        CreateBranchCommand(
+            company_id=body.company_id,
+            code=body.code,
+            name=body.name,
+            tax_id=body.tax_id,
+            timezone=body.timezone,
+            idempotency_key=idempotency_key,
+            metadata=_metadata(request),
+        ),
+    )
+    response.headers["Idempotency-Replayed"] = str(result.idempotency_replayed).lower()
+    response.headers["Location"] = f"/api/v1/admin/branches/{result.branch.id}"
+    response.headers["ETag"] = f'"{result.branch.version}"'
+    return BranchCreationResponse(
+        branch=BranchResponse(
+            id=result.branch.id,
+            company_id=result.branch.company_id,
+            code=result.branch.code,
+            name=result.branch.name,
+            tax_id=result.branch.tax_id,
+            timezone=result.branch.timezone,
+            status=result.branch.status,
+            version=result.branch.version,
+        ),
+        event_id=result.event_id,
+        audit_event_id=result.audit_event_id,
+        idempotency_replayed=result.idempotency_replayed,
+    )
+
+
 def _company_response(company: CompanyView) -> CompanyResponse:
     return CompanyResponse(
         id=company.id,
@@ -107,6 +249,14 @@ def _company_response(company: CompanyView) -> CompanyResponse:
         timezone=company.timezone,
         status=company.status,
         version=company.version,
+    )
+
+
+def _metadata(request: Request) -> RequestMetadata:
+    return RequestMetadata(
+        request_id=UUID(request.state.request_id),
+        correlation_id=UUID(request.state.correlation_id),
+        source_ip=request.client.host if request.client is not None else None,
     )
 
 

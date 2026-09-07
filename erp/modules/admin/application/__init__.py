@@ -13,6 +13,16 @@ from erp.modules.admin.application.auth_ports import (
     TokenService,
 )
 from erp.modules.admin.application.auth_service import AuthenticationService
+from erp.modules.admin.application.corporate_command_dto import (
+    BranchCreationResult,
+    BranchView,
+    CompanyCreationResult,
+    CreateBranchCommand,
+    CreateCompanyCommand,
+    RequestMetadata,
+)
+from erp.modules.admin.application.corporate_command_ports import CorporateCommandStore
+from erp.modules.admin.application.corporate_command_service import CorporateCreationService
 from erp.modules.admin.application.corporate_dto import CompanyView
 from erp.modules.admin.application.corporate_permissions import (
     ADMIN_BRANCH_CREATE,
@@ -38,13 +48,21 @@ __all__ = [
     "ADMIN_ECONOMIC_GROUP_READ",
     "AuthenticationResult",
     "AuthenticationService",
+    "BranchCreationResult",
+    "BranchView",
+    "CompanyCreationResult",
     "CompanyView",
+    "CorporateCommandStore",
+    "CorporateCreationService",
     "CorporateDirectory",
+    "CreateBranchCommand",
+    "CreateCompanyCommand",
     "IdentityRepository",
     "ListCompaniesService",
     "LoginCommand",
     "PasswordVerifier",
     "RefreshTokenClaims",
+    "RequestMetadata",
     "SecurityContext",
     "SecurityContextResolver",
     "SessionRepository",

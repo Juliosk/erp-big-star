@@ -11,6 +11,9 @@ from erp.modules.admin.infrastructure.corporate_models import (
     EconomicGroupModel,
 )
 from erp.modules.admin.infrastructure.economic_group_repository import EconomicGroupRepository
+from erp.modules.admin.infrastructure.postgres_corporate_commands import (
+    PostgresCorporateCommandStore,
+)
 from erp.modules.admin.infrastructure.postgres_corporate_directory import (
     PostgresCorporateDirectory,
 )
@@ -23,5 +26,6 @@ __all__ = [
     "CorporateDirectoryRepository",
     "EconomicGroupModel",
     "EconomicGroupRepository",
+    "PostgresCorporateCommandStore",
     "PostgresCorporateDirectory",
 ]
