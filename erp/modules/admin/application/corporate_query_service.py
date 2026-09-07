@@ -6,7 +6,7 @@ from erp.modules.admin.application.corporate_permissions import (
     ADMIN_COMPANY_READ,
     corporate_permission_registry,
 )
-from erp.modules.admin.application.corporate_ports import CorporateDirectory
+from erp.modules.admin.application.corporate_ports import CompanyDirectory
 from erp.modules.admin.application.security import SecurityContext
 from erp.modules.admin.domain import AuthorizationPolicy, CorporateStatus
 
@@ -16,7 +16,7 @@ class ListCompaniesService:
 
     def __init__(
         self,
-        directory: CorporateDirectory,
+        directory: CompanyDirectory,
         policy: AuthorizationPolicy | None = None,
     ) -> None:
         self._directory = directory

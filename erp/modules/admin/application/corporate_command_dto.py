@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Any, Self
 from uuid import UUID
 
-from erp.modules.admin.application.corporate_dto import CompanyView
-from erp.modules.admin.domain import Branch, CorporateStatus
+from erp.modules.admin.application.corporate_dto import BranchView, CompanyView
+from erp.modules.admin.domain import CorporateStatus
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,31 +119,6 @@ class CompanyCreationResult:
 
 
 @dataclass(frozen=True, slots=True)
-class BranchView:
-    id: UUID
-    company_id: UUID
-    code: str
-    name: str
-    tax_id: str
-    timezone: str
-    status: CorporateStatus
-    version: int
-
-    @classmethod
-    def from_domain(cls, branch: Branch) -> Self:
-        return cls(
-            id=branch.id,
-            company_id=branch.company_id,
-            code=branch.code,
-            name=branch.name,
-            tax_id=str(branch.tax_id),
-            timezone=branch.timezone,
-            status=branch.status,
-            version=branch.version,
-        )
-
-
-@dataclass(frozen=True, slots=True)
 class BranchCreationResult:
     branch: BranchView
     event_id: UUID
@@ -248,7 +223,6 @@ def _mapping(payload: dict[str, Any], key: str) -> dict[str, Any]:
 __all__ = [
     "BranchCreationResult",
     "BranchUpdateResult",
-    "BranchView",
     "CompanyCreationResult",
     "CompanyUpdateResult",
     "CreateBranchCommand",

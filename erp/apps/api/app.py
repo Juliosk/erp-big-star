@@ -11,6 +11,7 @@ from erp.apps.api.routes import health_router
 from erp.modules.admin.api import router as admin_router
 from erp.modules.admin.application import (
     CorporateCreationService,
+    CorporateHierarchyService,
     ListCompaniesService,
     SecurityContextResolver,
 )
@@ -40,6 +41,7 @@ def create_app(
     *,
     company_query_service: ListCompaniesService | None = None,
     corporate_creation_service: CorporateCreationService | None = None,
+    corporate_hierarchy_service: CorporateHierarchyService | None = None,
     security_context_resolver: SecurityContextResolver | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
@@ -49,6 +51,7 @@ def create_app(
     resolved_test_entity_service = test_entity_service
     resolved_company_query_service = company_query_service
     resolved_corporate_creation_service = corporate_creation_service
+    resolved_corporate_hierarchy_service = corporate_hierarchy_service
     if resolved_test_entity_service is None and isinstance(resolved_database, Database):
         resolved_test_entity_service = CreateTestEntityService(
             persistence=PostgresTestEntityPersistence(
@@ -67,6 +70,10 @@ def create_app(
                 resolved_database,
                 idempotency_ttl_seconds=resolved_settings.idempotency_ttl_seconds,
             )
+        )
+    if resolved_corporate_hierarchy_service is None and isinstance(resolved_database, Database):
+        resolved_corporate_hierarchy_service = CorporateHierarchyService(
+            PostgresCorporateDirectory(resolved_database)
         )
     configure_logging(resolved_settings)
 
@@ -93,6 +100,7 @@ def create_app(
     application.state.test_entity_service = resolved_test_entity_service
     application.state.company_query_service = resolved_company_query_service
     application.state.corporate_creation_service = resolved_corporate_creation_service
+    application.state.corporate_hierarchy_service = resolved_corporate_hierarchy_service
     application.state.security_context_resolver = security_context_resolver
     register_error_handlers(application)
     application.include_router(health_router)

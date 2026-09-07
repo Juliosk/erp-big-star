@@ -9,8 +9,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 from erp.modules.admin.application import (
+    BranchView,
     CompanyView,
     CorporateCreationService,
+    CorporateHierarchyService,
     CreateBranchCommand,
     CreateCompanyCommand,
     ListCompaniesService,
@@ -112,6 +114,36 @@ class BranchUpdateResponse(BaseModel):
     audit_event_id: UUID
 
 
+class EconomicGroupResponse(BaseModel):
+    id: UUID
+    code: str
+    name: str
+    status: CorporateStatus
+    version: int
+
+
+class EconomicGroupListResponse(BaseModel):
+    items: list[EconomicGroupResponse]
+
+
+class BranchListResponse(BaseModel):
+    items: list[BranchResponse]
+
+
+class CompanySelectorCompanyResponse(BaseModel):
+    company: CompanyResponse
+    branches: list[BranchResponse]
+
+
+class CompanySelectorGroupResponse(BaseModel):
+    group: EconomicGroupResponse
+    companies: list[CompanySelectorCompanyResponse]
+
+
+class CompanySelectorResponse(BaseModel):
+    groups: list[CompanySelectorGroupResponse]
+
+
 async def resolve_security_context(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
@@ -159,6 +191,17 @@ def get_corporate_creation_service(request: Request) -> CorporateCreationService
         raise ApplicationError(
             code="CORPORATE_COMMAND_UNAVAILABLE",
             message="Corporate commands are unavailable.",
+            status_code=503,
+        )
+    return service
+
+
+def get_corporate_hierarchy_service(request: Request) -> CorporateHierarchyService:
+    service = getattr(request.app.state, "corporate_hierarchy_service", None)
+    if not isinstance(service, CorporateHierarchyService):
+        raise ApplicationError(
+            code="CORPORATE_QUERY_UNAVAILABLE",
+            message="The corporate hierarchy is unavailable.",
             status_code=503,
         )
     return service
@@ -370,6 +413,79 @@ async def update_branch(
     )
 
 
+@router.get("/economic-groups", response_model=EconomicGroupListResponse)
+async def list_economic_groups(
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[CorporateHierarchyService, Depends(get_corporate_hierarchy_service)],
+    status: Annotated[CorporateStatus | None, Query()] = None,
+) -> EconomicGroupListResponse:
+    groups = await service.list_groups(context, status=status)
+    return EconomicGroupListResponse(
+        items=[
+            EconomicGroupResponse(
+                id=group.id,
+                code=group.code,
+                name=group.name,
+                status=group.status,
+                version=group.version,
+            )
+            for group in groups
+        ]
+    )
+
+
+@router.get("/companies/{company_id}", response_model=CompanyResponse)
+async def get_company(
+    company_id: UUID,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[CorporateHierarchyService, Depends(get_corporate_hierarchy_service)],
+) -> CompanyResponse:
+    company = await service.get_company(context, company_id)
+    response.headers["ETag"] = f'"{company.version}"'
+    return _company_response(company)
+
+
+@router.get("/branches", response_model=BranchListResponse)
+async def list_branches(
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[CorporateHierarchyService, Depends(get_corporate_hierarchy_service)],
+    company_id: Annotated[UUID | None, Query()] = None,
+    status: Annotated[CorporateStatus | None, Query()] = None,
+) -> BranchListResponse:
+    branches = await service.list_branches(context, company_id=company_id, status=status)
+    return BranchListResponse(items=[_branch_response(branch) for branch in branches])
+
+
+@router.get("/company-selector", response_model=CompanySelectorResponse)
+async def get_company_selector(
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[CorporateHierarchyService, Depends(get_corporate_hierarchy_service)],
+) -> CompanySelectorResponse:
+    selector = await service.company_selector(context)
+    return CompanySelectorResponse(
+        groups=[
+            CompanySelectorGroupResponse(
+                group=EconomicGroupResponse(
+                    id=group_node.group.id,
+                    code=group_node.group.code,
+                    name=group_node.group.name,
+                    status=group_node.group.status,
+                    version=group_node.group.version,
+                ),
+                companies=[
+                    CompanySelectorCompanyResponse(
+                        company=_company_response(company_node.company),
+                        branches=[_branch_response(branch) for branch in company_node.branches],
+                    )
+                    for company_node in group_node.companies
+                ],
+            )
+            for group_node in selector.groups
+        ]
+    )
+
+
 def _company_response(company: CompanyView) -> CompanyResponse:
     return CompanyResponse(
         id=company.id,
@@ -381,6 +497,19 @@ def _company_response(company: CompanyView) -> CompanyResponse:
         timezone=company.timezone,
         status=company.status,
         version=company.version,
+    )
+
+
+def _branch_response(branch: BranchView) -> BranchResponse:
+    return BranchResponse(
+        id=branch.id,
+        company_id=branch.company_id,
+        code=branch.code,
+        name=branch.name,
+        tax_id=branch.tax_id,
+        timezone=branch.timezone,
+        status=branch.status,
+        version=branch.version,
     )
 
 
