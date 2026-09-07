@@ -35,6 +35,7 @@ from erp.modules.admin.domain.role import (
 )
 from erp.modules.admin.domain.scope import Scope, ScopeType, UserScope
 from erp.modules.admin.domain.tax_id import Cnpj
+from erp.modules.admin.domain.tenant_context import TenantContext
 
 __all__ = [
     "AuthenticatedPrincipal",
@@ -64,6 +65,7 @@ __all__ = [
     "Scope",
     "ScopeType",
     "Session",
+    "TenantContext",
     "UserIdentity",
     "UserScope",
     "resolve_active_permissions",

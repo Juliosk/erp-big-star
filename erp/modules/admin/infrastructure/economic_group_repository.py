@@ -7,7 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 
-from erp.modules.admin.domain import CorporateStatus, EconomicGroup
+from erp.modules.admin.domain import EconomicGroup
+from erp.modules.admin.infrastructure.corporate_mapping import economic_group_from_model
 from erp.modules.admin.infrastructure.corporate_models import EconomicGroupModel
 from erp.platform.concurrency import OptimisticLockError
 
@@ -42,7 +43,7 @@ class EconomicGroupRepository:
             select(EconomicGroupModel).where(EconomicGroupModel.id == group_id)
         )
         model = result.one_or_none()
-        return None if model is None else self._to_domain(model)
+        return None if model is None else economic_group_from_model(model)
 
     async def save(
         self,
@@ -65,17 +66,7 @@ class EconomicGroupRepository:
             await session.flush()
         except StaleDataError as error:
             raise OptimisticLockError(expected_version=expected_version) from error
-        return self._to_domain(model)
-
-    @staticmethod
-    def _to_domain(model: EconomicGroupModel) -> EconomicGroup:
-        return EconomicGroup(
-            id=model.id,
-            code=model.code,
-            name=model.name,
-            status=CorporateStatus(model.status),
-            version=model.version,
-        )
+        return economic_group_from_model(model)
 
 
 __all__ = ["EconomicGroupRepository"]

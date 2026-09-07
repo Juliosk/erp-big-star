@@ -7,7 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 
-from erp.modules.admin.domain import Branch, Cnpj, CorporateStatus
+from erp.modules.admin.domain import Branch
+from erp.modules.admin.infrastructure.corporate_mapping import branch_from_model
 from erp.modules.admin.infrastructure.corporate_models import BranchModel
 from erp.platform.concurrency import OptimisticLockError
 
@@ -43,7 +44,7 @@ class BranchRepository:
         """Load one branch by technical identity."""
         result = await session.scalars(select(BranchModel).where(BranchModel.id == branch_id))
         model = result.one_or_none()
-        return None if model is None else self._to_domain(model)
+        return None if model is None else branch_from_model(model)
 
     async def save(
         self,
@@ -69,20 +70,7 @@ class BranchRepository:
             await session.flush()
         except StaleDataError as error:
             raise OptimisticLockError(expected_version=expected_version) from error
-        return self._to_domain(model)
-
-    @staticmethod
-    def _to_domain(model: BranchModel) -> Branch:
-        return Branch(
-            id=model.id,
-            company_id=model.company_id,
-            code=model.code,
-            name=model.name,
-            tax_id=Cnpj(model.tax_id),
-            timezone=model.timezone,
-            status=CorporateStatus(model.status),
-            version=model.version,
-        )
+        return branch_from_model(model)
 
 
 __all__ = ["BranchRepository"]

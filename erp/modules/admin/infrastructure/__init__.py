@@ -2,6 +2,9 @@
 
 from erp.modules.admin.infrastructure.branch_repository import BranchRepository
 from erp.modules.admin.infrastructure.company_repository import CompanyRepository
+from erp.modules.admin.infrastructure.corporate_directory_repository import (
+    CorporateDirectoryRepository,
+)
 from erp.modules.admin.infrastructure.corporate_models import (
     BranchModel,
     CompanyModel,
@@ -14,6 +17,7 @@ __all__ = [
     "BranchRepository",
     "CompanyModel",
     "CompanyRepository",
+    "CorporateDirectoryRepository",
     "EconomicGroupModel",
     "EconomicGroupRepository",
 ]

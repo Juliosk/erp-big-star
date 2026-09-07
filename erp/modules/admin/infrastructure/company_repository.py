@@ -7,7 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 
-from erp.modules.admin.domain import Cnpj, Company, CorporateStatus
+from erp.modules.admin.domain import Company
+from erp.modules.admin.infrastructure.corporate_mapping import company_from_model
 from erp.modules.admin.infrastructure.corporate_models import CompanyModel
 from erp.platform.concurrency import OptimisticLockError
 
@@ -44,7 +45,7 @@ class CompanyRepository:
         """Load one company by technical identity."""
         result = await session.scalars(select(CompanyModel).where(CompanyModel.id == company_id))
         model = result.one_or_none()
-        return None if model is None else self._to_domain(model)
+        return None if model is None else company_from_model(model)
 
     async def save(
         self,
@@ -71,21 +72,7 @@ class CompanyRepository:
             await session.flush()
         except StaleDataError as error:
             raise OptimisticLockError(expected_version=expected_version) from error
-        return self._to_domain(model)
-
-    @staticmethod
-    def _to_domain(model: CompanyModel) -> Company:
-        return Company(
-            id=model.id,
-            group_id=model.group_id,
-            code=model.code,
-            legal_name=model.legal_name,
-            trade_name=model.trade_name,
-            tax_id=Cnpj(model.tax_id),
-            timezone=model.timezone,
-            status=CorporateStatus(model.status),
-            version=model.version,
-        )
+        return company_from_model(model)
 
 
 __all__ = ["CompanyRepository"]

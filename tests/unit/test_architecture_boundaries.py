@@ -8,6 +8,7 @@ import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DOMAIN_FILES = sorted((PROJECT_ROOT / "erp" / "modules").glob("*/domain/**/*.py"))
+APPLICATION_FILES = sorted((PROJECT_ROOT / "erp" / "modules").glob("*/application/**/*.py"))
 FORBIDDEN_INFRASTRUCTURE_PREFIXES = (
     "celery",
     "fastapi",
@@ -44,5 +45,22 @@ def test_domain_imports_do_not_cross_infrastructure_boundaries(domain_file: Path
         is_module_infrastructure = ".infrastructure" in imported_module
         if is_forbidden_technology or is_cross_module or is_module_infrastructure:
             violations.append(imported_module)
+
+    assert violations == []
+
+
+@pytest.mark.parametrize("application_file", APPLICATION_FILES, ids=lambda path: path.name)
+def test_application_imports_do_not_depend_on_adapters_or_frameworks(
+    application_file: Path,
+) -> None:
+    imported = imported_modules(application_file.read_text(encoding="utf-8"))
+    forbidden_frameworks = ("aio_pika", "celery", "fastapi", "sqlalchemy")
+    violations = [
+        imported_module
+        for imported_module in imported
+        if imported_module.startswith(forbidden_frameworks)
+        or ".api" in imported_module
+        or ".infrastructure" in imported_module
+    ]
 
     assert violations == []
