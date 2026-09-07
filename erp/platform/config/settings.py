@@ -3,7 +3,7 @@
 from enum import StrEnum
 from functools import lru_cache
 
-from pydantic import Field, SecretStr
+from pydantic import Field, PositiveInt, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -51,6 +51,24 @@ class Settings(BaseSettings):
     database_pool_size: int = Field(default=5, ge=1)
     database_max_overflow: int = Field(default=10, ge=0)
     database_pool_timeout: float = Field(default=30.0, gt=0)
+
+    rabbitmq_host: str = "127.0.0.1"
+    rabbitmq_amqp_port: int = Field(default=5672, ge=1, le=65535)
+    rabbitmq_default_user: str = "erp_app"
+    rabbitmq_default_pass: SecretStr = SecretStr("")
+    rabbitmq_virtual_host: str = "/"
+    rabbitmq_connection_timeout_seconds: float = Field(default=5.0, gt=0)
+    rabbitmq_prefetch_count: int = Field(default=20, ge=1)
+    rabbitmq_events_exchange: str = "erp.events"
+    rabbitmq_requests_exchange: str = "erp.requests"
+    rabbitmq_retry_exchange: str = "erp.retry"
+    rabbitmq_dead_letter_exchange: str = "erp.dlx"
+    rabbitmq_retry_delays_ms: tuple[
+        PositiveInt,
+        PositiveInt,
+        PositiveInt,
+        PositiveInt,
+    ] = (30_000, 120_000, 300_000, 900_000)
 
 
 @lru_cache(maxsize=1)

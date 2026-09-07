@@ -27,6 +27,10 @@ jobs:
       POSTGRES_USER: erp_app
       POSTGRES_PASSWORD: ci_only_postgres_password
       READINESS_DATABASE_TIMEOUT_SECONDS: 5
+      RABBITMQ_HOST: 127.0.0.1
+      RABBITMQ_AMQP_PORT: 5672
+      RABBITMQ_DEFAULT_USER: erp_app
+      RABBITMQ_DEFAULT_PASS: ci_only_rabbitmq_password
 
     services:
       postgres:
@@ -39,6 +43,18 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U erp_app -d erp_oltp"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      rabbitmq:
+        image: rabbitmq:4.2.9-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: erp_app
+          RABBITMQ_DEFAULT_PASS: ci_only_rabbitmq_password
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
