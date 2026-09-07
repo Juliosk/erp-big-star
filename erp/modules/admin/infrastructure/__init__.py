@@ -10,6 +10,12 @@ from erp.modules.admin.infrastructure.corporate_models import (
     CompanyModel,
     EconomicGroupModel,
 )
+from erp.modules.admin.infrastructure.corporate_projection import (
+    CORPORATE_PROJECTOR,
+    CorporateEventProjectionModel,
+    CorporateProjectionConsumer,
+)
+from erp.modules.admin.infrastructure.corporate_transport import RabbitCorporateEventTransport
 from erp.modules.admin.infrastructure.economic_group_repository import EconomicGroupRepository
 from erp.modules.admin.infrastructure.postgres_corporate_commands import (
     PostgresCorporateCommandStore,
@@ -19,13 +25,17 @@ from erp.modules.admin.infrastructure.postgres_corporate_directory import (
 )
 
 __all__ = [
+    "CORPORATE_PROJECTOR",
     "BranchModel",
     "BranchRepository",
     "CompanyModel",
     "CompanyRepository",
     "CorporateDirectoryRepository",
+    "CorporateEventProjectionModel",
+    "CorporateProjectionConsumer",
     "EconomicGroupModel",
     "EconomicGroupRepository",
     "PostgresCorporateCommandStore",
     "PostgresCorporateDirectory",
+    "RabbitCorporateEventTransport",
 ]
