@@ -19,7 +19,8 @@ def test_project_metadata_declares_python_baseline() -> None:
     assert project["requires-python"] == ">=3.14,<3.15"
 
 
-def test_runtime_dependencies_start_empty() -> None:
+def test_runtime_dependencies_are_version_pinned() -> None:
     project = _project_configuration()["project"]
 
-    assert project["dependencies"] == []
+    assert project["dependencies"]
+    assert all("==" in dependency for dependency in project["dependencies"])

@@ -4,11 +4,15 @@ version = "0.1.0"
 description = "ERP modular monolith for Big Star and Forma Kids."
 readme = "README.md"
 requires-python = ">=3.14,<3.15"
-dependencies = []
+dependencies = [
+    "fastapi==0.141.1",
+    "uvicorn[standard]==0.52.4",
+]
 
 [dependency-groups]
 dev = [
     "coverage[toml]==7.16.0",
+    "httpx2==2.12.0",
     "mypy==2.3.1",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
@@ -61,6 +65,7 @@ exclude = ['^Arquivos[ ]\.MD[\\/]']
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "--strict-markers", "-ra"]
+pythonpath = ["."]
 testpaths = ["tests"]
 
 [tool.coverage.run]
@@ -77,4 +82,3 @@ exclude_also = [
 fail_under = 80
 show_missing = true
 skip_covered = true
-
