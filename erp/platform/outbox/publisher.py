@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -59,6 +60,36 @@ class OutboxPublisher:
                 published += 1
         await session.flush()
         return PublishBatchResult(published=published, failed=failed)
+
+    async def publish_event(self, session: AsyncSession, event_id: UUID) -> PublishBatchResult:
+        """Publish one deterministic pending event and record its confirmed outcome."""
+        event = await self._repository.claim_by_event_id(session, event_id)
+        if event is None:
+            return PublishBatchResult(published=0, failed=0)
+        envelope = MessageEnvelope.model_validate(event.payload)
+        routing_key = str(
+            event.headers.get("routing_key")
+            or build_routing_key(
+                domain=envelope.producer_domain,
+                aggregate=envelope.aggregate_type.replace("_", "-"),
+                action=action_from_message_type(envelope.message_type),
+                version=envelope.event_version,
+            )
+        )
+        try:
+            await self._broker.publish(
+                envelope,
+                routing_key=routing_key,
+                headers=event.headers,
+            )
+        except Exception as error:
+            self._repository.mark_failed(event, error_summary=type(error).__name__)
+            result = PublishBatchResult(published=0, failed=1)
+        else:
+            self._repository.mark_published(event, published_at=datetime.now(UTC))
+            result = PublishBatchResult(published=1, failed=0)
+        await session.flush()
+        return result
 
 
 __all__ = ["OutboxPublisher", "PublishBatchResult"]

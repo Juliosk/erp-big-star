@@ -34,6 +34,22 @@ class OutboxRepository:
         result = await session.scalars(statement)
         return list(result)
 
+    async def claim_by_event_id(
+        self,
+        session: AsyncSession,
+        event_id: UUID,
+    ) -> OutboxEventModel | None:
+        """Lock one still-pending event for deterministic acceptance workflows."""
+        result = await session.scalars(
+            select(OutboxEventModel)
+            .where(
+                OutboxEventModel.event_id == event_id,
+                OutboxEventModel.published_at.is_(None),
+            )
+            .with_for_update(skip_locked=True)
+        )
+        return result.one_or_none()
+
     async def get_by_event_id(
         self,
         session: AsyncSession,

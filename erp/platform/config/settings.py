@@ -70,6 +70,14 @@ class Settings(BaseSettings):
         PositiveInt,
     ] = (30_000, 120_000, 300_000, 900_000)
     idempotency_ttl_seconds: int = Field(default=86_400, ge=60)
+    enable_platform_test_endpoint: bool | None = None
+
+    @property
+    def platform_test_endpoint_enabled(self) -> bool:
+        """Enable the disposable golden-flow endpoint only outside production by default."""
+        if self.enable_platform_test_endpoint is not None:
+            return self.enable_platform_test_endpoint
+        return self.environment in {Environment.LOCAL, Environment.TEST}
 
 
 @lru_cache(maxsize=1)
