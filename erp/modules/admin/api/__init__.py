@@ -1,3 +1,5 @@
-"""HTTP adapters for M1; routes are added only with complete application wiring."""
+"""HTTP adapters for M1."""
 
-__all__: list[str] = []
+from erp.modules.admin.api.router import router
+
+__all__ = ["router"]
