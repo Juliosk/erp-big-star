@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from erp.apps.api.middleware import CorrelationIdMiddleware, RequestIdMiddleware
 from erp.apps.api.routes import health_router
 from erp.platform.config import Settings, get_settings
 from erp.platform.database import Database, ManagedDatabase
@@ -43,6 +44,9 @@ def create_app(
     application.state.settings = resolved_settings
     application.state.database = resolved_database
     application.include_router(health_router)
+    # Starlette wraps the last-added middleware first: Request ID must be outermost.
+    application.add_middleware(CorrelationIdMiddleware)
+    application.add_middleware(RequestIdMiddleware)
     return application
 
 
