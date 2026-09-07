@@ -5,10 +5,11 @@ arquitetura consolidada e o README de governança técnica em `Arquivos .MD/`.
 
 ## Estado atual
 
-- Wave: `W0 — Engineering Foundation`
-- Sprint: `0 — Repository Bootstrap`
-- Implementado nesta baseline: Commit 001 e infraestrutura local do Commit 010
-- Fora do escopo até validação: FastAPI, rotas, middleware, workers e domínios M1–M23
+- Wave: `W1 — Corporate Foundation`
+- Sprint concluída: `2 — M1 Corporate Foundation`
+- Schema atual: Alembic `0009`
+- APIs atuais: health checks e contexto corporativo `/api/v1/admin`
+- Próxima entrega depende da homologação formal desta Sprint.
 
 ## Baseline Python
 
@@ -24,8 +25,8 @@ uv run mypy .
 uv run pytest
 ```
 
-Dependências de runtime serão adicionadas pelo commit que introduzir a respectiva
-capacidade. Por isso, o Commit 001 contém apenas a toolchain de desenvolvimento.
+As dependências permanecem travadas em `uv.lock`; mudanças de runtime entram apenas no commit que
+introduz e testa a capacidade correspondente.
 
 ## Infraestrutura local
 
@@ -40,7 +41,7 @@ docker compose ps
 O arquivo `.env` é ignorado pelo Git. Os valores de `.env.example` destinam-se somente
 ao desenvolvimento local e devem ser alterados antes de qualquer ambiente compartilhado.
 
-## Estrutura arquitetural reservada
+## Estrutura arquitetural
 
 A estrutura produtiva seguirá a baseline aprovada:
 
@@ -55,6 +56,5 @@ docker/      # artefatos auxiliares de containers
 docs/        # ADRs e documentação técnica
 ```
 
-Esses diretórios serão materializados nos commits que introduzirem cada capacidade,
-evitando scaffolding vazio e dependências prematuras.
-
+Consulte [a operação da Sprint 2](docs/sprint-2-corporate-foundation.md) para rotas, segurança,
+eventos, migrations e gate de validação.

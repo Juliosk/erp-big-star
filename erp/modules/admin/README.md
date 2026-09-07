@@ -30,7 +30,12 @@ deletion is restricted.
 - Sprint 2 commit 021: domain aggregates and invariants.
 - Sprint 2 commit 022: PostgreSQL mappings, repositories and migration `0007`.
 - Sprint 2 commit 023: explicit tenant context and scope-filtered directory reads.
-- Planned next: `/api/v1/admin` use cases, permissions, audit, idempotency and domain events.
+- Sprint 2 commit 024: official company query with Bearer, RBAC and Error Contract.
+- Sprint 2 commits 025–026: idempotent creation and versioned updates with Audit/Outbox.
+- Sprint 2 commit 027: group, branch and Company Selector query contracts.
+- Sprint 2 commit 028: Inbox-idempotent corporate event projection.
+- Sprint 2 commit 029: operational documentation and retirement of the test endpoint.
 
 Operational checks: apply migrations with `alembic upgrade head`; prove schema parity with
-`alembic check`; run unit and PostgreSQL integration tests before delivery.
+`alembic check`; run unit and PostgreSQL/RabbitMQ integration tests before delivery. The complete
+runbook is in `docs/sprint-2-corporate-foundation.md`.
