@@ -3,14 +3,20 @@
 from erp.modules.admin.application.authorization import require_permission
 from erp.modules.admin.application.corporate_command_dto import (
     BranchCreationResult,
+    BranchUpdateResult,
     CompanyCreationResult,
+    CompanyUpdateResult,
     CreateBranchCommand,
     CreateCompanyCommand,
+    UpdateBranchCommand,
+    UpdateCompanyCommand,
 )
 from erp.modules.admin.application.corporate_command_ports import CorporateCommandStore
 from erp.modules.admin.application.corporate_permissions import (
     ADMIN_BRANCH_CREATE,
+    ADMIN_BRANCH_UPDATE,
     ADMIN_COMPANY_CREATE,
+    ADMIN_COMPANY_UPDATE,
     corporate_permission_registry,
 )
 from erp.modules.admin.application.security import SecurityContext
@@ -52,6 +58,30 @@ class CorporateCreationService:
             permission=ADMIN_BRANCH_CREATE,
         )
         return await self._store.create_branch(command, context.tenant_context())
+
+    async def update_company(
+        self,
+        context: SecurityContext,
+        command: UpdateCompanyCommand,
+    ) -> CompanyUpdateResult:
+        require_permission(
+            policy=self._policy,
+            context=context,
+            permission=ADMIN_COMPANY_UPDATE,
+        )
+        return await self._store.update_company(command, context.tenant_context())
+
+    async def update_branch(
+        self,
+        context: SecurityContext,
+        command: UpdateBranchCommand,
+    ) -> BranchUpdateResult:
+        require_permission(
+            policy=self._policy,
+            context=context,
+            permission=ADMIN_BRANCH_UPDATE,
+        )
+        return await self._store.update_branch(command, context.tenant_context())
 
 
 __all__ = ["CorporateCreationService"]

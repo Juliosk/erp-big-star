@@ -1,9 +1,10 @@
 """HTTP boundary for M1 corporate administration."""
 
+import re
 from typing import Annotated, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
@@ -16,6 +17,8 @@ from erp.modules.admin.application import (
     RequestMetadata,
     SecurityContext,
     SecurityContextResolver,
+    UpdateBranchCommand,
+    UpdateCompanyCommand,
 )
 from erp.modules.admin.domain import CorporateStatus
 from erp.platform.errors import ApplicationError
@@ -23,6 +26,7 @@ from erp.platform.idempotency import require_idempotency_key
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin-corporate"])
 bearer = HTTPBearer(auto_error=False)
+IF_MATCH_PATTERN = re.compile(r'^"([1-9][0-9]*)"$')
 
 
 class CompanyResponse(BaseModel):
@@ -83,6 +87,31 @@ class BranchCreationResponse(BaseModel):
     idempotency_replayed: bool
 
 
+class UpdateCompanyRequest(BaseModel):
+    legal_name: str | None = Field(default=None, min_length=1, max_length=200)
+    trade_name: str | None = Field(default=None, min_length=1, max_length=200)
+    timezone: str | None = Field(default=None, min_length=1, max_length=100)
+    status: CorporateStatus | None = None
+
+
+class UpdateBranchRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    timezone: str | None = Field(default=None, min_length=1, max_length=100)
+    status: CorporateStatus | None = None
+
+
+class CompanyUpdateResponse(BaseModel):
+    company: CompanyResponse
+    event_id: UUID
+    audit_event_id: UUID
+
+
+class BranchUpdateResponse(BaseModel):
+    branch: BranchResponse
+    event_id: UUID
+    audit_event_id: UUID
+
+
 async def resolve_security_context(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
@@ -133,6 +162,26 @@ def get_corporate_creation_service(request: Request) -> CorporateCreationService
             status_code=503,
         )
     return service
+
+
+async def require_if_match(
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> int:
+    """Require the quoted positive aggregate version used by critical PATCHes."""
+    if if_match is None:
+        raise ApplicationError(
+            code="PRECONDITION_REQUIRED",
+            message="If-Match with the current quoted version is required.",
+            status_code=428,
+        )
+    matched = IF_MATCH_PATTERN.fullmatch(if_match.strip())
+    if matched is None:
+        raise ApplicationError(
+            code="INVALID_IF_MATCH",
+            message='If-Match must contain a quoted positive version, for example "7".',
+            status_code=400,
+        )
+    return int(matched.group(1))
 
 
 @router.get(
@@ -235,6 +284,89 @@ async def create_branch(
         event_id=result.event_id,
         audit_event_id=result.audit_event_id,
         idempotency_replayed=result.idempotency_replayed,
+    )
+
+
+@router.patch(
+    "/companies/{company_id}",
+    response_model=CompanyUpdateResponse,
+    responses={
+        409: {"description": "The If-Match version is stale."},
+        428: {"description": "If-Match is required."},
+    },
+)
+async def update_company(
+    company_id: UUID,
+    body: UpdateCompanyRequest,
+    request: Request,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[CorporateCreationService, Depends(get_corporate_creation_service)],
+    expected_version: Annotated[int, Depends(require_if_match)],
+) -> CompanyUpdateResponse:
+    result = await service.update_company(
+        context,
+        UpdateCompanyCommand(
+            company_id=company_id,
+            expected_version=expected_version,
+            legal_name=body.legal_name,
+            trade_name=body.trade_name,
+            trade_name_supplied="trade_name" in body.model_fields_set,
+            timezone=body.timezone,
+            status=body.status,
+            metadata=_metadata(request),
+        ),
+    )
+    response.headers["ETag"] = f'"{result.company.version}"'
+    return CompanyUpdateResponse(
+        company=_company_response(result.company),
+        event_id=result.event_id,
+        audit_event_id=result.audit_event_id,
+    )
+
+
+@router.patch(
+    "/branches/{branch_id}",
+    response_model=BranchUpdateResponse,
+    responses={
+        409: {"description": "The If-Match version is stale."},
+        428: {"description": "If-Match is required."},
+    },
+)
+async def update_branch(
+    branch_id: UUID,
+    body: UpdateBranchRequest,
+    request: Request,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[CorporateCreationService, Depends(get_corporate_creation_service)],
+    expected_version: Annotated[int, Depends(require_if_match)],
+) -> BranchUpdateResponse:
+    result = await service.update_branch(
+        context,
+        UpdateBranchCommand(
+            branch_id=branch_id,
+            expected_version=expected_version,
+            name=body.name,
+            timezone=body.timezone,
+            status=body.status,
+            metadata=_metadata(request),
+        ),
+    )
+    response.headers["ETag"] = f'"{result.branch.version}"'
+    return BranchUpdateResponse(
+        branch=BranchResponse(
+            id=result.branch.id,
+            company_id=result.branch.company_id,
+            code=result.branch.code,
+            name=result.branch.name,
+            tax_id=result.branch.tax_id,
+            timezone=result.branch.timezone,
+            status=result.branch.status,
+            version=result.branch.version,
+        ),
+        event_id=result.event_id,
+        audit_event_id=result.audit_event_id,
     )
 
 

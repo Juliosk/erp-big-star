@@ -58,6 +58,41 @@ class CreateBranchCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class UpdateCompanyCommand:
+    company_id: UUID
+    expected_version: int
+    legal_name: str | None
+    trade_name: str | None
+    trade_name_supplied: bool
+    timezone: str | None
+    status: CorporateStatus | None
+    metadata: RequestMetadata
+
+    def has_changes(self) -> bool:
+        return any(
+            (
+                self.legal_name is not None,
+                self.trade_name_supplied,
+                self.timezone is not None,
+                self.status is not None,
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateBranchCommand:
+    branch_id: UUID
+    expected_version: int
+    name: str | None
+    timezone: str | None
+    status: CorporateStatus | None
+    metadata: RequestMetadata
+
+    def has_changes(self) -> bool:
+        return any((self.name is not None, self.timezone is not None, self.status is not None))
+
+
+@dataclass(frozen=True, slots=True)
 class CompanyCreationResult:
     company: CompanyView
     event_id: UUID
@@ -134,6 +169,20 @@ class BranchCreationResult:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class CompanyUpdateResult:
+    company: CompanyView
+    event_id: UUID
+    audit_event_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class BranchUpdateResult:
+    branch: BranchView
+    event_id: UUID
+    audit_event_id: UUID
+
+
 def _company_dict(company: CompanyView) -> dict[str, object]:
     return {
         "id": str(company.id),
@@ -198,9 +247,13 @@ def _mapping(payload: dict[str, Any], key: str) -> dict[str, Any]:
 
 __all__ = [
     "BranchCreationResult",
+    "BranchUpdateResult",
     "BranchView",
     "CompanyCreationResult",
+    "CompanyUpdateResult",
     "CreateBranchCommand",
     "CreateCompanyCommand",
     "RequestMetadata",
+    "UpdateBranchCommand",
+    "UpdateCompanyCommand",
 ]

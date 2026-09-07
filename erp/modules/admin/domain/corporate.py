@@ -160,6 +160,28 @@ class Company:
             return self
         return replace(self, status=CorporateStatus.ACTIVE, version=self.version + 1)
 
+    def update_profile(
+        self,
+        *,
+        legal_name: str,
+        trade_name: str | None,
+        timezone: str,
+        status: CorporateStatus,
+    ) -> Self:
+        """Return the next validated company profile version."""
+        return replace(
+            self,
+            legal_name=normalize_name(legal_name, field_name="legal_name"),
+            trade_name=(
+                normalize_name(trade_name, field_name="trade_name")
+                if trade_name is not None
+                else None
+            ),
+            timezone=validate_timezone(timezone),
+            status=CorporateStatus(status),
+            version=self.version + 1,
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class Branch:
@@ -218,6 +240,22 @@ class Branch:
         if self.status is CorporateStatus.ACTIVE:
             return self
         return replace(self, status=CorporateStatus.ACTIVE, version=self.version + 1)
+
+    def update_profile(
+        self,
+        *,
+        name: str,
+        timezone: str,
+        status: CorporateStatus,
+    ) -> Self:
+        """Return the next validated branch profile version."""
+        return replace(
+            self,
+            name=normalize_name(name, field_name="name"),
+            timezone=validate_timezone(timezone),
+            status=CorporateStatus(status),
+            version=self.version + 1,
+        )
 
 
 __all__ = [

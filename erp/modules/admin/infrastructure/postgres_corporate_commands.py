@@ -5,11 +5,15 @@ from sqlalchemy.exc import IntegrityError
 
 from erp.modules.admin.application import (
     BranchCreationResult,
+    BranchUpdateResult,
     BranchView,
     CompanyCreationResult,
+    CompanyUpdateResult,
     CompanyView,
     CreateBranchCommand,
     CreateCompanyCommand,
+    UpdateBranchCommand,
+    UpdateCompanyCommand,
 )
 from erp.modules.admin.domain import Branch, Company, TenantContext
 from erp.modules.admin.infrastructure.branch_repository import BranchRepository
@@ -20,11 +24,16 @@ from erp.modules.admin.infrastructure.corporate_directory_repository import (
 from erp.modules.admin.infrastructure.corporate_events import (
     BRANCH_CREATED,
     BRANCH_CREATED_ROUTING_KEY,
+    BRANCH_UPDATED,
+    BRANCH_UPDATED_ROUTING_KEY,
     COMPANY_CREATED,
     COMPANY_CREATED_ROUTING_KEY,
+    COMPANY_UPDATED,
+    COMPANY_UPDATED_ROUTING_KEY,
 )
 from erp.modules.admin.infrastructure.corporate_models import CompanyModel
 from erp.platform.audit import AuditEvent, AuditService
+from erp.platform.concurrency import OptimisticLockError
 from erp.platform.database import Database
 from erp.platform.errors import ApplicationError, ErrorDetail
 from erp.platform.idempotency import IdempotencyService
@@ -194,6 +203,124 @@ class PostgresCorporateCommandStore:
         except IntegrityError as error:
             raise _corporate_conflict() from error
 
+    async def update_company(
+        self,
+        command: UpdateCompanyCommand,
+        context: TenantContext,
+    ) -> CompanyUpdateResult:
+        if not command.has_changes():
+            raise _empty_patch()
+        try:
+            async with self._database.session() as session, session.begin():
+                visible = await self._directory.list_companies(session, context)
+                current = next(
+                    (company for company in visible if company.id == command.company_id),
+                    None,
+                )
+                if current is None:
+                    raise _not_found("company")
+                if current.version != command.expected_version:
+                    raise OptimisticLockError(expected_version=command.expected_version)
+                updated = _updated_company(current, command)
+                stored = await self._companies.save(
+                    session,
+                    updated,
+                    actor_id=context.actor_user_id,
+                )
+                changed_fields = _changed_fields(
+                    _company_snapshot(current),
+                    _company_snapshot(stored),
+                )
+                envelope = _company_updated_envelope(stored, command, changed_fields)
+                audit_id = await self._audit.record(
+                    session,
+                    AuditEvent(
+                        actor_user_id=context.actor_user_id,
+                        company_id=stored.id,
+                        branch_id=None,
+                        module="admin",
+                        entity_type="company",
+                        entity_id=stored.id,
+                        operation="UPDATE",
+                        request_id=command.metadata.request_id,
+                        correlation_id=command.metadata.correlation_id,
+                        before_snapshot=_company_snapshot(current),
+                        after_snapshot=_company_snapshot(stored),
+                        source_ip=command.metadata.source_ip,
+                    ),
+                )
+                await self._outbox.enqueue(
+                    session,
+                    envelope,
+                    headers={"routing_key": COMPANY_UPDATED_ROUTING_KEY},
+                )
+                return CompanyUpdateResult(
+                    company=CompanyView.from_domain(stored),
+                    event_id=envelope.message_id,
+                    audit_event_id=audit_id,
+                )
+        except IntegrityError as error:
+            raise _corporate_conflict() from error
+
+    async def update_branch(
+        self,
+        command: UpdateBranchCommand,
+        context: TenantContext,
+    ) -> BranchUpdateResult:
+        if not command.has_changes():
+            raise _empty_patch()
+        try:
+            async with self._database.session() as session, session.begin():
+                visible = await self._directory.list_branches(session, context)
+                current = next(
+                    (branch for branch in visible if branch.id == command.branch_id),
+                    None,
+                )
+                if current is None:
+                    raise _not_found("branch")
+                if current.version != command.expected_version:
+                    raise OptimisticLockError(expected_version=command.expected_version)
+                updated = _updated_branch(current, command)
+                stored = await self._branches.save(
+                    session,
+                    updated,
+                    actor_id=context.actor_user_id,
+                )
+                changed_fields = _changed_fields(
+                    _branch_snapshot(current),
+                    _branch_snapshot(stored),
+                )
+                envelope = _branch_updated_envelope(stored, command, changed_fields)
+                audit_id = await self._audit.record(
+                    session,
+                    AuditEvent(
+                        actor_user_id=context.actor_user_id,
+                        company_id=stored.company_id,
+                        branch_id=stored.id,
+                        module="admin",
+                        entity_type="branch",
+                        entity_id=stored.id,
+                        operation="UPDATE",
+                        request_id=command.metadata.request_id,
+                        correlation_id=command.metadata.correlation_id,
+                        before_snapshot=_branch_snapshot(current),
+                        after_snapshot=_branch_snapshot(stored),
+                        source_ip=command.metadata.source_ip,
+                    ),
+                )
+                await self._outbox.enqueue(
+                    session,
+                    envelope,
+                    headers={"routing_key": BRANCH_UPDATED_ROUTING_KEY},
+                )
+                return BranchUpdateResult(
+                    branch=BranchView.from_domain(stored),
+                    event_id=envelope.message_id,
+                    audit_event_id=audit_id,
+                )
+        except IntegrityError as error:
+            raise _corporate_conflict() from error
+
 
 def _new_company(command: CreateCompanyCommand) -> Company:
     try:
@@ -217,6 +344,29 @@ def _new_branch(command: CreateBranchCommand) -> Branch:
             name=command.name,
             tax_id=command.tax_id,
             timezone=command.timezone,
+        )
+    except (TypeError, ValueError) as error:
+        raise _validation_error(str(error)) from error
+
+
+def _updated_company(current: Company, command: UpdateCompanyCommand) -> Company:
+    try:
+        return current.update_profile(
+            legal_name=command.legal_name or current.legal_name,
+            trade_name=(command.trade_name if command.trade_name_supplied else current.trade_name),
+            timezone=command.timezone or current.timezone,
+            status=command.status or current.status,
+        )
+    except (TypeError, ValueError) as error:
+        raise _validation_error(str(error)) from error
+
+
+def _updated_branch(current: Branch, command: UpdateBranchCommand) -> Branch:
+    try:
+        return current.update_profile(
+            name=command.name or current.name,
+            timezone=command.timezone or current.timezone,
+            status=command.status or current.status,
         )
     except (TypeError, ValueError) as error:
         raise _validation_error(str(error)) from error
@@ -273,6 +423,60 @@ def _branch_created_envelope(branch: Branch, command: CreateBranchCommand) -> Me
     )
 
 
+def _company_updated_envelope(
+    company: Company,
+    command: UpdateCompanyCommand,
+    changed_fields: list[str],
+) -> MessageEnvelope:
+    return MessageEnvelope.new(
+        message_kind=MessageKind.DOMAIN_EVENT,
+        message_type=COMPANY_UPDATED,
+        event_version=1,
+        producer_module="admin",
+        producer_domain="admin",
+        aggregate_type="company",
+        aggregate_id=company.id,
+        aggregate_version=company.version,
+        company_id=company.id,
+        branch_id=None,
+        correlation_id=command.metadata.correlation_id,
+        causation_id=None,
+        request_id=command.metadata.request_id,
+        payload={
+            "company_id": str(company.id),
+            "changed_fields": changed_fields,
+            "version": company.version,
+        },
+    )
+
+
+def _branch_updated_envelope(
+    branch: Branch,
+    command: UpdateBranchCommand,
+    changed_fields: list[str],
+) -> MessageEnvelope:
+    return MessageEnvelope.new(
+        message_kind=MessageKind.DOMAIN_EVENT,
+        message_type=BRANCH_UPDATED,
+        event_version=1,
+        producer_module="admin",
+        producer_domain="admin",
+        aggregate_type="branch",
+        aggregate_id=branch.id,
+        aggregate_version=branch.version,
+        company_id=branch.company_id,
+        branch_id=branch.id,
+        correlation_id=command.metadata.correlation_id,
+        causation_id=None,
+        request_id=command.metadata.request_id,
+        payload={
+            "branch_id": str(branch.id),
+            "changed_fields": changed_fields,
+            "version": branch.version,
+        },
+    )
+
+
 def _company_snapshot(company: Company) -> dict[str, object]:
     return {
         "id": str(company.id),
@@ -300,6 +504,13 @@ def _branch_snapshot(branch: Branch) -> dict[str, object]:
     }
 
 
+def _changed_fields(before: dict[str, object], after: dict[str, object]) -> list[str]:
+    ignored = {"id", "group_id", "company_id", "version"}
+    return sorted(
+        key for key, value in before.items() if key not in ignored and after[key] != value
+    )
+
+
 def _validation_error(message: str) -> ApplicationError:
     return ApplicationError(
         code="BUSINESS_VALIDATION_ERROR",
@@ -322,6 +533,14 @@ def _corporate_conflict() -> ApplicationError:
         code="CORPORATE_IDENTIFIER_CONFLICT",
         message="A corporate code or tax identifier is already in use.",
         status_code=409,
+    )
+
+
+def _empty_patch() -> ApplicationError:
+    return ApplicationError(
+        code="EMPTY_PATCH",
+        message="At least one mutable field must be provided.",
+        status_code=422,
     )
 
 

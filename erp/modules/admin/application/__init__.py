@@ -15,11 +15,15 @@ from erp.modules.admin.application.auth_ports import (
 from erp.modules.admin.application.auth_service import AuthenticationService
 from erp.modules.admin.application.corporate_command_dto import (
     BranchCreationResult,
+    BranchUpdateResult,
     BranchView,
     CompanyCreationResult,
+    CompanyUpdateResult,
     CreateBranchCommand,
     CreateCompanyCommand,
     RequestMetadata,
+    UpdateBranchCommand,
+    UpdateCompanyCommand,
 )
 from erp.modules.admin.application.corporate_command_ports import CorporateCommandStore
 from erp.modules.admin.application.corporate_command_service import CorporateCreationService
@@ -49,8 +53,10 @@ __all__ = [
     "AuthenticationResult",
     "AuthenticationService",
     "BranchCreationResult",
+    "BranchUpdateResult",
     "BranchView",
     "CompanyCreationResult",
+    "CompanyUpdateResult",
     "CompanyView",
     "CorporateCommandStore",
     "CorporateCreationService",
@@ -68,5 +74,7 @@ __all__ = [
     "SessionRepository",
     "TokenPair",
     "TokenService",
+    "UpdateBranchCommand",
+    "UpdateCompanyCommand",
     "corporate_permission_registry",
 ]

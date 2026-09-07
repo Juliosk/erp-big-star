@@ -98,3 +98,40 @@ def test_direct_construction_cannot_bypass_version_invariant() -> None:
             status=CorporateStatus.ACTIVE,
             version=0,
         )
+
+
+def test_corporate_profile_updates_are_immutable_and_increment_version() -> None:
+    company = Company.create(
+        group_id=uuid4(),
+        code="COMPANY",
+        legal_name="Original Company",
+        trade_name="Original Trade",
+        tax_id=VALID_COMPANY_CNPJ,
+        timezone="America/Sao_Paulo",
+    )
+    branch = Branch.create(
+        company_id=company.id,
+        code="BRANCH",
+        name="Original Branch",
+        tax_id=VALID_BRANCH_CNPJ,
+        timezone="America/Sao_Paulo",
+    )
+
+    updated_company = company.update_profile(
+        legal_name="  Big Star Updated  ",
+        trade_name=None,
+        timezone="UTC",
+        status=CorporateStatus.INACTIVE,
+    )
+    updated_branch = branch.update_profile(
+        name=" Updated Branch ",
+        timezone="UTC",
+        status=CorporateStatus.INACTIVE,
+    )
+
+    assert company.version == branch.version == 1
+    assert updated_company.legal_name == "Big Star Updated"
+    assert updated_company.trade_name is None
+    assert updated_company.version == 2
+    assert updated_branch.name == "Updated Branch"
+    assert updated_branch.version == 2
