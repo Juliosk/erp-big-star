@@ -10,6 +10,7 @@ from erp.apps.api.middleware import CorrelationIdMiddleware, RequestIdMiddleware
 from erp.apps.api.routes import health_router
 from erp.platform.config import Settings, get_settings
 from erp.platform.database import Database, ManagedDatabase
+from erp.platform.errors import register_error_handlers
 from erp.platform.observability import configure_logging
 
 logger = logging.getLogger(__name__)
@@ -43,6 +44,7 @@ def create_app(
     )
     application.state.settings = resolved_settings
     application.state.database = resolved_database
+    register_error_handlers(application)
     application.include_router(health_router)
     # Starlette wraps the last-added middleware first: Request ID must be outermost.
     application.add_middleware(CorrelationIdMiddleware)
