@@ -11,6 +11,7 @@ from erp.modules.admin.domain.authorization import (
     AuthorizationPolicy,
     AuthorizationReason,
 )
+from erp.modules.admin.domain.corporate import Branch, Company, CorporateStatus, EconomicGroup
 from erp.modules.admin.domain.exceptions import (
     AuthenticationError,
     AuthorizationError,
@@ -33,6 +34,7 @@ from erp.modules.admin.domain.role import (
     resolve_active_permissions,
 )
 from erp.modules.admin.domain.scope import Scope, ScopeType, UserScope
+from erp.modules.admin.domain.tax_id import Cnpj
 
 __all__ = [
     "AuthenticatedPrincipal",
@@ -42,8 +44,13 @@ __all__ = [
     "AuthorizationError",
     "AuthorizationPolicy",
     "AuthorizationReason",
+    "Branch",
+    "Cnpj",
+    "Company",
+    "CorporateStatus",
     "DataClassification",
     "DuplicatePermissionError",
+    "EconomicGroup",
     "InvalidCredentialsError",
     "InvalidSessionError",
     "Permission",
