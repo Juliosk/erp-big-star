@@ -18,6 +18,19 @@ adapter de autenticação não configurado 503. Nenhum contexto é inferido de h
 Validação 033: 212 testes aprovados; Ruff/format e mypy strict limpos. Identidade injetada nos
 testes é um stub exclusivo da suíte, não um adapter entregue para produção.
 
+### Commit 034 — criação atômica
+
+POST `/api/v1/products` exige `product.product.create`, empresa ativa autorizada por GROUP/COMPANY
+e `Idempotency-Key`. Body: company_id, code, sku, name, product_type e uom; outros campos rejeitados.
+Retorna 201 com product, event_id, audit_event_id, idempotency_replayed, Location e ETag.
+Chave ausente/inválida estruturalmente: 422; somente espaços: 400. Mesma chave/payload reproduz
+o resultado; payload diferente: 409. Chave é isolada por ator/empresa/operação; RBAC é reavaliado
+antes de replay. Produto, Audit, Outbox e chave são confirmados ou revertidos juntos.
+
+ProductCreated v1 é enfileirado na Outbox com product_id, sku e product_type; publicação RabbitMQ
+é responsabilidade do publisher existente, nunca realizada dentro da transação HTTP.
+Os testes incluem falhas induzidas em Audit/Outbox e duas criações simultâneas com a mesma chave.
+
 ## 1. Objetivo
 
 Entregar o primeiro Product Master funcional, proprietário do cadastro oficial de produto.

@@ -10,6 +10,7 @@ from sqlalchemy import select
 from erp.apps.api.app import create_app
 from erp.modules.admin.domain import Branch, Scope, ScopeType
 from erp.modules.admin.infrastructure import BranchModel, BranchRepository, CompanyModel
+from erp.modules.product.application.permissions import PRODUCT_CREATE
 from erp.modules.product.domain import ProductLifecycle
 from erp.modules.product.infrastructure import ProductRepository
 from erp.platform.config import get_settings
@@ -125,6 +126,22 @@ def test_group_and_branch_visibility_are_resolved_by_m1() -> None:
             for scope in scopes:
                 api.resolver.context = replace(api.resolver.context, scopes=frozenset({scope}))
                 assert api.client.get(api.url, headers=api.headers).status_code == 200
+            api.resolver.context = replace(
+                api.resolver.context, permissions=frozenset({PRODUCT_CREATE})
+            )
+            denied = api.client.post(
+                "/api/v1/products",
+                json={
+                    "company_id": str(api.data.company_id),
+                    "code": "BRANCH-WRITE",
+                    "sku": f"BRANCH-{uuid4().hex}",
+                    "name": "Forbidden",
+                    "product_type": "PA",
+                    "uom": "UN",
+                },
+                headers={**api.headers, "Idempotency-Key": str(uuid4())},
+            )
+            assert denied.status_code == 404
         finally:
 
             async def cleanup() -> None:

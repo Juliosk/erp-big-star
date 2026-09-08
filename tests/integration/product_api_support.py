@@ -6,12 +6,17 @@ from dataclasses import dataclass
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
+from sqlalchemy import delete, select
 
 from erp.apps.api.app import create_app
 from erp.modules.admin.application import SecurityContext
 from erp.modules.admin.domain import AuthenticatedPrincipal, AuthenticationLevel, Scope, ScopeType
 from erp.modules.product.application.permissions import PRODUCT_READ
+from erp.modules.product.infrastructure import ProductModel
+from erp.platform.audit import AuditEventModel
 from erp.platform.config import get_settings
+from erp.platform.idempotency.models import IdempotencyRecordModel
+from erp.platform.outbox import OutboxEventModel
 from tests.integration.test_product_persistence import Fixture, fixture
 
 
@@ -52,4 +57,33 @@ def product_api() -> Iterator[ApiFixture]:
         try:
             yield ApiFixture(client, data, resolver)
         finally:
-            client.portal.call(manager.__aexit__, None, None, None)
+
+            async def cleanup_effects() -> None:
+                company_ids = (data.company_id, data.other_company_id)
+                async with data.database.session() as session, session.begin():
+                    ids = select(ProductModel.id).where(ProductModel.company_id.in_(company_ids))
+                    await session.execute(
+                        delete(OutboxEventModel).where(
+                            OutboxEventModel.source_module == "product",
+                            OutboxEventModel.aggregate_id.in_(ids),
+                        )
+                    )
+                    await session.execute(
+                        delete(AuditEventModel).where(
+                            AuditEventModel.module == "product",
+                            AuditEventModel.company_id.in_(company_ids),
+                        )
+                    )
+                    await session.execute(
+                        delete(IdempotencyRecordModel).where(
+                            IdempotencyRecordModel.scope.in_(
+                                f"product:{company_id}:{data.actor_id}"
+                                for company_id in company_ids
+                            )
+                        )
+                    )
+
+            try:
+                client.portal.call(cleanup_effects)
+            finally:
+                client.portal.call(manager.__aexit__, None, None, None)

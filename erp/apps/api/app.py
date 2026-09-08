@@ -22,7 +22,9 @@ from erp.modules.admin.infrastructure import (
 )
 from erp.modules.product.api import router as product_router
 from erp.modules.product.application import ProductQueries
+from erp.modules.product.application.creation import ProductCreationService
 from erp.modules.product.application.permissions import ProductAuthorization
+from erp.modules.product.infrastructure.product_creation import PostgresProductCreation
 from erp.modules.product.infrastructure.product_directory import PostgresProductDirectory
 from erp.platform.config import Settings, get_settings
 from erp.platform.database import Database, ManagedDatabase
@@ -41,6 +43,7 @@ def create_app(
     corporate_hierarchy_service: CorporateHierarchyService | None = None,
     security_context_resolver: SecurityContextResolver | None = None,
     product_queries: ProductQueries | None = None,
+    product_creation: ProductCreationService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -49,6 +52,16 @@ def create_app(
     resolved_corporate_creation_service = corporate_creation_service
     resolved_corporate_hierarchy_service = corporate_hierarchy_service
     resolved_product_queries = product_queries
+    resolved_product_creation = product_creation
+    if resolved_product_creation is None and isinstance(resolved_database, Database):
+        resolved_product_creation = ProductCreationService(
+            PostgresProductCreation(
+                resolved_database, ttl_seconds=resolved_settings.idempotency_ttl_seconds
+            ),
+            ProductAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
     if resolved_product_queries is None and isinstance(resolved_database, Database):
         resolved_product_queries = ProductQueries(
             PostgresProductDirectory(resolved_database),
@@ -97,6 +110,7 @@ def create_app(
     application.state.corporate_hierarchy_service = resolved_corporate_hierarchy_service
     application.state.security_context_resolver = security_context_resolver
     application.state.product_queries = resolved_product_queries
+    application.state.product_creation = resolved_product_creation
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)
