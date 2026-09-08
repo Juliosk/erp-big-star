@@ -1,5 +1,16 @@
 # Sprint 3 — M2 Product Master
 
+## Decisões homologadas em 2026-09-08 (substituem as pendências históricas abaixo)
+
+036: fluxo estrito desenvolvimento → homologação → ativo → fora de linha. Homologação/ativação
+exigem product.product.activate; descontinuação exige product.product.discontinue. Sem reversões.
+POST /{id}/submit-for-homologation, /activate e /discontinue exigem company_id, If-Match e
+Idempotency-Key. Eventos: ProductUpdated (homologação), ProductActivated e ProductDiscontinued.
+
+037: barcode único por (company_id, barcode), manutenção com product.product.update.
+038: DevSecurityContextResolver autorizado exclusivamente em local/test, mediante flag explícita;
+não representa autenticação de produção. Aplicabilidade global continua fora deste slice.
+
 Status: 030–032 homologados; 033–035 implementados e validados tecnicamente. 036–039 pendentes
 das decisões de DoR abaixo. Não constitui conclusão ou aprovação da Sprint 3.
 

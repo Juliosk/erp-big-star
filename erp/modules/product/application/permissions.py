@@ -18,6 +18,7 @@ PRODUCT_READ = PermissionCode("product.product.read")
 PRODUCT_CREATE = PermissionCode("product.product.create")
 PRODUCT_UPDATE = PermissionCode("product.product.update")
 PRODUCT_ACTIVATE = PermissionCode("product.product.activate")
+PRODUCT_DISCONTINUE = PermissionCode("product.product.discontinue")
 
 
 def product_permission_registry() -> PermissionRegistry:
@@ -33,6 +34,7 @@ def product_permission_registry() -> PermissionRegistry:
             (PRODUCT_CREATE, "Create product master", PermissionRiskLevel.HIGH),
             (PRODUCT_UPDATE, "Update product master", PermissionRiskLevel.HIGH),
             (PRODUCT_ACTIVATE, "Activate product master", PermissionRiskLevel.HIGH),
+            (PRODUCT_DISCONTINUE, "Discontinue product master", PermissionRiskLevel.HIGH),
         )
     )
 
@@ -57,6 +59,7 @@ class ProductAuthorization:
 __all__ = [
     "PRODUCT_ACTIVATE",
     "PRODUCT_CREATE",
+    "PRODUCT_DISCONTINUE",
     "PRODUCT_READ",
     "PRODUCT_UPDATE",
     "ProductAuthorization",

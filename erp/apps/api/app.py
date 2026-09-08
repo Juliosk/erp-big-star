@@ -23,10 +23,12 @@ from erp.modules.admin.infrastructure import (
 from erp.modules.product.api import router as product_router
 from erp.modules.product.application import ProductQueries
 from erp.modules.product.application.creation import ProductCreationService
+from erp.modules.product.application.lifecycle import ProductLifecycleService
 from erp.modules.product.application.permissions import ProductAuthorization
 from erp.modules.product.application.updates import ProductUpdateService
 from erp.modules.product.infrastructure.product_creation import PostgresProductCreation
 from erp.modules.product.infrastructure.product_directory import PostgresProductDirectory
+from erp.modules.product.infrastructure.product_lifecycle import PostgresProductLifecycle
 from erp.modules.product.infrastructure.product_updates import PostgresProductUpdates
 from erp.platform.config import Settings, get_settings
 from erp.platform.database import Database, ManagedDatabase
@@ -47,6 +49,7 @@ def create_app(
     product_queries: ProductQueries | None = None,
     product_creation: ProductCreationService | None = None,
     product_updates: ProductUpdateService | None = None,
+    product_lifecycle: ProductLifecycleService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -55,6 +58,15 @@ def create_app(
     resolved_corporate_creation_service = corporate_creation_service
     resolved_corporate_hierarchy_service = corporate_hierarchy_service
     resolved_product_queries = product_queries
+    if product_lifecycle is None and isinstance(resolved_database, Database):
+        product_lifecycle = ProductLifecycleService(
+            PostgresProductLifecycle(
+                resolved_database, ttl_seconds=resolved_settings.idempotency_ttl_seconds
+            ),
+            ProductAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
     resolved_product_updates = product_updates
     if resolved_product_updates is None and isinstance(resolved_database, Database):
         resolved_product_updates = ProductUpdateService(
@@ -123,6 +135,7 @@ def create_app(
     application.state.product_queries = resolved_product_queries
     application.state.product_creation = resolved_product_creation
     application.state.product_updates = resolved_product_updates
+    application.state.product_lifecycle = product_lifecycle
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)

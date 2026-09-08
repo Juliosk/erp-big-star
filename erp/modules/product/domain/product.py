@@ -91,5 +91,16 @@ class Product:
             return self
         return replace(candidate, version=self.version + 1)
 
+    def transition(self, target: ProductLifecycle) -> Product:
+        """Advance exactly one approved lifecycle step, without implicit reversal."""
+        successor = {
+            ProductLifecycle.EM_DESENVOLVIMENTO: ProductLifecycle.EM_HOMOLOGACAO,
+            ProductLifecycle.EM_HOMOLOGACAO: ProductLifecycle.ATIVO,
+            ProductLifecycle.ATIVO: ProductLifecycle.FORA_DE_LINHA,
+        }
+        if successor.get(self.lifecycle) != target:
+            raise ValueError("The requested lifecycle transition is not allowed.")
+        return replace(self, lifecycle=target, version=self.version + 1)
+
 
 __all__ = ["Product", "ProductLifecycle", "ProductType"]
