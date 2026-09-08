@@ -13,11 +13,28 @@ from erp.modules.product.application.permissions import PRODUCT_CREATE, PRODUCT_
 from erp.modules.product.infrastructure import ProductModel
 from erp.platform.audit import AuditEventModel, AuditService
 from erp.platform.idempotency.models import IdempotencyRecordModel
+from erp.platform.idempotency.service import IdempotencyDecision, IdempotencyService
 from erp.platform.messaging import MessageEnvelope
 from erp.platform.outbox import OutboxEventModel, OutboxService
 from tests.integration.product_api_support import ApiFixture, product_api
 
 pytestmark = pytest.mark.integration
+
+
+def test_corrupt_replay_does_not_execute_a_new_command(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def corrupt_replay(*args: Any, **kwargs: Any) -> IdempotencyDecision:
+        return IdempotencyDecision(record_id=uuid4(), replayed=True)
+
+    with product_api() as api:
+        allow_create(api)
+        monkeypatch.setattr(IdempotencyService, "begin", corrupt_replay)
+        with pytest.raises(RuntimeError, match="no response body"):
+            api.client.post(
+                "/api/v1/products",
+                json=creation_body(api),
+                headers={**api.headers, "Idempotency-Key": str(uuid4())},
+            )
+        assert counts(api) == (0, 0, 0, 0)
 
 
 def creation_body(api: ApiFixture) -> dict[str, str]:

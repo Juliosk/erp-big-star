@@ -24,8 +24,10 @@ from erp.modules.product.api import router as product_router
 from erp.modules.product.application import ProductQueries
 from erp.modules.product.application.creation import ProductCreationService
 from erp.modules.product.application.permissions import ProductAuthorization
+from erp.modules.product.application.updates import ProductUpdateService
 from erp.modules.product.infrastructure.product_creation import PostgresProductCreation
 from erp.modules.product.infrastructure.product_directory import PostgresProductDirectory
+from erp.modules.product.infrastructure.product_updates import PostgresProductUpdates
 from erp.platform.config import Settings, get_settings
 from erp.platform.database import Database, ManagedDatabase
 from erp.platform.errors import register_error_handlers
@@ -44,6 +46,7 @@ def create_app(
     security_context_resolver: SecurityContextResolver | None = None,
     product_queries: ProductQueries | None = None,
     product_creation: ProductCreationService | None = None,
+    product_updates: ProductUpdateService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -52,6 +55,14 @@ def create_app(
     resolved_corporate_creation_service = corporate_creation_service
     resolved_corporate_hierarchy_service = corporate_hierarchy_service
     resolved_product_queries = product_queries
+    resolved_product_updates = product_updates
+    if resolved_product_updates is None and isinstance(resolved_database, Database):
+        resolved_product_updates = ProductUpdateService(
+            PostgresProductUpdates(resolved_database),
+            ProductAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
     resolved_product_creation = product_creation
     if resolved_product_creation is None and isinstance(resolved_database, Database):
         resolved_product_creation = ProductCreationService(
@@ -111,6 +122,7 @@ def create_app(
     application.state.security_context_resolver = security_context_resolver
     application.state.product_queries = resolved_product_queries
     application.state.product_creation = resolved_product_creation
+    application.state.product_updates = resolved_product_updates
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)

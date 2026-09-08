@@ -1,23 +1,41 @@
 """Authorized product HTTP queries against the real tenant-bound read adapter."""
 
 from dataclasses import replace
+from typing import cast
 from uuid import uuid4
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from erp.apps.api.app import create_app
 from erp.modules.admin.domain import Branch, Scope, ScopeType
 from erp.modules.admin.infrastructure import BranchModel, BranchRepository, CompanyModel
+from erp.modules.product.application import ProductQueries
 from erp.modules.product.application.permissions import PRODUCT_CREATE
 from erp.modules.product.domain import ProductLifecycle
 from erp.modules.product.infrastructure import ProductRepository
 from erp.platform.config import get_settings
+from erp.platform.errors import ApplicationError
 from tests.integration.product_api_support import product_api
 from tests.integration.test_product_persistence import _cnpj
 
 pytestmark = pytest.mark.integration
+
+
+def test_application_rejects_invalid_pagination_without_http_validation() -> None:
+    with product_api() as api:
+
+        async def verify() -> None:
+            assert api.resolver.context is not None
+            queries = cast(ProductQueries, cast(FastAPI, api.client.app).state.product_queries)
+            with pytest.raises(ApplicationError) as captured:
+                await queries.list(api.resolver.context, api.data.company_id, page=0)
+            assert captured.value.code == "VALIDATION_ERROR"
+
+        assert api.client.portal is not None
+        api.client.portal.call(verify)
 
 
 def test_query_pages_detail_etag_and_company_isolation() -> None:

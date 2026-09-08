@@ -7,10 +7,11 @@ arquitetura consolidada e o README de governança técnica em `Arquivos .MD/`.
 
 - Wave: `W1 — Corporate Foundation`
 - Sprint concluída: `2 — M1 Corporate Foundation`
-- Sprint em execução: `3 — M2 Product Master`, primeiro lote `030–032`
+- Sprint em execução: `3 — M2 Product Master`, commits `030–035` implementados
 - Schema atual: Alembic `0010`
-- APIs atuais: health checks e contexto corporativo `/api/v1/admin`
-- M2: domínio e persistência por empresa; rotas e telas entram nos próximos lotes.
+- APIs atuais: health checks, contexto corporativo `/api/v1/admin` e M2 `/api/v1/products`
+- M2: consultas, criação idempotente e PATCH concorrente. Lifecycle/barcodes/telas ainda pendentes.
+- Sem adapter real de identidade configurado, rotas protegidas retornam 503; não há login simulado.
 
 ## Baseline Python
 

@@ -1,9 +1,10 @@
 # Sprint 3 — M2 Product Master
 
-Status: primeiro lote 030–032 implementado e validado tecnicamente; aguardando homologação
-do usuário. Não constitui aprovação da Sprint 3.
+Status: 030–032 homologados; 033–035 implementados e validados tecnicamente. 036–039 pendentes
+das decisões de DoR abaixo. Não constitui conclusão ou aprovação da Sprint 3.
 
-Atualização: 030–032 homologados pelo usuário. Lote final 033–039 em execução.
+Atualização: APIs de consulta/criação/PATCH prontas para homologação com identidade válida
+injetada na composição. Adapter real de identidade ainda não implementado.
 
 ### Commit 033 — consultas
 
@@ -30,6 +31,38 @@ antes de replay. Produto, Audit, Outbox e chave são confirmados ou revertidos j
 ProductCreated v1 é enfileirado na Outbox com product_id, sku e product_type; publicação RabbitMQ
 é responsabilidade do publisher existente, nunca realizada dentro da transação HTTP.
 Os testes incluem falhas induzidas em Audit/Outbox e duas criações simultâneas com a mesma chave.
+
+### Commit 035 — alteração concorrente
+
+PATCH `/api/v1/products/{id}?company_id=<uuid>` exige `product.product.update`, scope GROUP/COMPANY
+e `If-Match: "<version>"`. Body permite apenas name/uom; campos nulos, identidade, tenant e lifecycle
+são rejeitados. Header ausente: 428 PRECONDITION_REQUIRED; inválido: 400 INVALID_IF_MATCH;
+versão obsoleta: 409 VERSION_CONFLICT. ETag forte inteiro entre 1 e 2147483647.
+
+Mudanças efetivas incrementam versão e gravam Audit/ProductUpdated na mesma transação.
+PATCH sem mudança efetiva retorna versão original e event_id/audit_event_id nulos, sem efeitos
+extras. Chaves de negócio e lifecycle não podem ser alterados por mass assignment.
+
+Validação acumulada 033–035: 255 testes aprovados; cobertura ERP 93,13% com branches, M2 100%;
+Ruff/format e mypy strict limpos (175 arquivos). Migration permanece 0010, sem novo DDL.
+Testes incluem requests simultâneos, replay após perda de permissão, falha em Audit/Outbox,
+chave isolada por empresa, headers inválidos, no-op, campos imutáveis e rollback da versão.
+Permanece um aviso de depreciação Starlette/AnyIO, sem mudança de dependências neste lote.
+
+### DoR necessário antes de 036–039
+
+As perguntas foram enviadas ao usuário durante a execução; ainda sem definição registrada:
+
+1. Lifecycle proposto: desenvolvimento → homologação → ativo → fora de linha, sem retorno
+   automático; activate governa ativação/descontinuação. Confirmar as transições e permissões.
+2. Identidade real: escolher provedor corporativo e fornecer configuração pública necessária,
+   ou autorizar a expansão M1 para persistência de usuários/sessões e autenticação local.
+   Não criar usuário administrador, token fixo ou permissões implicitamente.
+3. Barcode: confirmar política de unicidade e vínculo de manutenção às permissões M2 antes de 037.
+
+Não há shell web no repositório nem provedor de identidade definido nos documentos pesquisados.
+As telas 038 e o encerramento E2E 039 não foram substituídos por mockups ou um login simulado.
+O escopo COMPANY homologado foi mantido; aplicabilidade global segue desabilitada.
 
 ## 1. Objetivo
 
