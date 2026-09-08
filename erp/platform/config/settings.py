@@ -2,8 +2,10 @@
 
 from enum import StrEnum
 from functools import lru_cache
+from typing import Self
+from uuid import UUID
 
-from pydantic import Field, PositiveInt, SecretStr
+from pydantic import Field, PositiveInt, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -42,6 +44,38 @@ class Settings(BaseSettings):
     debug: bool = False
     log_level: LogLevel = LogLevel.INFO
     readiness_database_timeout_seconds: float = Field(default=2.0, gt=0)
+    dev_auth_enabled: bool = False
+    dev_auth_token: SecretStr = SecretStr("")
+    dev_auth_actor_id: UUID | None = None
+    dev_auth_company_ids: tuple[UUID, ...] = ()
+    dev_auth_permissions: tuple[str, ...] = (
+        "admin.company.read",
+        "product.product.read",
+        "product.product.create",
+        "product.product.update",
+        "product.product.activate",
+        "product.product.discontinue",
+    )
+
+    @model_validator(mode="after")
+    def validate_dev_auth(self) -> Self:
+        if self.dev_auth_enabled:
+            if self.environment not in {Environment.LOCAL, Environment.TEST}:
+                raise ValueError("Development authentication is forbidden outside local/test.")
+            token = self.dev_auth_token.get_secret_value()
+            if (
+                not 32 <= len(token) <= 256
+                or not token.isascii()
+                or any(char.isspace() for char in token)
+            ):
+                raise ValueError(
+                    "Development token must contain 32-256 non-whitespace ASCII characters."
+                )
+            if self.dev_auth_actor_id is None or not self.dev_auth_company_ids:
+                raise ValueError(
+                    "Development authentication requires an actor and explicit company IDs."
+                )
+        return self
 
     postgres_host: str = "127.0.0.1"
     postgres_port: int = Field(default=5432, ge=1, le=65535)

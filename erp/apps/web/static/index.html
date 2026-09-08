@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Produtos · Big Star / Forma Kids</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a class="brand" href="/ui/" aria-label="Big Star e Forma Kids"
+        ><span class="brand-star" aria-hidden="true">★</span
+        ><span>BIG STAR<small>FORMA KIDS</small></span></a
+      >
+      <p class="side-label">GESTÃO INDUSTRIAL</p>
+      <nav aria-label="Navegação principal">
+        <a href="#products" aria-current="page">Produtos <span>M2</span></a>
+      </nav>
+      <div class="company-context">
+        <label for="company">Empresa de trabalho</label
+        ><select id="company" disabled>
+          <option value="">Conecte-se para selecionar</option>
+        </select>
+        <p>Cadastros e alterações ficam restritos à empresa selecionada.</p>
+      </div>
+      <div class="side-footer">
+        Product Master<small>Fundação de cadastros · W1</small>
+      </div>
+    </aside>
+    <main>
+      <header class="topbar">
+        <span>Cadastros / Produtos</span>
+        <div>
+          <span id="connection-status">Não conectado</span
+          ><button id="disconnect" class="quiet" hidden>Sair</button>
+        </div>
+      </header>
+      <div id="dev-banner" class="dev-banner" hidden>
+        DESENVOLVIMENTO · Identidade simulada autorizada apenas para local/test.
+        Não usar em produção.
+      </div>
+      <section
+        id="connection"
+        class="connection"
+        aria-labelledby="connect-title"
+      >
+        <div>
+          <p class="eyebrow">ACESSO AO CATÁLOGO</p>
+          <h1 id="connect-title">Seu contexto vem primeiro.</h1>
+          <p>Conecte-se para consultar e manter os produtos da sua empresa.</p>
+        </div>
+        <form id="connect-form">
+          <label for="token">Token de acesso</label
+          ><input
+            id="token"
+            type="password"
+            required
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Bearer configurado no ambiente"
+          />
+          <p class="hint">
+            Mantido apenas nesta página. Recarregar ou sair encerra a conexão.
+          </p>
+          <button type="submit">Conectar</button>
+        </form>
+      </section>
+      <div id="notice" role="status" aria-live="polite" hidden></div>
+      <section id="catalog" hidden aria-labelledby="catalog-title">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">CADASTRO MESTRE / M2</p>
+            <h1 id="catalog-title">Catálogo de produtos</h1>
+            <p>
+              A identidade de cada produto, do desenvolvimento à descontinuação.
+            </p>
+          </div>
+          <button id="new-product" hidden>+ Novo produto</button>
+        </div>
+        <div class="toolbar">
+          <div>
+            <label for="lifecycle-filter">Situação do produto</label
+            ><select id="lifecycle-filter">
+              <option value="">Todas as situações</option>
+              <option value="EM_DESENVOLVIMENTO">Em desenvolvimento</option>
+              <option value="EM_HOMOLOGACAO">Em homologação</option>
+              <option value="ATIVO">Ativo</option>
+              <option value="FORA_DE_LINHA">Fora de linha</option>
+            </select>
+          </div>
+          <button id="refresh" class="secondary">Atualizar lista</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <caption class="sr-only">
+              Produtos da empresa selecionada
+            </caption>
+            <thead>
+              <tr>
+                <th>Código / SKU</th>
+                <th>Produto</th>
+                <th>Tipo</th>
+                <th>Unidade</th>
+                <th>Situação</th>
+                <th><span class="sr-only">Ação</span></th>
+              </tr>
+            </thead>
+            <tbody id="product-rows"></tbody>
+          </table>
+          <div id="empty" class="empty" hidden>
+            <span aria-hidden="true">◇</span>
+            <h2>Nenhum produto nesta seleção</h2>
+            <p>Crie o primeiro cadastro ou escolha outra situação.</p>
+          </div>
+        </div>
+        <footer class="pagination">
+          <span id="page-label">Página 1</span>
+          <div>
+            <button id="previous" class="secondary">Anterior</button
+            ><button id="next" class="secondary">Próxima</button>
+          </div>
+        </footer>
+      </section>
+      <section id="detail" hidden aria-labelledby="detail-title">
+        <button id="back" class="quiet">← Voltar ao catálogo</button>
+        <button id="refresh-detail" class="quiet">Atualizar detalhe</button>
+        <div class="page-heading">
+          <div>
+            <p id="detail-code" class="eyebrow"></p>
+            <h1 id="detail-title"></h1>
+            <p id="detail-meta"></p>
+          </div>
+          <span id="detail-version" class="version"></span>
+        </div>
+        <ol
+          id="lifecycle-track"
+          class="lifecycle-track"
+          aria-label="Evolução do produto"
+        ></ol>
+        <div class="detail-columns">
+          <section class="panel">
+            <h2>Dados do produto</h2>
+            <form id="detail-form">
+              <label for="detail-name">Nome</label
+              ><input id="detail-name" required maxlength="200" /><label
+                for="detail-uom"
+                >Unidade de medida</label
+              ><input
+                id="detail-uom"
+                required
+                maxlength="12"
+                pattern="[A-Z0-9][A-Z0-9._-]*"
+              /><button id="save-details" type="submit">
+                Salvar alterações
+              </button>
+            </form>
+            <div id="transition-actions" class="transition-actions"></div>
+            <p class="hint">
+              A ativação cadastral não substitui validações fiscais,
+              regulatórias ou de estoque.
+            </p>
+          </section>
+          <section class="panel">
+            <h2>Códigos de barras</h2>
+            <ul id="barcode-list" class="barcode-list"></ul>
+            <form id="barcode-form">
+              <label for="barcode-type">Tipo</label
+              ><select id="barcode-type">
+                <option value="EAN">EAN · 8 ou 13 dígitos</option>
+                <option value="DUN">DUN · 14 dígitos</option>
+                <option value="INTERNAL">Código interno</option></select
+              ><label for="barcode-value">Código de barras</label
+              ><input
+                id="barcode-value"
+                required
+                maxlength="64"
+                autocomplete="off"
+              /><button type="submit" class="secondary">
+                Adicionar código
+              </button>
+            </form>
+          </section>
+        </div>
+      </section>
+      <dialog id="create-dialog">
+        <form id="create-form">
+          <div class="dialog-heading">
+            <div>
+              <p class="eyebrow">NOVO CADASTRO</p>
+              <h2>Novo produto</h2>
+            </div>
+            <button
+              id="close-create"
+              type="button"
+              class="quiet"
+              aria-label="Fechar formulário"
+            >
+              ×
+            </button>
+          </div>
+          <p class="hint">O produto começa em desenvolvimento, com versão 1.</p>
+          <div class="form-grid">
+            <div>
+              <label for="create-code">Código</label
+              ><input
+                id="create-code"
+                name="code"
+                required
+                maxlength="64"
+                pattern="[A-Za-z0-9][A-Za-z0-9._-]*"
+              />
+            </div>
+            <div>
+              <label for="create-sku">SKU</label
+              ><input
+                id="create-sku"
+                name="sku"
+                required
+                maxlength="64"
+                pattern="[A-Za-z0-9][A-Za-z0-9._-]*"
+              />
+            </div>
+          </div>
+          <label for="create-name">Nome do produto</label
+          ><input id="create-name" name="name" required maxlength="200" />
+          <div class="form-grid">
+            <div>
+              <label for="create-type">Tipo de produto</label
+              ><select id="create-type" name="product_type">
+                <option value="PA">PA · Produto acabado</option>
+                <option value="PI">PI · Produto intermediário</option>
+                <option value="MA">MA · Matéria-prima</option>
+                <option value="AUX">AUX · Auxiliar</option>
+                <option value="EMB">EMB · Embalagem</option>
+                <option value="KIT">KIT · Conjunto</option>
+              </select>
+            </div>
+            <div>
+              <label for="create-uom">Unidade de medida</label
+              ><input
+                id="create-uom"
+                name="uom"
+                value="UN"
+                required
+                maxlength="12"
+                pattern="[A-Za-z0-9][A-Za-z0-9._-]*"
+              />
+            </div>
+          </div>
+          <p id="create-error" role="alert" hidden></p>
+          <footer class="dialog-footer">
+            <button type="submit">Criar produto</button>
+          </footer>
+        </form>
+      </dialog>
+    </main>
+  </body>
+</html>

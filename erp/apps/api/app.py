@@ -8,7 +8,9 @@ from fastapi import FastAPI
 
 from erp.apps.api.middleware import CorrelationIdMiddleware, RequestIdMiddleware
 from erp.apps.api.routes import health_router
+from erp.apps.web.mount import mount_web
 from erp.modules.admin.api import router as admin_router
+from erp.modules.admin.api.session_context import router as session_router
 from erp.modules.admin.application import (
     CorporateCreationService,
     CorporateHierarchyService,
@@ -20,6 +22,7 @@ from erp.modules.admin.infrastructure import (
     PostgresCorporateCommandStore,
     PostgresCorporateDirectory,
 )
+from erp.modules.admin.infrastructure.dev_security import DevSecurityContextResolver
 from erp.modules.product.api import router as product_router
 from erp.modules.product.application import ProductQueries
 from erp.modules.product.application.barcodes import ProductBarcodeService
@@ -56,6 +59,16 @@ def create_app(
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
+    if (
+        isinstance(security_context_resolver, DevSecurityContextResolver)
+        and not resolved_settings.dev_auth_enabled
+    ):
+        raise ValueError("Development identity requires the application flag to be enabled.")
+    if resolved_settings.dev_auth_enabled:
+        # Revalidate even Settings.model_copy(update=...) cannot enable this in production.
+        resolved_settings = Settings.model_validate(resolved_settings.model_dump())
+        if security_context_resolver is None:
+            security_context_resolver = DevSecurityContextResolver(resolved_settings)
     resolved_database = database or Database(resolved_settings)
     resolved_company_query_service = company_query_service
     resolved_corporate_creation_service = corporate_creation_service
@@ -153,6 +166,8 @@ def create_app(
     application.include_router(health_router)
     application.include_router(admin_router)
     application.include_router(product_router)
+    application.include_router(session_router)
+    mount_web(application)
     # Starlette wraps the last-added middleware first: Request ID must be outermost.
     application.add_middleware(CorrelationIdMiddleware)
     application.add_middleware(RequestIdMiddleware)
