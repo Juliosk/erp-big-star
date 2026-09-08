@@ -6,8 +6,8 @@ arquitetura consolidada e o README de governança técnica em `Arquivos .MD/`.
 ## Estado atual
 
 - Wave: `W1 — Corporate Foundation`
-- Sprint concluída: `2 — M1 Corporate Foundation`
-- Sprint em homologação: `3 — M2 Product Master`, commits `030–039` implementados
+- Sprint concluída e homologada: `3 — M2 Product Master`, commits `030–039`
+- Sprint em execução: `4 — M23 Product Import`, primeiro lote `040–042`
 - Schema atual: Alembic `0011`
 - APIs atuais: health checks, contexto corporativo `/api/v1/admin` e M2 `/api/v1/products`
 - M2: consultas, criação idempotente, PATCH concorrente, lifecycle estrito, barcodes e telas `/ui/`.
@@ -65,3 +65,6 @@ eventos, migrations e gate de validação.
 
 Consulte [o plano da Sprint 3](docs/sprint-3-product-master.md) para escopo, commits,
 DoR/DoD, limites de aplicabilidade global e evidências dos lotes.
+
+Consulte [o plano da Sprint 4](docs/sprint-4-product-import.md) para o fluxo de importação
+de produtos, divisão 040–049, limites de M23 e decisões necessárias antes do commit funcional.

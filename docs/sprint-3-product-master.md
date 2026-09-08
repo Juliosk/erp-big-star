@@ -17,9 +17,8 @@ canônico de até 64 caracteres. Dígitos verificadores seguem
 038: DevSecurityContextResolver autorizado exclusivamente em local/test, mediante flag explícita;
 não representa autenticação de produção. Aplicabilidade global continua fora deste slice.
 
-Status: 030–035 homologados; 036–039 implementados, aguardando homologação local do usuário.
-As decisões de DoR deste lote foram aprovadas em 2026-09-08. Nenhuma aprovação da Sprint 3
-é inferida da execução dos testes. Próxima Sprint permanece bloqueada até aceite explícito.
+Status: **Sprint 3 homologada e concluída pelo usuário em 2026-09-08**. Aceite visual/funcional
+inclui navegação, paginação, filtros, lifecycle e seletor de empresa. Sprint 4 liberada explicitamente.
 
 Telas funcionais em `/ui/`, com APIs oficiais e adapter de desenvolvimento opt-in. Provedor
 corporativo real de identidade continua fora deste slice. Consulte o
