@@ -38,11 +38,12 @@ continua posterior: não presumir aprovação nem contornar SoD para habilitar u
 - [x] SHA-256, storage_key e metadados, sem BLOB no PostgreSQL (Etapa 8 §§29–32).
 - [x] APIs, eventos e permissões oficiais identificados para os lotes correspondentes.
 - [x] Testes de limites, isolamento, imutabilidade, migração e CAS definidos para 040–042.
-- [ ] Confirmar criação exclusiva versus criação/atualização por SKU antes do adapter M2.
+- [x] Usuário definiu criação e atualização por SKU. Update preserva o contrato M2 homologado:
+      nome/unidade, somente na empresa autorizada, com versão capturada no preview e CAS no commit.
 - [ ] Confirmar modo inicialmente habilitado no template antes do commit funcional.
 - [ ] Se houver atualização material, definir aprovação M22 e fingerprint: NOT_READY até definição.
 
-As perguntas acima foram apresentadas ao usuário. Elas não bloqueiam a fundação, que não
+As decisões ainda pendentes foram apresentadas ao usuário. Elas não bloqueiam a fundação, que não
 instala template operacional, não escolhe modo implícito e não grava produtos.
 Limites técnicos iniciais, não atribuídos à arquitetura: até 100 campos, 10 MiB por XLSX,
 nomes de até 255 caracteres; parser ainda deverá impor limites de expansão ZIP/linhas/células
