@@ -18,7 +18,7 @@ from erp.modules.admin.infrastructure import (
     EconomicGroupRepository,
 )
 from erp.modules.product.domain import Product, ProductLifecycle, ProductType
-from erp.modules.product.infrastructure import ProductModel, ProductRepository
+from erp.modules.product.infrastructure import ProductBarcodeModel, ProductModel, ProductRepository
 from erp.platform.concurrency import OptimisticLockError
 from erp.platform.config import get_settings
 from erp.platform.database import Database
@@ -81,6 +81,11 @@ async def fixture() -> AsyncIterator[Fixture]:
     finally:
         try:
             async with database.session() as session, session.begin():
+                await session.execute(
+                    delete(ProductBarcodeModel).where(
+                        ProductBarcodeModel.company_id.in_(company_ids)
+                    )
+                )
                 await session.execute(
                     delete(ProductModel).where(ProductModel.company_id.in_(company_ids))
                 )

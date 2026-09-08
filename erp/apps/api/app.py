@@ -22,10 +22,12 @@ from erp.modules.admin.infrastructure import (
 )
 from erp.modules.product.api import router as product_router
 from erp.modules.product.application import ProductQueries
+from erp.modules.product.application.barcodes import ProductBarcodeService
 from erp.modules.product.application.creation import ProductCreationService
 from erp.modules.product.application.lifecycle import ProductLifecycleService
 from erp.modules.product.application.permissions import ProductAuthorization
 from erp.modules.product.application.updates import ProductUpdateService
+from erp.modules.product.infrastructure.product_barcodes import PostgresProductBarcodes
 from erp.modules.product.infrastructure.product_creation import PostgresProductCreation
 from erp.modules.product.infrastructure.product_directory import PostgresProductDirectory
 from erp.modules.product.infrastructure.product_lifecycle import PostgresProductLifecycle
@@ -50,6 +52,7 @@ def create_app(
     product_creation: ProductCreationService | None = None,
     product_updates: ProductUpdateService | None = None,
     product_lifecycle: ProductLifecycleService | None = None,
+    product_barcodes: ProductBarcodeService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -58,6 +61,15 @@ def create_app(
     resolved_corporate_creation_service = corporate_creation_service
     resolved_corporate_hierarchy_service = corporate_hierarchy_service
     resolved_product_queries = product_queries
+    if product_barcodes is None and isinstance(resolved_database, Database):
+        product_barcodes = ProductBarcodeService(
+            PostgresProductBarcodes(
+                resolved_database, ttl_seconds=resolved_settings.idempotency_ttl_seconds
+            ),
+            ProductAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
     if product_lifecycle is None and isinstance(resolved_database, Database):
         product_lifecycle = ProductLifecycleService(
             PostgresProductLifecycle(
@@ -136,6 +148,7 @@ def create_app(
     application.state.product_creation = resolved_product_creation
     application.state.product_updates = resolved_product_updates
     application.state.product_lifecycle = product_lifecycle
+    application.state.product_barcodes = product_barcodes
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)

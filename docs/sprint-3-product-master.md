@@ -8,6 +8,12 @@ POST /{id}/submit-for-homologation, /activate e /discontinue exigem company_id, 
 Idempotency-Key. Eventos: ProductUpdated (homologação), ProductActivated e ProductDiscontinued.
 
 037: barcode único por (company_id, barcode), manutenção com product.product.update.
+GET/POST /{id}/barcodes preservam códigos como texto. POST exige If-Match e Idempotency-Key,
+incrementa a versão do Product e grava ProductBarcodeChanged/Audit. Duplicidade retorna
+BARCODE_CONFLICT sem manter versão/efeitos parciais. Migration 0011 adiciona product_barcode e FK
+composta por empresa/produto. EAN aceita 8/13 dígitos, DUN 14; INTERNAL aceita identificador ASCII
+canônico de até 64 caracteres. Dígitos verificadores seguem
+[GS1](https://www.gs1.org/services/how-calculate-check-digit-manually), sem alegar titularidade do GTIN.
 038: DevSecurityContextResolver autorizado exclusivamente em local/test, mediante flag explícita;
 não representa autenticação de produção. Aplicabilidade global continua fora deste slice.
 

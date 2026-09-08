@@ -4,6 +4,7 @@ from dataclasses import replace
 from uuid import uuid4
 
 import pytest
+from httpx2 import Response
 from sqlalchemy import select
 
 from erp.modules.product.application.permissions import PRODUCT_ACTIVATE, PRODUCT_DISCONTINUE
@@ -20,7 +21,7 @@ def test_lifecycle_sequence_permissions_replay_and_events() -> None:
         path, query = url.split("?")
         assert api.resolver.context is not None
 
-        def call(action: str, version: int, key: str | None = None):  # type: ignore[no-untyped-def]
+        def call(action: str, version: int, key: str | None = None) -> Response:
             return api.client.post(
                 f"{path}/{action}?{query}",
                 headers={

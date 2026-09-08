@@ -15,6 +15,7 @@ class ProductModel(OptimisticLockMixin, Base):
 
     __tablename__ = "product"
     __table_args__ = (
+        UniqueConstraint("company_id", "id", name="uq_product_company_id"),
         UniqueConstraint("sku", name="uq_product_sku"),
         UniqueConstraint("company_id", "code", name="uq_product_company_code"),
         CheckConstraint("code ~ '^[A-Z0-9][A-Z0-9._-]{0,63}$'", name="code_format"),
