@@ -5,10 +5,10 @@ arquitetura consolidada e o README de governança técnica em `Arquivos .MD/`.
 
 ## Estado atual
 
-- Wave: `W1 — Corporate Foundation`
+- Wave: `W1 — Corporate & Master Data Foundation`
 - Sprint concluída e homologada: `3 — M2 Product Master`, commits `030–039`
-- Sprint em execução: `4 — M23 Product Import`, primeiro lote `040–042`
-- Schema atual: Alembic `0011`
+- Sprint em execução: `4 — M23 Product Import`, lote `040–042` implementado para homologação técnica
+- Schema atual: Alembic `0012`
 - APIs atuais: health checks, contexto corporativo `/api/v1/admin` e M2 `/api/v1/products`
 - M2: consultas, criação idempotente, PATCH concorrente, lifecycle estrito, barcodes e telas `/ui/`.
 - DevSecurityContextResolver opt-in somente local/test; sem flag ou adapter real, autenticação segue 503.

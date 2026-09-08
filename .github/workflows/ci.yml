@@ -97,5 +97,8 @@ jobs:
       - name: Enforce complete M2 statement and branch coverage
         run: uv run coverage report --include="erp/modules/product/*" --fail-under=100 --precision=2
 
+      - name: Enforce complete M23 statement and branch coverage
+        run: uv run coverage report --include="erp/modules/governance/*" --fail-under=100 --precision=2
+
       - name: Audit Python dependencies
         run: uv run pip-audit

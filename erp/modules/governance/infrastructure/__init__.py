@@ -5,5 +5,13 @@ from erp.modules.governance.infrastructure.import_models import (
     ImportTemplateModel,
     ImportTemplateVersionModel,
 )
+from erp.modules.governance.infrastructure.job_repository import ImportJobRepository
+from erp.modules.governance.infrastructure.template_repository import ImportTemplateRepository
 
-__all__ = ["ImportJobModel", "ImportTemplateModel", "ImportTemplateVersionModel"]
+__all__ = [
+    "ImportJobModel",
+    "ImportJobRepository",
+    "ImportTemplateModel",
+    "ImportTemplateRepository",
+    "ImportTemplateVersionModel",
+]

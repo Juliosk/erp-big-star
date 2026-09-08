@@ -64,3 +64,18 @@ def test_application_imports_do_not_depend_on_adapters_or_frameworks(
     ]
 
     assert violations == []
+
+
+def test_governance_imports_only_own_module_or_public_owner_contracts() -> None:
+    """M23 cannot bypass M1/M2 by importing an owner's repositories or API internals."""
+    allowed = (
+        "erp.modules.governance.",
+        "erp.modules.admin.contracts",
+        "erp.modules.product.contracts",
+    )
+    violations = []
+    for source in (PROJECT_ROOT / "erp" / "modules" / "governance").rglob("*.py"):
+        for imported in imported_modules(source.read_text(encoding="utf-8")):
+            if imported.startswith("erp.modules.") and not imported.startswith(allowed):
+                violations.append((str(source.relative_to(PROJECT_ROOT)), imported))
+    assert violations == []

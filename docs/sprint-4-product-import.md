@@ -4,7 +4,7 @@
 
 Importar produtos por uma carga governada: Template XLSX → Upload/Staging → Validation →
 Preview → Confirm → Commit → Product Master. M23 orquestra; M2 preserva a autoridade semântica.
-Baseline: Etapa 10 §§65–69, 1256/VS-003 e §147; Etapa 2 §§74–75; Etapa 4 §§11 e 58;
+Baseline: Etapa 10 §§65–69, §70/VS-003 e §147; Etapa 2 §§74–75; Etapa 4 §§11 e 58;
 Etapa 5 §§76–78; Etapa 6 §79; Etapa 7 §§92–94; Etapa 9 §12; README de governança §19.
 Sprint 3 homologada expressamente pelo usuário em 2026-09-08.
 
@@ -154,3 +154,38 @@ Usuário autorizado baixa template, envia XLSX, inspeciona erros/preview, confir
 permitida e encontra os produtos no M2 sem duplicação após retry. Empresas isoladas e rejeições
 rastreáveis. Mudança de dados/escopo/versão desde o preview impede confirmação obsoleta.
 Sprint 5 somente após homologação explícita da Sprint 4.
+
+## Evidências do primeiro lote — 2026-09-08
+
+- 040: `d4a7e3a`, domínio/planejamento; 041: `feda4df`, migration/mapeamentos/constraints;
+  042: persistência e gates (hash no log Git).
+- **391 testes aprovados** na regressão completa, incluindo PostgreSQL, RabbitMQ e Chromium do M2.
+- M23 **100,00%** com branches: 256 statements, 64 branches; M2 **100,00%** preservado;
+  ERP global **94,49%**. A cobertura Python não mede JavaScript.
+- Ruff check/format limpos; mypy strict: 211 arquivos sem erros. Nenhuma dependência adicionada.
+- CI mantém o piso global existente e inclui gate explícito `--fail-under=100` para M23 e M2.
+- Gate arquitetural adicional impede imports M23 de APIs/repositórios internos de M1/M2.
+- Alembic local em **0012**. Banco descartável validou `base → 0012 → 0011 → 0012`, seguido
+  dos 15 testes reais de schema. Somente esse banco temporário foi removido; banco homologado
+  não sofreu downgrade. Fixtures M23 removidas exclusivamente por seus IDs/empresas de teste.
+- UPDATE de template_version e alteração da identidade/fonte do job recusados pelo PostgreSQL.
+  FK composta impede template/versão de outra empresa e modo não autorizado é recusado.
+- Duas sessões disputando a mesma versão de job têm um vencedor; publicação concorrente da
+  mesma versão de template também tem um vencedor. Repositórios não confirmam transações.
+- Um aviso de depreciação Starlette/AnyIO de terceiro permanece, sem falhas.
+
+Reprodução local (infraestrutura ativa e sem flags Dev Auth do servidor herdadas):
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\ruff.exe check .
+.\.venv\Scripts\ruff.exe format --check .
+.\.venv\Scripts\python.exe -m mypy erp tests migrations
+.\.venv\Scripts\python.exe -m pytest --cov=erp --cov-report=term-missing --cov-report=xml
+.\.venv\Scripts\python.exe -m coverage report --include='erp/modules/governance/*' --fail-under=100 --precision=2
+.\.venv\Scripts\python.exe -m coverage report --include='erp/modules/product/*' --fail-under=100 --precision=2
+```
+
+Lote 040–042 concluído tecnicamente para homologação. Upload/preview/confirm/commit e telas de
+importação ainda não estão implementados. Modo inicial do template aguarda definição do usuário;
+criação e atualização por SKU já foram confirmadas. Não confundir essa fundação com Sprint 4 concluída.
