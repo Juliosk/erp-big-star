@@ -3,6 +3,21 @@
 Status: primeiro lote 030–032 implementado e validado tecnicamente; aguardando homologação
 do usuário. Não constitui aprovação da Sprint 3.
 
+Atualização: 030–032 homologados pelo usuário. Lote final 033–039 em execução.
+
+### Commit 033 — consultas
+
+GET `/api/v1/products?company_id=<uuid>&page=1&page_size=50&lifecycle=ATIVO` retorna
+`data` e `meta` (page, page_size, has_more); page_size máximo 100, página máxima 100000.
+GET `/api/v1/products/{id}?company_id=<uuid>` retorna produto e ETag. Respostas não são cacheáveis.
+Ambas exigem `product.product.read`. M1 resolve empresas ativas por contrato público
+`CompanyAccessService`; branch permite leitura da empresa ancestral, não escrita company-wide.
+Empresa/produto fora do escopo retornam 404; permissão ausente 403; token ausente/inválido 401;
+adapter de autenticação não configurado 503. Nenhum contexto é inferido de headers de permissões.
+
+Validação 033: 212 testes aprovados; Ruff/format e mypy strict limpos. Identidade injetada nos
+testes é um stub exclusivo da suíte, não um adapter entregue para produção.
+
 ## 1. Objetivo
 
 Entregar o primeiro Product Master funcional, proprietário do cadastro oficial de produto.

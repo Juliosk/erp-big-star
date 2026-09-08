@@ -15,10 +15,15 @@ from erp.modules.admin.application import (
     ListCompaniesService,
     SecurityContextResolver,
 )
+from erp.modules.admin.contracts import CompanyAccessService
 from erp.modules.admin.infrastructure import (
     PostgresCorporateCommandStore,
     PostgresCorporateDirectory,
 )
+from erp.modules.product.api import router as product_router
+from erp.modules.product.application import ProductQueries
+from erp.modules.product.application.permissions import ProductAuthorization
+from erp.modules.product.infrastructure.product_directory import PostgresProductDirectory
 from erp.platform.config import Settings, get_settings
 from erp.platform.database import Database, ManagedDatabase
 from erp.platform.errors import register_error_handlers
@@ -35,6 +40,7 @@ def create_app(
     corporate_creation_service: CorporateCreationService | None = None,
     corporate_hierarchy_service: CorporateHierarchyService | None = None,
     security_context_resolver: SecurityContextResolver | None = None,
+    product_queries: ProductQueries | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -42,6 +48,14 @@ def create_app(
     resolved_company_query_service = company_query_service
     resolved_corporate_creation_service = corporate_creation_service
     resolved_corporate_hierarchy_service = corporate_hierarchy_service
+    resolved_product_queries = product_queries
+    if resolved_product_queries is None and isinstance(resolved_database, Database):
+        resolved_product_queries = ProductQueries(
+            PostgresProductDirectory(resolved_database),
+            ProductAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
     if resolved_company_query_service is None and isinstance(resolved_database, Database):
         resolved_company_query_service = ListCompaniesService(
             PostgresCorporateDirectory(resolved_database)
@@ -82,9 +96,11 @@ def create_app(
     application.state.corporate_creation_service = resolved_corporate_creation_service
     application.state.corporate_hierarchy_service = resolved_corporate_hierarchy_service
     application.state.security_context_resolver = security_context_resolver
+    application.state.product_queries = resolved_product_queries
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)
+    application.include_router(product_router)
     # Starlette wraps the last-added middleware first: Request ID must be outermost.
     application.add_middleware(CorrelationIdMiddleware)
     application.add_middleware(RequestIdMiddleware)
