@@ -26,6 +26,7 @@ class ProductEffects:
         event_type: str,
         payload: dict[str, object],
         before: Product | None = None,
+        audit_details: dict[str, object] | None = None,
     ) -> ProductCommandResult:
         audit_id = await AuditService().record(
             session,
@@ -41,7 +42,7 @@ class ProductEffects:
                 correlation_id=metadata.correlation_id,
                 source_ip=metadata.source_ip,
                 before_snapshot=product_snapshot(before) if before is not None else None,
-                after_snapshot=product_snapshot(product),
+                after_snapshot={**product_snapshot(product), **(audit_details or {})},
             ),
         )
         envelope = MessageEnvelope.new(

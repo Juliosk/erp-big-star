@@ -21,6 +21,7 @@ dev = [
     "httpx2==2.12.0",
     "mypy==2.3.1",
     "pip-audit==2.10.1",
+    "playwright==1.62.0",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
     "ruff==0.16.6",
@@ -77,6 +78,7 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "--strict-markers", "-ra"]
 markers = [
+    "browser: exercises the real web UI in Chromium",
     "integration: exercises a real infrastructure dependency",
 ]
 pythonpath = ["."]

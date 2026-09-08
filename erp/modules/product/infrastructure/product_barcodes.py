@@ -98,6 +98,13 @@ class PostgresProductBarcodes:
                     metadata=command.metadata,
                     event_type="ProductBarcodeChanged",
                     before=before,
+                    audit_details={
+                        "added_barcode": {
+                            "id": str(barcode.id),
+                            "barcode_type": barcode.barcode_type,
+                            "barcode": barcode.barcode,
+                        }
+                    },
                     payload={
                         "product_id": str(saved.id),
                         "barcode_type": barcode.barcode_type,

@@ -7,11 +7,12 @@ arquitetura consolidada e o README de governança técnica em `Arquivos .MD/`.
 
 - Wave: `W1 — Corporate Foundation`
 - Sprint concluída: `2 — M1 Corporate Foundation`
-- Sprint em execução: `3 — M2 Product Master`, commits `030–035` implementados
-- Schema atual: Alembic `0010`
+- Sprint em homologação: `3 — M2 Product Master`, commits `030–039` implementados
+- Schema atual: Alembic `0011`
 - APIs atuais: health checks, contexto corporativo `/api/v1/admin` e M2 `/api/v1/products`
-- M2: consultas, criação idempotente e PATCH concorrente. Lifecycle/barcodes/telas ainda pendentes.
-- Sem adapter real de identidade configurado, rotas protegidas retornam 503; não há login simulado.
+- M2: consultas, criação idempotente, PATCH concorrente, lifecycle estrito, barcodes e telas `/ui/`.
+- DevSecurityContextResolver opt-in somente local/test; sem flag ou adapter real, autenticação segue 503.
+- Produção exige provedor de identidade real. Veja o [runbook M2](docs/product-master-runbook.md).
 
 ## Baseline Python
 
@@ -24,6 +25,7 @@ uv sync --locked
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy .
+uv run playwright install chromium
 uv run pytest
 ```
 
@@ -62,4 +64,4 @@ Consulte [a operação da Sprint 2](docs/sprint-2-corporate-foundation.md) para 
 eventos, migrations e gate de validação.
 
 Consulte [o plano da Sprint 3](docs/sprint-3-product-master.md) para escopo, commits,
-DoR/DoD, pendências de aplicabilidade global e evidências do primeiro lote.
+DoR/DoD, limites de aplicabilidade global e evidências dos lotes.

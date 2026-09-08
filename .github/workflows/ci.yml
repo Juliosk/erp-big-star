@@ -88,8 +88,14 @@ jobs:
       - name: Validate migrations against PostgreSQL
         run: uv run alembic upgrade head
 
-      - name: Run tests with coverage gate
+      - name: Install Chromium for browser E2E
+        run: uv run playwright install --with-deps chromium
+
+      - name: Run backend and browser tests with coverage gate
         run: uv run pytest --cov=erp --cov-report=term-missing --cov-report=xml
+
+      - name: Enforce complete M2 statement and branch coverage
+        run: uv run coverage report --include="erp/modules/product/*" --fail-under=100 --precision=2
 
       - name: Audit Python dependencies
         run: uv run pip-audit

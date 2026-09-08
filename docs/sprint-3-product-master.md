@@ -17,11 +17,13 @@ canônico de até 64 caracteres. Dígitos verificadores seguem
 038: DevSecurityContextResolver autorizado exclusivamente em local/test, mediante flag explícita;
 não representa autenticação de produção. Aplicabilidade global continua fora deste slice.
 
-Status: 030–032 homologados; 033–035 implementados e validados tecnicamente. 036–039 pendentes
-das decisões de DoR abaixo. Não constitui conclusão ou aprovação da Sprint 3.
+Status: 030–035 homologados; 036–039 implementados, aguardando homologação local do usuário.
+As decisões de DoR deste lote foram aprovadas em 2026-09-08. Nenhuma aprovação da Sprint 3
+é inferida da execução dos testes. Próxima Sprint permanece bloqueada até aceite explícito.
 
-Atualização: APIs de consulta/criação/PATCH prontas para homologação com identidade válida
-injetada na composição. Adapter real de identidade ainda não implementado.
+Telas funcionais em `/ui/`, com APIs oficiais e adapter de desenvolvimento opt-in. Provedor
+corporativo real de identidade continua fora deste slice. Consulte o
+[runbook M2](product-master-runbook.md) para configuração, cenários e limitações.
 
 ### Commit 033 — consultas
 
@@ -66,19 +68,12 @@ Testes incluem requests simultâneos, replay após perda de permissão, falha em
 chave isolada por empresa, headers inválidos, no-op, campos imutáveis e rollback da versão.
 Permanece um aviso de depreciação Starlette/AnyIO, sem mudança de dependências neste lote.
 
-### DoR necessário antes de 036–039
+### Resolução do DoR 036–039
 
-As perguntas foram enviadas ao usuário durante a execução; ainda sem definição registrada:
-
-1. Lifecycle proposto: desenvolvimento → homologação → ativo → fora de linha, sem retorno
-   automático; activate governa ativação/descontinuação. Confirmar as transições e permissões.
-2. Identidade real: escolher provedor corporativo e fornecer configuração pública necessária,
-   ou autorizar a expansão M1 para persistência de usuários/sessões e autenticação local.
-   Não criar usuário administrador, token fixo ou permissões implicitamente.
-3. Barcode: confirmar política de unicidade e vínculo de manutenção às permissões M2 antes de 037.
-
-Não há shell web no repositório nem provedor de identidade definido nos documentos pesquisados.
-As telas 038 e o encerramento E2E 039 não foram substituídos por mockups ou um login simulado.
+O usuário confirmou fluxo, permissão distinta de descontinuação, unicidade por empresa e
+manutenção de barcode com update. Autorizou expressamente identidade simulada em local/test.
+O adapter exige flag, token forte configurado, ator e lista explícita de empresas. Não cria
+administrador, usuário persistido, grant global nem sessão corporativa de produção.
 O escopo COMPANY homologado foi mantido; aplicabilidade global segue desabilitada.
 
 ## 1. Objetivo
@@ -106,9 +101,10 @@ Ativação de produto não substitui gates de qualidade/regulatório/estoque dos
 ## 4. Dependências
 
 PostgreSQL, M1 Company e contratos públicos de autorização; Error Contract, controle de versão,
-Idempotency, Audit, Outbox/Inbox, RabbitMQ e observabilidade já existentes. Sem novas dependências
-Python neste lote. As telas dependem do shell web e da autenticação efetiva: verificar prontidão
-antes do commit 038; não declarar frontend entregue por existir apenas OpenAPI.
+Idempotency, Audit, Outbox/Inbox, RabbitMQ e observabilidade já existentes. Playwright é dependência
+de desenvolvimento travada no lock para Chromium E2E; nenhuma dependência de runtime nova.
+Shell HTML/CSS/ES module, servido pela API, consome somente contratos HTTP; não contém regras
+de autorização substitutas do backend. As telas não são apenas OpenAPI ou mockups.
 
 ## 5. DoR Check e decisões explícitas
 
@@ -123,11 +119,11 @@ antes do commit 038; não declarar frontend entregue por existir apenas OpenAPI.
 - [ ] Aplicabilidade global: §58 menciona company/global sem política detalhada de autorização.
       Este lote suporta somente company; habilitar global requer decisão registrada sobre owner,
       visibilidade e manutenção. Não inferir compartilhamento a partir de NULL ou role administrativa.
-- [ ] Confirmar política de transições e pré-condições de ativação antes do commit 036.
-- [ ] Definir unicidade/tipos de barcode e autorização de discontinue antes de expor comandos.
-- [ ] Resolver adapter real de autenticação e prontidão do shell antes de homologar API/UI.
+- [x] Política estrita de transições e permissões homologada para 036.
+- [x] Unicidade/tipos de barcode e autorização de discontinue definidos para 037.
+- [x] Adapter local/test expressamente autorizado e shell funcional para 038.
 
-DoR do primeiro lote atendido; os itens pendentes bloqueiam suas próprias fatias, não o domínio base.
+DoR do slice COMPANY atendido. Aplicabilidade global e identidade produtiva não fazem parte deste aceite.
 
 ## 6. Backlog ordenado
 
@@ -158,12 +154,14 @@ domínio limitados à stdlib e ao próprio M2; tipos ORM não atravessam as port
 FK company, índices de consulta por empresa/lifecycle e business keys. Não altera M1.
 Downgrade remove apenas a tabela/schema novos: é destrutivo para produtos, exige backup e
 autorização em ambiente com dados. Testar ida/volta apenas em banco descartável vazio.
-Uma migration adicional para barcodes será definida no commit 037; não criar tabelas especulativas.
+0011 adiciona product.product_barcode com unicidade (company_id, barcode) e FK composta
+(company_id, product_id) para o produto da mesma empresa. Downgrade apaga barcodes: testar
+somente em banco descartável, nunca no banco homologado sem backup e autorização.
 
-## 9. APIs planejadas (não implementadas no lote inicial)
+## 9. APIs implementadas
 
 GET/POST /api/v1/products; GET/PATCH /api/v1/products/{id};
-POST /api/v1/products/{id}/activate e /discontinue;
+POST /api/v1/products/{id}/submit-for-homologation, /activate e /discontinue;
 GET/POST /api/v1/products/{id}/barcodes. Paginação limitada e determinística.
 Empresa selecionada deve ser validada contra escopos autenticados por contrato M1.
 Não aceitar headers de permissões, nem tratar UUID de empresa como autorização.
@@ -178,17 +176,18 @@ transação do comando; consumidores não consultam tabelas internas de M2.
 
 ## 11. Permissions / Scope / SoD
 
-product.product.read/create/update/activate são oficiais. Permissão de discontinue e manutenção
-de barcode devem ser explicitamente mapeadas antes de publicação, sem criar bypass.
+product.product.read/create/update/activate e product.product.discontinue compõem o registro M2.
+Barcode usa product.product.update; nenhuma permissão alternativa é presumida ou necessária.
 Scopes de grupo/filial são resolvidos por M1 para uma empresa autorizada: M2 não faz joins
 em tabelas internas de M1. Repositório recebe empresa já autorizada; não substitui RBAC.
 SoD BOM Editor ≠ Releaser fica fora do escopo, sem flexibilização futura implícita.
 
 ## 12. Audit
 
-Comandos públicos exigirão ator, empresa, operação, before/after mascarados, request_id e
+Comandos públicos exigem ator, empresa, operação, before/after mascarados, request_id e
 correlation_id; confirmação atômica com agregado, registro idempotente e Outbox.
-Neste lote somente metadados created/updated_at/by são persistidos; não são o Audit framework.
+Além de created/updated_at/by, Audit completo é persistido. A inclusão de barcode registra
+o valor/tipo/id adicionado no after_snapshot, junto à nova versão do agregado.
 
 ## 13. Tests
 
@@ -263,5 +262,27 @@ Reprodução dos gates locais:
 ```
 
 O teste de metadados é restrito ao owner M2. Não equivale a afirmar ausência de drift em todos
-os schemas antigos. O lote não contém RBAC de produto, rotas, Audit/Outbox de comandos ou telas:
-esses itens continuam explicitamente no plano 033–039.
+os schemas antigos. A evidência acima é histórica de 030–032, antes de APIs/Audit/Outbox/telas.
+
+## Evidências finais 036–039 — 2026-09-08
+
+- 036: `3023068`; 037: `117e5a4`; 038: `f2f561b`. Hash 039 consta no log Git do lote.
+- 309 testes aprovados, incluindo Chromium desktop/mobile e infraestrutura PostgreSQL/RabbitMQ real.
+- Cobertura com branches: ERP **93,99%**; M2 **100,00%**, 728 statements e 106 branches.
+- CI inclui instalação de Chromium e gate M2 `--fail-under=100`, além do piso global já existente.
+- Ruff check/format limpos; mypy strict limpo em 197 arquivos; lockfile consistente.
+- pip-audit: nenhuma vulnerabilidade conhecida na consulta desta data.
+- Alembic local em 0011; metadados M2 compatíveis. Banco descartável validou
+  `base → 0011 → 0010 → 0011`, sendo removido ao final. Banco homologado não sofreu downgrade.
+- E2E de navegador: criação/edição, conflito entre clientes, atualização do detalhe, barcodes,
+  lifecycle completo, paginação, empresa sem vazamento, identidade somente leitura e logout.
+- E2E de eventos: ProductCreated/Updated/Activated/Discontinued/BarcodeChanged com publisher
+  confirmado pelo RabbitMQ, Inbox durável e efeito não repetido. A fila é exclusiva temporária;
+  não foram criadas projeções de negócio fora do owner/sprint.
+- Falhas induzidas em Audit/Outbox revertem agregado, barcode, versão e chave. Concorrência
+  lifecycle versus barcode tem um único vencedor; replay reavalia RBAC antes de retornar resposta.
+- Audit de barcode inclui valor/tipo/id adicionado. Remoção das fixtures M2 restrita aos seus IDs.
+- Permanece um DeprecationWarning de terceiro Starlette/AnyIO, sem falhas.
+
+DoD técnico do slice COMPANY concluído para homologação, com limites do
+[runbook](product-master-runbook.md). Aceite funcional final e avanço de Sprint dependem do usuário.

@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 
 from erp.modules.admin.domain import Scope, ScopeType
 from erp.modules.product.infrastructure import ProductBarcodeModel, ProductRepository
+from erp.platform.audit import AuditEventModel
 from erp.platform.outbox import OutboxEventModel
 from tests.integration.product_api_support import product_api
 from tests.integration.test_product_updates_api import create_for_update
@@ -78,6 +79,10 @@ def test_barcodes_replay_version_uniqueness_and_company_isolation() -> None:
                 assert event is not None
                 assert event.event_type == "ProductBarcodeChanged"
                 assert event.payload["payload"]["barcode"] == body["barcode"]
+                audit = await session.get(AuditEventModel, created.json()["audit_event_id"])
+                assert audit is not None
+                assert audit.after_snapshot is not None
+                assert audit.after_snapshot["added_barcode"]["barcode"] == body["barcode"]
                 session.add(
                     ProductBarcodeModel(
                         id=uuid4(),

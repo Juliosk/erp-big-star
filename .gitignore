@@ -15,6 +15,7 @@ venv/
 .coverage.*
 coverage.xml
 htmlcov/
+test-results/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
@@ -34,4 +35,3 @@ Thumbs.db
 build/
 dist/
 *.egg-info/
-

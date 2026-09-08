@@ -1,8 +1,15 @@
 """GS1 check digits and canonical internal codes without I/O."""
 
+from typing import cast
+
 import pytest
 
 from erp.modules.product.domain.barcode import Barcode, BarcodeType
+
+
+def test_unknown_domain_type_is_rejected() -> None:
+    with pytest.raises(ValueError, match="Unsupported"):
+        Barcode(cast(BarcodeType, "unknown"), "ABC")
 
 
 @pytest.mark.parametrize(
