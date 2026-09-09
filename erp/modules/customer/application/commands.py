@@ -4,7 +4,13 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 from uuid import UUID
 
-from erp.modules.customer.domain import Customer, CustomerStatus, CustomerType, CustomerTaxId, TaxIdKind
+from erp.modules.customer.domain import (
+    Customer,
+    CustomerStatus,
+    CustomerType,
+    CustomerTaxId,
+    TaxIdKind,
+)
 
 
 @dataclass(frozen=True, slots=True)

@@ -5,7 +5,13 @@ from uuid import uuid4
 
 import pytest
 
-from erp.modules.customer.domain import Customer, CustomerStatus, CustomerTaxId, CustomerType, TaxIdKind
+from erp.modules.customer.domain import (
+    Customer,
+    CustomerStatus,
+    CustomerTaxId,
+    CustomerType,
+    TaxIdKind,
+)
 
 
 def customer_fields(customer: Customer) -> dict[str, object]:
