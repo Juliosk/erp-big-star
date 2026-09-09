@@ -183,6 +183,7 @@ export function mountImports({ api, context, notice, enter }) {
         continue;
       const button = document.createElement("button");
       button.textContent = actionLabels[action];
+      button.disabled = busy;
       button.onclick = () =>
         run(async (ticket) => {
           const snapshot = job,
@@ -209,6 +210,7 @@ export function mountImports({ api, context, notice, enter }) {
       const button = document.createElement("button");
       button.className = "secondary";
       button.textContent = "Baixar inconsistências";
+      button.disabled = busy;
       button.onclick = () =>
         run(async (ticket) =>
           save(
