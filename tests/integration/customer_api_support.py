@@ -6,15 +6,17 @@ from dataclasses import dataclass
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 
 from erp.apps.api.app import create_app
 from erp.modules.admin.application import SecurityContext
 from erp.modules.admin.domain import AuthenticatedPrincipal, AuthenticationLevel, Scope, ScopeType
 from erp.modules.customer.application.permissions import CUSTOMER_READ
 from erp.modules.customer.infrastructure import (
+    CustomerDuplicateCandidateModel,
     CustomerGroupMemberModel,
     CustomerGroupModel,
+    CustomerMergeRequestModel,
     CustomerModel,
 )
 from erp.platform.audit import AuditEventModel
@@ -65,11 +67,19 @@ def customer_api() -> Iterator[CustomerApiFixture]:
             async def cleanup_effects() -> None:
                 company_ids = (data.company_id, data.other_company_id)
                 async with data.database.session() as session, session.begin():
-                    ids = select(CustomerModel.id).where(CustomerModel.company_id.in_(company_ids))
+                    customer_ids = select(CustomerModel.id).where(
+                        CustomerModel.company_id.in_(company_ids)
+                    )
+                    merge_ids = select(CustomerMergeRequestModel.id).where(
+                        CustomerMergeRequestModel.company_id.in_(company_ids)
+                    )
                     await session.execute(
                         delete(OutboxEventModel).where(
                             OutboxEventModel.source_module == "crm",
-                            OutboxEventModel.aggregate_id.in_(ids),
+                            or_(
+                                OutboxEventModel.aggregate_id.in_(customer_ids),
+                                OutboxEventModel.aggregate_id.in_(merge_ids),
+                            ),
                         )
                     )
                     await session.execute(
@@ -89,6 +99,16 @@ def customer_api() -> Iterator[CustomerApiFixture]:
                     await session.execute(
                         delete(CustomerGroupMemberModel).where(
                             CustomerGroupMemberModel.company_id.in_(company_ids)
+                        )
+                    )
+                    await session.execute(
+                        delete(CustomerMergeRequestModel).where(
+                            CustomerMergeRequestModel.company_id.in_(company_ids)
+                        )
+                    )
+                    await session.execute(
+                        delete(CustomerDuplicateCandidateModel).where(
+                            CustomerDuplicateCandidateModel.company_id.in_(company_ids)
                         )
                     )
                     await session.execute(

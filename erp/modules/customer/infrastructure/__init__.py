@@ -6,6 +6,10 @@ from erp.modules.customer.infrastructure.contact_address_model import (
 )
 from erp.modules.customer.infrastructure.customer_model import CustomerModel
 from erp.modules.customer.infrastructure.customer_repository import CustomerRepository
+from erp.modules.customer.infrastructure.duplicate_model import (
+    CustomerDuplicateCandidateModel,
+    CustomerMergeRequestModel,
+)
 from erp.modules.customer.infrastructure.group_model import (
     CustomerGroupMemberModel,
     CustomerGroupModel,
@@ -14,8 +18,10 @@ from erp.modules.customer.infrastructure.group_model import (
 __all__ = [
     "CustomerAddressModel",
     "CustomerContactModel",
+    "CustomerDuplicateCandidateModel",
     "CustomerGroupMemberModel",
     "CustomerGroupModel",
+    "CustomerMergeRequestModel",
     "CustomerModel",
     "CustomerRepository",
 ]

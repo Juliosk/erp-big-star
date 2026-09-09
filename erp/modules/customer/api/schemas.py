@@ -4,7 +4,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from erp.modules.customer.domain import CustomerGroup, CustomerStatus, CustomerType, TaxIdKind
+from erp.modules.customer.domain import (
+    CustomerDuplicateCandidate,
+    CustomerGroup,
+    CustomerMergeRequest,
+    CustomerStatus,
+    CustomerType,
+    TaxIdKind,
+)
 
 
 class CustomerResponse(BaseModel):
@@ -61,11 +68,70 @@ class CustomerGroupAssignmentResponse(BaseModel):
     audit_event_id: UUID
 
 
+class CustomerDuplicateCandidateResponse(BaseModel):
+    id: UUID
+    company_id: UUID
+    source_customer_id: UUID
+    candidate_customer_id: UUID
+    confidence: int
+    reason_codes: list[str]
+
+    @classmethod
+    def from_domain(
+        cls, candidate: CustomerDuplicateCandidate
+    ) -> CustomerDuplicateCandidateResponse:
+        return cls(
+            id=candidate.id,
+            company_id=candidate.company_id,
+            source_customer_id=candidate.source_customer_id,
+            candidate_customer_id=candidate.candidate_customer_id,
+            confidence=candidate.confidence,
+            reason_codes=[reason.value for reason in candidate.reason_codes],
+        )
+
+
+class CustomerDuplicateListResponse(BaseModel):
+    data: list[CustomerDuplicateCandidateResponse]
+
+
+class CustomerMergeRequestResponse(BaseModel):
+    id: UUID
+    company_id: UUID
+    source_customer_id: UUID
+    candidate_customer_id: UUID
+    surviving_customer_id: UUID
+    status: str
+    reason: str
+    version: int
+    event_id: UUID
+    audit_event_id: UUID
+
+    @classmethod
+    def from_domain(
+        cls, merge_request: CustomerMergeRequest, *, event_id: UUID, audit_event_id: UUID
+    ) -> CustomerMergeRequestResponse:
+        return cls(
+            id=merge_request.id,
+            company_id=merge_request.company_id,
+            source_customer_id=merge_request.source_customer_id,
+            candidate_customer_id=merge_request.candidate_customer_id,
+            surviving_customer_id=merge_request.surviving_customer_id,
+            status=merge_request.status,
+            reason=merge_request.reason,
+            version=merge_request.version,
+            event_id=event_id,
+            audit_event_id=audit_event_id,
+        )
+
+
 __all__ = [
+    "CustomerDuplicateCandidateResponse",
+    "CustomerDuplicateListResponse",
     "CustomerGroupAssignmentResponse",
     "CustomerGroupListResponse",
     "CustomerGroupResponse",
     "CustomerListResponse",
+    "CustomerMergeRequestResponse",
     "CustomerResponse",
     "PageMetadata",
 ]

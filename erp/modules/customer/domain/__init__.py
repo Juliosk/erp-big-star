@@ -7,6 +7,13 @@ from erp.modules.customer.domain.contact import (
     CustomerContactRole,
 )
 from erp.modules.customer.domain.customer import Customer, CustomerStatus, CustomerType
+from erp.modules.customer.domain.duplicate import (
+    CustomerDuplicateCandidate,
+    CustomerMergeRequest,
+    DuplicateReason,
+    MergeRequestStatus,
+    detect_duplicate_candidates,
+)
 from erp.modules.customer.domain.group import CustomerGroup, CustomerGroupMember
 from erp.modules.customer.domain.tax_id import CustomerTaxId, TaxIdKind
 
@@ -17,10 +24,15 @@ __all__ = [
     "CustomerContact",
     "CustomerContactKind",
     "CustomerContactRole",
+    "CustomerDuplicateCandidate",
     "CustomerGroup",
     "CustomerGroupMember",
+    "CustomerMergeRequest",
     "CustomerStatus",
     "CustomerTaxId",
     "CustomerType",
+    "DuplicateReason",
+    "MergeRequestStatus",
     "TaxIdKind",
+    "detect_duplicate_candidates",
 ]
