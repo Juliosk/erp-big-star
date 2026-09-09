@@ -80,6 +80,7 @@ class ImportTemplateVersionModel(Base):
 class ImportJobModel(OptimisticLockMixin, Base):
     __tablename__ = "import_job"
     __table_args__ = (
+        UniqueConstraint("company_id", "id", name="uq_import_job_company_id"),
         ForeignKeyConstraint(
             ["company_id", "template_id", "template_version"],
             [
@@ -94,7 +95,10 @@ class ImportJobModel(OptimisticLockMixin, Base):
         CheckConstraint(
             "commit_mode IN ('ALL_OR_NOTHING', 'VALID_ROWS_ONLY', 'BATCH_ATOMIC')", name="mode"
         ),
-        CheckConstraint("status IN ('UPLOADED', 'CANCELLED')", name="status"),
+        CheckConstraint(
+            "status IN ('UPLOADED', 'CANCELLED', 'VALIDATED', 'REJECTED', 'PREVIEWED', 'CONFIRMED', 'COMMITTED')",
+            name="status",
+        ),
         CheckConstraint("source_sha256 ~ '^[a-f0-9]{64}$'", name="checksum"),
         CheckConstraint("source_size_bytes BETWEEN 1 AND 10485760", name="size"),
         CheckConstraint(

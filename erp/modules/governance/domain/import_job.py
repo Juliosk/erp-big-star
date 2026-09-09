@@ -17,6 +17,11 @@ MAX_SOURCE_BYTES = 10 * 1024 * 1024
 class ImportJobStatus(StrEnum):
     UPLOADED = "UPLOADED"
     CANCELLED = "CANCELLED"
+    VALIDATED = "VALIDATED"
+    REJECTED = "REJECTED"
+    PREVIEWED = "PREVIEWED"
+    CONFIRMED = "CONFIRMED"
+    COMMITTED = "COMMITTED"
 
 
 @dataclass(frozen=True, slots=True)

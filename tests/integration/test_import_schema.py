@@ -37,6 +37,9 @@ def test_import_migration_matches_models_and_tenant_foreign_keys() -> None:
             "import_template",
             "import_template_version",
             "import_job",
+            "import_staging_row",
+            "import_validation_result",
+            "import_commit_batch",
         }
         for model in (ImportTemplateModel, ImportTemplateVersionModel, ImportJobModel):
             columns = inspector.get_columns(model.__tablename__, schema="governance")

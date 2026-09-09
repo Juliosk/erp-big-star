@@ -19,6 +19,11 @@ from erp.modules.governance.infrastructure import (
     ImportTemplateModel,
     ImportTemplateVersionModel,
 )
+from erp.modules.governance.infrastructure.processing_models import (
+    ImportCommitBatchModel,
+    ImportStagingRowModel,
+    ImportValidationResultModel,
+)
 from tests.integration.test_product_persistence import Fixture, fixture
 
 
@@ -29,7 +34,14 @@ async def import_fixture() -> AsyncIterator[Fixture]:
             yield data
         finally:
             async with data.database.session() as session, session.begin():
-                for model in (ImportJobModel, ImportTemplateVersionModel, ImportTemplateModel):
+                for model in (
+                    ImportCommitBatchModel,
+                    ImportValidationResultModel,
+                    ImportStagingRowModel,
+                    ImportJobModel,
+                    ImportTemplateVersionModel,
+                    ImportTemplateModel,
+                ):
                     await session.execute(
                         delete(model).where(
                             model.company_id.in_((data.company_id, data.other_company_id))
