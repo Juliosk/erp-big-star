@@ -53,6 +53,18 @@ class Customer:
         if type(self.version) is not int or self.version < 1:
             raise ValueError("version must be a positive integer.")
 
+    @property
+    def identity_type(self) -> TaxIdKind:
+        return self.tax_id.kind
+
+    @property
+    def identity_value(self) -> str:
+        return self.tax_id.value
+
+    @property
+    def identity_ref(self) -> str:
+        return self.tax_id.reference
+
     @classmethod
     def create(
         cls,
@@ -72,7 +84,7 @@ class Customer:
             customer_type=customer_type,
             tax_id=CustomerTaxId(identity_type, identity_value),
             legal_name=legal_name.strip(),
-            trade_name=normalized_trade_name or None,
+            trade_name=normalized_trade_name if trade_name is not None else None,
             status=CustomerStatus.ACTIVE,
             version=1,
         )
@@ -83,7 +95,7 @@ class Customer:
         candidate = replace(
             self,
             legal_name=legal_name.strip(),
-            trade_name=normalized_trade_name or None,
+            trade_name=normalized_trade_name if trade_name is not None else None,
         )
         if candidate == self:
             return self

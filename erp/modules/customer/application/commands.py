@@ -7,8 +7,8 @@ from uuid import UUID
 from erp.modules.customer.domain import (
     Customer,
     CustomerStatus,
-    CustomerType,
     CustomerTaxId,
+    CustomerType,
     TaxIdKind,
 )
 

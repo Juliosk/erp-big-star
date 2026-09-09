@@ -24,6 +24,12 @@ from erp.modules.admin.infrastructure import (
     PostgresCorporateDirectory,
 )
 from erp.modules.admin.infrastructure.dev_security import DevSecurityContextResolver
+from erp.modules.customer.api import router as customer_router
+from erp.modules.customer.application import CustomerQueries
+from erp.modules.customer.application.creation import CustomerCreationService
+from erp.modules.customer.application.permissions import CustomerAuthorization
+from erp.modules.customer.infrastructure.customer_creation import PostgresCustomerCreation
+from erp.modules.customer.infrastructure.customer_directory import PostgresCustomerDirectory
 from erp.modules.governance.api import router as import_router
 from erp.modules.governance.application.imports import ImportService
 from erp.modules.product.api import router as product_router
@@ -60,6 +66,8 @@ def create_app(
     product_lifecycle: ProductLifecycleService | None = None,
     product_barcodes: ProductBarcodeService | None = None,
     imports: ImportService | None = None,
+    customer_queries: CustomerQueries | None = None,
+    customer_creation: CustomerCreationService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -80,6 +88,24 @@ def create_app(
     resolved_corporate_creation_service = corporate_creation_service
     resolved_corporate_hierarchy_service = corporate_hierarchy_service
     resolved_product_queries = product_queries
+    resolved_customer_queries = customer_queries
+    resolved_customer_creation = customer_creation
+    if resolved_customer_creation is None and isinstance(resolved_database, Database):
+        resolved_customer_creation = CustomerCreationService(
+            PostgresCustomerCreation(
+                resolved_database, ttl_seconds=resolved_settings.idempotency_ttl_seconds
+            ),
+            CustomerAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
+    if resolved_customer_queries is None and isinstance(resolved_database, Database):
+        resolved_customer_queries = CustomerQueries(
+            PostgresCustomerDirectory(resolved_database),
+            CustomerAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
     if product_barcodes is None and isinstance(resolved_database, Database):
         product_barcodes = ProductBarcodeService(
             PostgresProductBarcodes(
@@ -169,10 +195,13 @@ def create_app(
     application.state.product_lifecycle = product_lifecycle
     application.state.product_barcodes = product_barcodes
     application.state.imports = imports
+    application.state.customer_queries = resolved_customer_queries
+    application.state.customer_creation = resolved_customer_creation
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)
     application.include_router(product_router)
+    application.include_router(customer_router)
     application.include_router(session_router)
     application.include_router(import_router)
     mount_web(application)

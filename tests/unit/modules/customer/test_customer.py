@@ -1,6 +1,7 @@
 """Pure M14 customer domain rules."""
 
 from dataclasses import replace
+from typing import Any, cast
 from uuid import uuid4
 
 import pytest
@@ -12,19 +13,6 @@ from erp.modules.customer.domain import (
     CustomerType,
     TaxIdKind,
 )
-
-
-def customer_fields(customer: Customer) -> dict[str, object]:
-    return {
-        "id": customer.id,
-        "company_id": customer.company_id,
-        "customer_type": customer.customer_type,
-        "tax_id": customer.tax_id,
-        "legal_name": customer.legal_name,
-        "trade_name": customer.trade_name,
-        "status": customer.status,
-        "version": customer.version,
-    }
 
 
 def test_create_individual_customer_normalizes_cpf_and_trims_names() -> None:
@@ -114,17 +102,17 @@ def test_update_master_changes_only_descriptive_fields_and_versions() -> None:
 
 
 @pytest.mark.parametrize(
-    "changes",
+    ("changes", "message"),
     [
-        {"id": "invalid"},
-        {"customer_type": "INVALID"},
-        {"tax_id": "invalid"},
-        {"status": "INVALID"},
-        {"version": 0},
-        {"trade_name": " "},
+        ({"id": "invalid"}, "UUID"),
+        ({"customer_type": "INVALID"}, "customer_type"),
+        ({"tax_id": "invalid"}, "tax_id"),
+        ({"status": "INVALID"}, "status"),
+        ({"version": 0}, "version"),
+        ({"trade_name": " "}, "trade_name"),
     ],
 )
-def test_rejects_invalid_snapshot_fields(changes: dict[str, object]) -> None:
+def test_rejects_invalid_snapshot_fields(changes: dict[str, Any], message: str) -> None:
     customer = Customer.create(
         company_id=uuid4(),
         customer_type=CustomerType.INDIVIDUAL,
@@ -132,8 +120,8 @@ def test_rejects_invalid_snapshot_fields(changes: dict[str, object]) -> None:
         identity_value="52998224725",
         legal_name="Cliente",
     )
-    with pytest.raises(ValueError):
-        Customer(**{**customer_fields(customer), **changes})
+    with pytest.raises(ValueError, match=message):
+        cast(Any, replace)(customer, **changes)
 
 
 def test_tax_id_rejects_forbidden_characters_and_invalid_kind() -> None:
@@ -141,6 +129,9 @@ def test_tax_id_rejects_forbidden_characters_and_invalid_kind() -> None:
         CustomerTaxId(TaxIdKind.CPF, "52998224725<script>")
     with pytest.raises(ValueError, match="identity_type"):
         CustomerTaxId("CPF", "52998224725")  # type: ignore[arg-type]
+    assert str(CustomerTaxId(TaxIdKind.CPF, "52998224725")) == "52998224725"
+    with pytest.raises(ValueError, match="valid CPF/CNPJ"):
+        CustomerTaxId(TaxIdKind.CNPJ, "11")
 
 
 def test_customer_snapshot_must_keep_trimmed_trade_name() -> None:
