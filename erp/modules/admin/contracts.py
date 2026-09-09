@@ -2,7 +2,7 @@
 
 from erp.modules.admin.application.authorization import require_permission
 from erp.modules.admin.application.company_access import CompanyAccessService
-from erp.modules.admin.application.security import SecurityContext
+from erp.modules.admin.application.security import SecurityContext, SecurityContextResolver
 from erp.modules.admin.domain import (
     AuthorizationPolicy,
     DataClassification,
@@ -21,5 +21,6 @@ __all__ = [
     "PermissionRegistry",
     "PermissionRiskLevel",
     "SecurityContext",
+    "SecurityContextResolver",
     "require_permission",
 ]

@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from erp.apps.api.import_composition import compose_imports
 from erp.apps.api.middleware import CorrelationIdMiddleware, RequestIdMiddleware
 from erp.apps.api.routes import health_router
 from erp.apps.web.mount import mount_web
@@ -23,6 +24,8 @@ from erp.modules.admin.infrastructure import (
     PostgresCorporateDirectory,
 )
 from erp.modules.admin.infrastructure.dev_security import DevSecurityContextResolver
+from erp.modules.governance.api import router as import_router
+from erp.modules.governance.application.imports import ImportService
 from erp.modules.product.api import router as product_router
 from erp.modules.product.application import ProductQueries
 from erp.modules.product.application.barcodes import ProductBarcodeService
@@ -56,6 +59,7 @@ def create_app(
     product_updates: ProductUpdateService | None = None,
     product_lifecycle: ProductLifecycleService | None = None,
     product_barcodes: ProductBarcodeService | None = None,
+    imports: ImportService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -70,6 +74,8 @@ def create_app(
         if security_context_resolver is None:
             security_context_resolver = DevSecurityContextResolver(resolved_settings)
     resolved_database = database or Database(resolved_settings)
+    if imports is None and isinstance(resolved_database, Database):
+        imports = compose_imports(resolved_database, resolved_settings)
     resolved_company_query_service = company_query_service
     resolved_corporate_creation_service = corporate_creation_service
     resolved_corporate_hierarchy_service = corporate_hierarchy_service
@@ -162,11 +168,13 @@ def create_app(
     application.state.product_updates = resolved_product_updates
     application.state.product_lifecycle = product_lifecycle
     application.state.product_barcodes = product_barcodes
+    application.state.imports = imports
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)
     application.include_router(product_router)
     application.include_router(session_router)
+    application.include_router(import_router)
     mount_web(application)
     # Starlette wraps the last-added middleware first: Request ID must be outermost.
     application.add_middleware(CorrelationIdMiddleware)
