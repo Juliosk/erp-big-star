@@ -27,6 +27,8 @@ from erp.modules.customer.domain import (
 from erp.modules.customer.infrastructure import (
     CustomerAddressModel,
     CustomerContactModel,
+    CustomerGroupMemberModel,
+    CustomerGroupModel,
     CustomerModel,
     CustomerRepository,
 )
@@ -97,6 +99,14 @@ async def customer_fixture() -> AsyncIterator[CustomerFixture]:
     finally:
         try:
             async with database.session() as session, session.begin():
+                await session.execute(
+                    delete(CustomerGroupMemberModel).where(
+                        CustomerGroupMemberModel.company_id.in_(company_ids)
+                    )
+                )
+                await session.execute(
+                    delete(CustomerGroupModel).where(CustomerGroupModel.company_id.in_(company_ids))
+                )
                 await session.execute(
                     delete(CustomerContactModel).where(
                         CustomerContactModel.company_id.in_(company_ids)

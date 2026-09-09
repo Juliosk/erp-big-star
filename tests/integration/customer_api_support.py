@@ -12,7 +12,11 @@ from erp.apps.api.app import create_app
 from erp.modules.admin.application import SecurityContext
 from erp.modules.admin.domain import AuthenticatedPrincipal, AuthenticationLevel, Scope, ScopeType
 from erp.modules.customer.application.permissions import CUSTOMER_READ
-from erp.modules.customer.infrastructure import CustomerModel
+from erp.modules.customer.infrastructure import (
+    CustomerGroupMemberModel,
+    CustomerGroupModel,
+    CustomerModel,
+)
 from erp.platform.audit import AuditEventModel
 from erp.platform.config import get_settings
 from erp.platform.idempotency.models import IdempotencyRecordModel
@@ -80,6 +84,16 @@ def customer_api() -> Iterator[CustomerApiFixture]:
                                 f"customer:{company_id}:{data.actor_id}"
                                 for company_id in company_ids
                             )
+                        )
+                    )
+                    await session.execute(
+                        delete(CustomerGroupMemberModel).where(
+                            CustomerGroupMemberModel.company_id.in_(company_ids)
+                        )
+                    )
+                    await session.execute(
+                        delete(CustomerGroupModel).where(
+                            CustomerGroupModel.company_id.in_(company_ids)
                         )
                     )
 

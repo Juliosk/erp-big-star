@@ -7,6 +7,7 @@ from erp.modules.customer.domain.contact import (
     CustomerContactRole,
 )
 from erp.modules.customer.domain.customer import Customer, CustomerStatus, CustomerType
+from erp.modules.customer.domain.group import CustomerGroup, CustomerGroupMember
 from erp.modules.customer.domain.tax_id import CustomerTaxId, TaxIdKind
 
 __all__ = [
@@ -16,6 +17,8 @@ __all__ = [
     "CustomerContact",
     "CustomerContactKind",
     "CustomerContactRole",
+    "CustomerGroup",
+    "CustomerGroupMember",
     "CustomerStatus",
     "CustomerTaxId",
     "CustomerType",
