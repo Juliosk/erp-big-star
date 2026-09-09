@@ -40,7 +40,8 @@ continua posterior: não presumir aprovação nem contornar SoD para habilitar u
 - [x] Testes de limites, isolamento, imutabilidade, migração e CAS definidos para 040–042.
 - [x] Usuário definiu criação e atualização por SKU. Update preserva o contrato M2 homologado:
       nome/unidade, somente na empresa autorizada, com versão capturada no preview e CAS no commit.
-- [ ] Confirmar modo inicialmente habilitado no template antes do commit funcional.
+- [x] Usuário aprovou ALL_OR_NOTHING como único modo operacional inicial. Os enums
+      VALID_ROWS_ONLY e BATCH_ATOMIC permanecem reservados, sem execução habilitada.
 - [ ] Se houver atualização material, definir aprovação M22 e fingerprint: NOT_READY até definição.
 
 As decisões ainda pendentes foram apresentadas ao usuário. Elas não bloqueiam a fundação, que não

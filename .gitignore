@@ -14,6 +14,8 @@ venv/
 .coverage
 .coverage.*
 coverage.xml
+coverage.json
+coverage-import.json
 htmlcov/
 test-results/
 .mypy_cache/

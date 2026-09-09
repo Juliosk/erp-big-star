@@ -105,6 +105,24 @@ class Settings(BaseSettings):
     ] = (30_000, 120_000, 300_000, 900_000)
     idempotency_ttl_seconds: int = Field(default=86_400, ge=60)
 
+    import_storage_endpoint: str = "127.0.0.1:9000"
+    import_storage_bucket: str = "erp-imports"
+    import_storage_access_key: str = ""
+    import_storage_secret_key: SecretStr = SecretStr("")
+    import_storage_secure: bool = True
+
+    @model_validator(mode="after")
+    def validate_import_storage(self) -> Self:
+        if self.import_storage_access_key:
+            if not self.import_storage_secret_key.get_secret_value():
+                raise ValueError("Import storage requires a secret key.")
+            if not self.import_storage_secure and self.environment not in {
+                Environment.LOCAL,
+                Environment.TEST,
+            }:
+                raise ValueError("Import storage requires TLS outside local/test.")
+        return self
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
