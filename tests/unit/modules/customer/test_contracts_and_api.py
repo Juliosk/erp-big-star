@@ -8,6 +8,7 @@ import pytest
 
 from erp.modules.customer.api.creation import get_creation
 from erp.modules.customer.api.queries import get_queries
+from erp.modules.customer.api.updates import get_updates
 from erp.modules.customer.application.permissions import CUSTOMER_READ, CustomerAuthorization
 from erp.modules.customer.contracts import CustomerReference
 from erp.platform.errors import ApplicationError
@@ -34,6 +35,7 @@ def test_public_contract_exports_customer_reference_without_infrastructure() -> 
     [
         (get_queries, "CUSTOMER_QUERY_UNAVAILABLE"),
         (get_creation, "CUSTOMER_COMMAND_UNAVAILABLE"),
+        (get_updates, "CUSTOMER_COMMAND_UNAVAILABLE"),
     ],
 )
 def test_api_dependency_providers_fail_closed(provider: object, code: str) -> None:

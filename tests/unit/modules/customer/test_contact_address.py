@@ -71,6 +71,14 @@ def test_contact_rejects_invalid_snapshot_fields() -> None:
     )
     with pytest.raises(ValueError, match="role"):
         cast(Any, replace)(contact, role="FISCAL")
+    with pytest.raises(ValueError, match="UUID"):
+        cast(Any, replace)(contact, company_id="bad")
+    with pytest.raises(ValueError, match="kind"):
+        cast(Any, replace)(contact, kind="EMAIL")
+    with pytest.raises(ValueError, match="value"):
+        cast(Any, replace)(contact, value=" duplicated@example.com ")
+    with pytest.raises(ValueError, match="name"):
+        cast(Any, replace)(contact, name="")
     with pytest.raises(ValueError, match="boolean"):
         cast(Any, replace)(contact, is_primary=1)
 
@@ -123,5 +131,7 @@ def test_address_rejects_invalid_snapshot_fields(changes: dict[str, object], mes
         state="SP",
         postal_code="01234567",
     )
+    with pytest.raises(ValueError, match="UUID"):
+        cast(Any, replace)(address, customer_id="bad")
     with pytest.raises(ValueError, match=message):
         cast(Any, replace)(address, **changes)

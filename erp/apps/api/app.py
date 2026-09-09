@@ -25,11 +25,12 @@ from erp.modules.admin.infrastructure import (
 )
 from erp.modules.admin.infrastructure.dev_security import DevSecurityContextResolver
 from erp.modules.customer.api import router as customer_router
-from erp.modules.customer.application import CustomerQueries
+from erp.modules.customer.application import CustomerQueries, CustomerUpdateService
 from erp.modules.customer.application.creation import CustomerCreationService
 from erp.modules.customer.application.permissions import CustomerAuthorization
 from erp.modules.customer.infrastructure.customer_creation import PostgresCustomerCreation
 from erp.modules.customer.infrastructure.customer_directory import PostgresCustomerDirectory
+from erp.modules.customer.infrastructure.customer_updates import PostgresCustomerUpdates
 from erp.modules.governance.api import router as import_router
 from erp.modules.governance.application.imports import ImportService
 from erp.modules.product.api import router as product_router
@@ -68,6 +69,7 @@ def create_app(
     imports: ImportService | None = None,
     customer_queries: CustomerQueries | None = None,
     customer_creation: CustomerCreationService | None = None,
+    customer_updates: CustomerUpdateService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -90,6 +92,14 @@ def create_app(
     resolved_product_queries = product_queries
     resolved_customer_queries = customer_queries
     resolved_customer_creation = customer_creation
+    resolved_customer_updates = customer_updates
+    if resolved_customer_updates is None and isinstance(resolved_database, Database):
+        resolved_customer_updates = CustomerUpdateService(
+            PostgresCustomerUpdates(resolved_database),
+            CustomerAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
     if resolved_customer_creation is None and isinstance(resolved_database, Database):
         resolved_customer_creation = CustomerCreationService(
             PostgresCustomerCreation(
@@ -197,6 +207,7 @@ def create_app(
     application.state.imports = imports
     application.state.customer_queries = resolved_customer_queries
     application.state.customer_creation = resolved_customer_creation
+    application.state.customer_updates = resolved_customer_updates
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)

@@ -101,5 +101,20 @@ class Customer:
             return self
         return replace(candidate, version=self.version + 1)
 
+    def transition_status(self, target: CustomerStatus) -> Customer:
+        """Apply an explicit operational-status transition."""
+        if not isinstance(target, CustomerStatus):
+            raise ValueError("target status must be an official M14 status.")
+        if target is self.status:
+            return self
+        allowed = {
+            CustomerStatus.ACTIVE: {CustomerStatus.INACTIVE, CustomerStatus.BLOCKED},
+            CustomerStatus.INACTIVE: {CustomerStatus.ACTIVE, CustomerStatus.BLOCKED},
+            CustomerStatus.BLOCKED: {CustomerStatus.ACTIVE},
+        }
+        if target not in allowed[self.status]:
+            raise ValueError("The requested customer status transition is not allowed.")
+        return replace(self, status=target, version=self.version + 1)
+
 
 __all__ = ["Customer", "CustomerStatus", "CustomerType"]

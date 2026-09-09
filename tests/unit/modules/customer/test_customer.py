@@ -101,6 +101,42 @@ def test_update_master_changes_only_descriptive_fields_and_versions() -> None:
     assert changed.trade_name == "Loja"
 
 
+def test_status_transitions_are_explicit_and_versioned() -> None:
+    customer = Customer.create(
+        company_id=uuid4(),
+        customer_type=CustomerType.COMPANY,
+        identity_type=TaxIdKind.CNPJ,
+        identity_value="11222333000181",
+        legal_name="Cliente A",
+    )
+
+    blocked = customer.transition_status(CustomerStatus.BLOCKED)
+    released = blocked.transition_status(CustomerStatus.ACTIVE)
+    inactive = released.transition_status(CustomerStatus.INACTIVE)
+
+    assert blocked.status is CustomerStatus.BLOCKED
+    assert blocked.version == 2
+    assert released.status is CustomerStatus.ACTIVE
+    assert released.version == 3
+    assert inactive.status is CustomerStatus.INACTIVE
+    assert inactive.version == 4
+    assert inactive.transition_status(CustomerStatus.INACTIVE) is inactive
+
+
+def test_status_transition_rejects_forbidden_target() -> None:
+    customer = Customer.create(
+        company_id=uuid4(),
+        customer_type=CustomerType.INDIVIDUAL,
+        identity_type=TaxIdKind.CPF,
+        identity_value="52998224725",
+        legal_name="Cliente",
+    ).transition_status(CustomerStatus.BLOCKED)
+    with pytest.raises(ValueError, match="not allowed"):
+        customer.transition_status(CustomerStatus.INACTIVE)
+    with pytest.raises(ValueError, match="target status"):
+        customer.transition_status("ACTIVE")  # type: ignore[arg-type]
+
+
 @pytest.mark.parametrize(
     ("changes", "message"),
     [

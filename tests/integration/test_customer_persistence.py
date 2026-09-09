@@ -17,13 +17,20 @@ from erp.modules.admin.infrastructure import (
     EconomicGroupModel,
     EconomicGroupRepository,
 )
-from erp.modules.customer.domain import Customer, CustomerStatus, CustomerType, TaxIdKind
+from erp.modules.customer.domain import (
+    Customer,
+    CustomerStatus,
+    CustomerTaxId,
+    CustomerType,
+    TaxIdKind,
+)
 from erp.modules.customer.infrastructure import (
     CustomerAddressModel,
     CustomerContactModel,
     CustomerModel,
     CustomerRepository,
 )
+from erp.platform.concurrency import OptimisticLockError
 from erp.platform.config import get_settings
 from erp.platform.database import Database
 from erp.platform.errors import ApplicationError
@@ -130,6 +137,32 @@ def test_customer_round_trip_and_actor_metadata() -> None:
     asyncio.run(scenario())
 
 
+def test_customer_save_updates_descriptive_fields_status_and_actor_metadata() -> None:
+    async def scenario() -> None:
+        async with customer_fixture() as data:
+            item = data.customer()
+            second_actor = uuid4()
+            async with data.database.session() as session, session.begin():
+                repository = CustomerRepository(session, company_id=data.company_id)
+                await repository.add(item, actor_id=data.actor_id)
+                changed = item.update_master(legal_name="Cliente atualizado", trade_name="Loja")
+                changed = changed.transition_status(CustomerStatus.BLOCKED)
+                saved = await repository.save(
+                    changed, actor_id=second_actor, expected_version=item.version
+                )
+                assert saved == changed
+                assert await repository.get(item.id) == changed
+            async with data.database.session() as session:
+                model = await session.get(CustomerModel, item.id)
+                assert model is not None
+                assert model.created_by == data.actor_id
+                assert model.updated_by == second_actor
+                assert model.version == 3
+                assert model.status == CustomerStatus.BLOCKED
+
+    asyncio.run(scenario())
+
+
 def test_get_and_list_are_company_scoped_even_with_known_foreign_id() -> None:
     async def scenario() -> None:
         async with customer_fixture() as data, data.database.session() as session, session.begin():
@@ -213,6 +246,108 @@ def test_add_does_not_commit_the_callers_transaction() -> None:
                     await CustomerRepository(session, company_id=data.company_id).get(item.id)
                     is None
                 )
+
+    asyncio.run(scenario())
+
+
+def test_save_does_not_commit_the_callers_transaction() -> None:
+    async def scenario() -> None:
+        async with customer_fixture() as data:
+            item = data.customer()
+            async with data.database.session() as session, session.begin():
+                await CustomerRepository(session, company_id=data.company_id).add(
+                    item, actor_id=data.actor_id
+                )
+            async with data.database.session() as session:
+                changed = item.update_master(legal_name="Rolled back", trade_name=None)
+                await CustomerRepository(session, company_id=data.company_id).save(
+                    changed, actor_id=data.actor_id
+                )
+                await session.rollback()
+            async with data.database.session() as session:
+                assert (
+                    await CustomerRepository(session, company_id=data.company_id).get(item.id)
+                    == item
+                )
+
+    asyncio.run(scenario())
+
+
+def test_customer_save_requires_positive_expected_version() -> None:
+    async def scenario() -> None:
+        async with customer_fixture() as data, data.database.session() as session, session.begin():
+            item = data.customer()
+            await CustomerRepository(session, company_id=data.company_id).add(
+                item, actor_id=data.actor_id
+            )
+            with pytest.raises(ValueError, match="changed aggregate"):
+                await CustomerRepository(session, company_id=data.company_id).save(
+                    item, actor_id=data.actor_id
+                )
+
+    asyncio.run(scenario())
+
+
+def test_concurrent_customer_saves_have_exactly_one_version_winner() -> None:
+    async def scenario() -> None:
+        async with customer_fixture() as data:
+            item = data.customer()
+            async with data.database.session() as session, session.begin():
+                await CustomerRepository(session, company_id=data.company_id).add(
+                    item, actor_id=data.actor_id
+                )
+            barrier = asyncio.Barrier(2)
+
+            async def update_customer(name: str) -> Customer | OptimisticLockError:
+                try:
+                    async with data.database.session() as session, session.begin():
+                        repository = CustomerRepository(session, company_id=data.company_id)
+                        snapshot = await repository.get(item.id)
+                        assert snapshot is not None
+                        await asyncio.wait_for(barrier.wait(), timeout=10)
+                        return await repository.save(
+                            snapshot.update_master(legal_name=name, trade_name=None),
+                            actor_id=data.actor_id,
+                        )
+                except OptimisticLockError as error:
+                    return error
+
+            results = await asyncio.wait_for(
+                asyncio.gather(update_customer("Winner A"), update_customer("Winner B")),
+                timeout=20,
+            )
+            winners = [result for result in results if isinstance(result, Customer)]
+            conflicts = [result for result in results if isinstance(result, OptimisticLockError)]
+            assert len(winners) == len(conflicts) == 1
+            assert conflicts[0].code == "VERSION_CONFLICT"
+            assert winners[0].version == 2
+            async with data.database.session() as session:
+                assert (
+                    await CustomerRepository(session, company_id=data.company_id).get(item.id)
+                    == winners[0]
+                )
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("field", ["customer_type", "identity_type", "identity_value"])
+def test_identity_cannot_be_changed_by_save(field: str) -> None:
+    async def scenario() -> None:
+        async with customer_fixture() as data, data.database.session() as session, session.begin():
+            repository = CustomerRepository(session, company_id=data.company_id)
+            item = data.customer()
+            await repository.add(item, actor_id=data.actor_id)
+            candidate = item.update_master(legal_name="Changed", trade_name=None)
+            if field == "customer_type":
+                object.__setattr__(candidate, "customer_type", CustomerType.COMPANY)
+            elif field == "identity_type":
+                object.__setattr__(
+                    candidate, "tax_id", CustomerTaxId(TaxIdKind.CNPJ, "11222333000181")
+                )
+            else:
+                object.__setattr__(candidate, "tax_id", CustomerTaxId(TaxIdKind.CPF, "15350946056"))
+            with pytest.raises(OptimisticLockError):
+                await repository.save(candidate, actor_id=data.actor_id)
 
     asyncio.run(scenario())
 

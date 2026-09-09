@@ -1,8 +1,9 @@
 """Tenant-bound M14 persistence; transactions and authorization belong to the caller."""
 
+from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +15,7 @@ from erp.modules.customer.domain import (
     TaxIdKind,
 )
 from erp.modules.customer.infrastructure.customer_model import CustomerModel
+from erp.platform.concurrency import OptimisticLockError
 from erp.platform.errors import ApplicationError
 
 
@@ -112,6 +114,40 @@ class CustomerRepository:
             .execution_options(populate_existing=True)
         )
         return tuple(_customer(model) for model in result)
+
+    async def save(
+        self, customer: Customer, *, actor_id: UUID, expected_version: int | None = None
+    ) -> Customer:
+        """Compare and increment in one SQL statement, including the tenant predicate."""
+        self._validate_write(customer, actor_id)
+        compare_version = customer.version - 1 if expected_version is None else expected_version
+        if compare_version < 1:
+            raise ValueError("save requires a changed aggregate version.")
+        result = await self._session.scalars(
+            update(CustomerModel)
+            .where(
+                CustomerModel.company_id == self._company_id,
+                CustomerModel.id == customer.id,
+                CustomerModel.version == compare_version,
+                CustomerModel.customer_type == customer.customer_type,
+                CustomerModel.identity_type == customer.tax_id.kind,
+                CustomerModel.identity_value == customer.tax_id.value,
+            )
+            .values(
+                legal_name=customer.legal_name,
+                trade_name=customer.trade_name,
+                status=customer.status,
+                version=customer.version,
+                updated_by=actor_id,
+                updated_at=datetime.now(UTC),
+            )
+            .returning(CustomerModel)
+            .execution_options(synchronize_session=False, populate_existing=True)
+        )
+        model = result.one_or_none()
+        if model is None:
+            raise OptimisticLockError(expected_version=compare_version)
+        return _customer(model)
 
     def _validate_write(self, customer: Customer, actor_id: UUID) -> None:
         if customer.company_id != self._company_id:

@@ -2,6 +2,7 @@
 
 import asyncio
 from dataclasses import replace
+from typing import Any, cast
 from uuid import uuid4
 
 import pytest
@@ -88,6 +89,18 @@ def test_child_records_cannot_cross_company_or_missing_parent() -> None:
             with pytest.raises(ApplicationError) as missing:
                 await repository.list_addresses(uuid4())
             assert missing.value.code == "RESOURCE_NOT_FOUND"
+            address = CustomerAddress.create(
+                company_id=data.other_company_id,
+                customer_id=customer.id,
+                role=CustomerAddressRole.BILLING,
+                line1="Rua Um",
+                city="Sao Paulo",
+                state="SP",
+                postal_code="01234567",
+            )
+            with pytest.raises(ApplicationError) as address_scope:
+                await repository.add_address(address, actor_id=data.actor_id)
+            assert address_scope.value.code == "SCOPE_FORBIDDEN"
 
     asyncio.run(scenario())
 
@@ -123,6 +136,40 @@ def test_duplicate_contact_is_detected_for_same_customer_only() -> None:
     asyncio.run(scenario())
 
 
+def test_non_duplicate_contact_integrity_errors_are_not_translated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class ReferentialIntegrityError(Exception):
+        sqlstate = "23503"
+
+    class SessionStub:
+        def add(self, model: object) -> None:
+            assert model is not None
+
+        async def flush(self) -> None:
+            raise IntegrityError(
+                statement=None,
+                params=None,
+                orig=ReferentialIntegrityError(),
+            )
+
+    async def require_customer(customer_id: object) -> None:
+        assert customer_id is not None
+
+    company_id = uuid4()
+    repository = CustomerContactAddressRepository(cast(Any, SessionStub()), company_id=company_id)
+    monkeypatch.setattr(repository, "_require_customer", require_customer)
+    contact = CustomerContact.create(
+        company_id=company_id,
+        customer_id=uuid4(),
+        role=CustomerContactRole.COMMERCIAL,
+        kind=CustomerContactKind.EMAIL,
+        value="vendas@cliente.com",
+    )
+    with pytest.raises(IntegrityError):
+        asyncio.run(repository.add_contact(contact, actor_id=uuid4()))
+
+
 def test_child_repository_does_not_commit_callers_transaction() -> None:
     async def scenario() -> None:
         async with customer_fixture() as data:
@@ -149,6 +196,40 @@ def test_child_repository_does_not_commit_callers_transaction() -> None:
                     )
                     is None
                 )
+
+    asyncio.run(scenario())
+
+
+def test_child_repository_requires_explicit_company_and_actor_ids() -> None:
+    async def scenario() -> None:
+        with pytest.raises(ValueError, match="company UUID"):
+            CustomerContactAddressRepository(cast(Any, object()), company_id=cast(Any, "bad"))
+        async with customer_fixture() as data, data.database.session() as session, session.begin():
+            customer = data.customer()
+            await CustomerRepository(session, company_id=data.company_id).add(
+                customer, actor_id=data.actor_id
+            )
+            repository = CustomerContactAddressRepository(session, company_id=data.company_id)
+            contact = CustomerContact.create(
+                company_id=data.company_id,
+                customer_id=customer.id,
+                role=CustomerContactRole.BILLING,
+                kind=CustomerContactKind.EMAIL,
+                value="financeiro@cliente.com",
+            )
+            address = CustomerAddress.create(
+                company_id=data.company_id,
+                customer_id=customer.id,
+                role=CustomerAddressRole.BILLING,
+                line1="Rua Um",
+                city="Sao Paulo",
+                state="SP",
+                postal_code="01234567",
+            )
+            with pytest.raises(ValueError, match="actor UUID"):
+                await repository.add_contact(contact, actor_id=cast(Any, "bad"))
+            with pytest.raises(ValueError, match="actor UUID"):
+                await repository.add_address(address, actor_id=cast(Any, "bad"))
 
     asyncio.run(scenario())
 
