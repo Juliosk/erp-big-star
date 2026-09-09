@@ -1,24 +1,26 @@
 # M23 — Data Governance / Import Core
 
-Owner da orquestração de cargas, não do Product Master. Lote 040–042: templates por empresa,
-versões imutáveis e metadados de import_job. Plano, limites e DoR/DoD no
-[plano da Sprint 4](../../../docs/sprint-4-product-import.md).
+Owner da orquestração de cargas, não do Product Master. Templates por empresa, versões
+imutáveis, upload privado, staging, validação, preview, confirmação e commit. DoR/DoD no
+[plano da Sprint 4](../../../../docs/sprint-4-product-import.md).
 
-Domain é Python puro. Infrastructure recebe empresa previamente autorizada e sessão controlada
-pelo chamador; não faz commit, não publica eventos e não importa persistência M2.
-Tables: governance.import_template, import_template_version e import_job, migration 0012.
+Domain é Python puro. Repositórios não fazem commit; o store orquestra a transação composta,
+sem importar persistência M2. A raiz `erp/apps/api/import_composition.py` injeta o contrato
+público `ProductBulkDataAdapter` na mesma sessão. Audit, Outbox, recibo e produtos são atômicos.
+Tables: governance.import_template, import_template_version, import_job, import_staging_row,
+import_validation_result e import_commit_batch, migrations 0012–0013.
 M1 company é Foundation FK; versão/template/job usam vínculo composto com company_id.
 
-Fases 040–042 não contêm upload/parser/API/worker ou gravação de produto. Nenhum template é
-semeado implicitamente. Métodos internos de persistência exigem ator e escopo; não substituem
-RBAC/Audit. API futura: /api/v1/data. Grants oficiais: data.import.execute/confirm, mais M2.
-Eventos futuros: ImportJobCreated, ImportValidationCompleted, ImportPreviewReady,
-ImportCommitted/PartiallyCommitted/Failed. M23 acessará M2 apenas por contratos públicos.
+API: /api/v1/data. Nenhum template é semeado por GET: o provisionamento é um comando explícito,
+autorizado e auditado. Grants: data.import.execute/confirm, product.product.read e create/update
+conforme cada linha. Confirm/commit revalidam fonte, escopo, fingerprint e versões. Workers
+existentes publicam a Outbox; o commit inicial limitado a 1.000 linhas é síncrono.
 
-Source guarda somente filename, storage_key, SHA-256 e tamanho; XLSX irá para MinIO privado.
-Versão de template não pode sofrer UPDATE; alterações exigem nova versão. Job começa UPLOADED
-com version=1; neste lote a única transição implementada é cancelamento antes de processamento.
-Nenhum método transforma staging em domínio diretamente ou confirma uma importação.
+Source guarda somente filename, storage_key, SHA-256 e tamanho; XLSX fica no MinIO privado.
+Job: UPLOADED → VALIDATED → PREVIEWED → CONFIRMED → COMMITTED. REJECTED e CANCELLED
+não alteram catálogo. Somente ALL_OR_NOTHING está habilitado. Outros modos permanecem futuros.
+Criação/atualização por SKU é executada pelo owner M2, nunca por SQL M23 em product.product.
+Veja [operação e limitações](../../../../docs/product-import-runbook.md).
 
 Validar com Alembic upgrade head, Ruff, mypy e pytest com PostgreSQL real. Downgrade remove
 histórico M23 e só deve ser usado em banco descartável ou com backup/autorização.

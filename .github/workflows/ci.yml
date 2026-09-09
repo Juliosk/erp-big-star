@@ -31,6 +31,9 @@ jobs:
       RABBITMQ_AMQP_PORT: 5672
       RABBITMQ_DEFAULT_USER: erp_app
       RABBITMQ_DEFAULT_PASS: ci_only_rabbitmq_password
+      MINIO_ROOT_USER: erp_ci
+      MINIO_ROOT_PASSWORD: ci_only_minio_password_12345
+      MINIO_API_PORT: 9000
 
     services:
       postgres:
@@ -87,6 +90,14 @@ jobs:
 
       - name: Validate migrations against PostgreSQL
         run: uv run alembic upgrade head
+
+      - name: Start private MinIO for import integration tests
+        run: |
+          docker run --detach --name erp-minio-ci --publish 127.0.0.1:9000:9000 \
+            --env MINIO_ROOT_USER --env MINIO_ROOT_PASSWORD \
+            minio/minio:RELEASE.2025-09-07T16-13-09Z server /data
+          curl --fail --silent --retry 30 --retry-all-errors --retry-delay 1 \
+            http://127.0.0.1:9000/minio/health/live
 
       - name: Install Chromium for browser E2E
         run: uv run playwright install --with-deps chromium

@@ -1,3 +1,4 @@
+import { mountImports } from "./imports.js";
 const $ = (id) => document.getElementById(id);
 const labels = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -32,11 +33,28 @@ let token = "",
   generation = 0;
 let lastCreation = { body: "", key: "" };
 const can = (action) => permissions.has(`product.product.${action}`);
+const imports = mountImports({
+  api,
+  context: () => ({ company, permissions }),
+  notice,
+  enter: () => {
+    $("imports-nav").setAttribute("aria-current", "page");
+    $("products-nav").removeAttribute("aria-current");
+    document.querySelector(".topbar > span").textContent =
+      "Governança / Importações";
+    generation++;
+    current = null;
+    $("catalog").hidden = true;
+    $("detail").hidden = true;
+  },
+});
 function notice(message) {
   $("notice").textContent = message;
   $("notice").hidden = !message;
 }
 function reset() {
+  imports.reset();
+  $("imports-nav").hidden = true;
   token = "";
   permissions.clear();
   current = null;
@@ -65,10 +83,16 @@ function reset() {
     (id) => ($(id).textContent = ""),
   );
 }
-async function api(path, { method = "GET", body, version, key } = {}) {
+async function api(
+  path,
+  { method = "GET", body, version, key, raw, binary = false } = {},
+) {
   const requestToken = token;
   const headers = { Authorization: `Bearer ${requestToken}` };
   if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (raw !== undefined)
+    headers["Content-Type"] =
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
   if (version !== undefined) headers["If-Match"] = `"${version}"`;
   if (key) headers["Idempotency-Key"] = key;
   let response;
@@ -76,7 +100,12 @@ async function api(path, { method = "GET", body, version, key } = {}) {
     response = await fetch(`/api/v1/${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body:
+        raw !== undefined
+          ? raw
+          : body === undefined
+            ? undefined
+            : JSON.stringify(body),
       cache: "no-store",
       redirect: "error",
     });
@@ -85,13 +114,14 @@ async function api(path, { method = "GET", body, version, key } = {}) {
       "Não foi possível conectar. Verifique a aplicação e tente novamente.",
     );
   }
+  if (response.ok && binary) return response.blob();
   const result = await response.json();
   if (!response.ok) {
     if (response.status === 401 && requestToken === token) reset();
     const code = result.error?.code || "UNKNOWN";
     const trace = result.error?.correlation_id;
     throw new Error(
-      `${errors[code] || "Não foi possível concluir a operação."}${trace ? ` Referência: ${trace}` : ""}`,
+      `${errors[code] || result.error?.message || "Não foi possível concluir a operação."}${trace ? ` Referência: ${trace}` : ""}`,
     );
   }
   return result;
@@ -126,6 +156,7 @@ async function connect() {
     ? "Conectado · desenvolvimento"
     : "Conectado";
   $("new-product").hidden = !can("create");
+  $("imports-nav").hidden = !permissions.has("data.import.execute");
   if (!company) {
     notice(
       "Nenhuma empresa ativa autorizada. Configure os escopos da identidade.",
@@ -137,6 +168,10 @@ async function connect() {
   await loadList();
 }
 async function loadList() {
+  $("products-nav").setAttribute("aria-current", "page");
+  $("imports-nav").removeAttribute("aria-current");
+  document.querySelector(".topbar > span").textContent = "Cadastros / Produtos";
+  imports.reset();
   const epoch = ++generation;
   current = null;
   $("detail").hidden = true;
@@ -304,6 +339,10 @@ bind(
   "change",
 );
 bind("refresh", () => loadList());
+bind("imports-nav", () => imports.show());
+bind("products-nav", () => {
+  if (company) return loadList();
+});
 bind("refresh-detail", () => {
   notice("");
   if (current) return loadDetail(current.id);

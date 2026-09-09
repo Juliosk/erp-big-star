@@ -7,9 +7,9 @@ arquitetura consolidada e o README de governança técnica em `Arquivos .MD/`.
 
 - Wave: `W1 — Corporate & Master Data Foundation`
 - Sprint concluída e homologada: `3 — M2 Product Master`, commits `030–039`
-- Sprint em execução: `4 — M23 Product Import`, lote `040–042` implementado para homologação técnica
-- Schema atual: Alembic `0012`
-- APIs atuais: health checks, contexto corporativo `/api/v1/admin` e M2 `/api/v1/products`
+- Sprint entregue para homologação: `4 — M23 Product Import`, commits `040–049`
+- Schema atual: Alembic `0013`
+- APIs atuais: health checks, `/api/v1/admin`, `/api/v1/products` e importação `/api/v1/data`
 - M2: consultas, criação idempotente, PATCH concorrente, lifecycle estrito, barcodes e telas `/ui/`.
 - DevSecurityContextResolver opt-in somente local/test; sem flag ou adapter real, autenticação segue 503.
 - Produção exige provedor de identidade real. Veja o [runbook M2](docs/product-master-runbook.md).
@@ -67,4 +67,8 @@ Consulte [o plano da Sprint 3](docs/sprint-3-product-master.md) para escopo, com
 DoR/DoD, limites de aplicabilidade global e evidências dos lotes.
 
 Consulte [o plano da Sprint 4](docs/sprint-4-product-import.md) para o fluxo de importação
-de produtos, divisão 040–049, limites de M23 e decisões necessárias antes do commit funcional.
+de produtos, divisão 040–049, limites de M23 e evidências de validação.
+Consulte o [runbook M23](docs/product-import-runbook.md) para configurar MinIO/grants,
+executar o wizard, tratar inconsistências e recuperar tentativas com resultado incerto.
+O [diagnóstico do Docker](docs/docker-recovery-2026-09-09.md) registra a recuperação local
+dos soquetes residuais, sem remoção dos volumes de dados.

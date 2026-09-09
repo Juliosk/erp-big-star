@@ -187,6 +187,53 @@ Reprodução local (infraestrutura ativa e sem flags Dev Auth do servidor herdad
 .\.venv\Scripts\python.exe -m coverage report --include='erp/modules/product/*' --fail-under=100 --precision=2
 ```
 
-Lote 040–042 concluído tecnicamente para homologação. Upload/preview/confirm/commit e telas de
-importação ainda não estão implementados. Modo inicial do template aguarda definição do usuário;
-criação e atualização por SKU já foram confirmadas. Não confundir essa fundação com Sprint 4 concluída.
+O lote 040–042 foi homologado pelo usuário. ALL_OR_NOTHING foi aprovado como modo inicial;
+criação e atualização por SKU também foram confirmadas.
+
+## Entrega 043–049 — evidências de 2026-09-09
+
+| Commit | Registro | Entrega |
+| --- | --- | --- |
+| 043 | `4832a97` | Template XLSX versionado e armazenamento privado |
+| 044 | `f68535b` | Parser seguro, staging/estados e migration 0013 |
+| 045 | `d0b81d5` | Porta pública M2, validação semântica e teste isolado do owner |
+| 046 | `f9e1cdd` | API/RBAC, relatório, preview e workflow transacional integrado |
+| 047 | `d26c3b7` | Proteções de confirmação/replay, escopo, concorrência e falhas |
+| 048 | `e9a1c0b` | Provas de commit atômico, MinIO real e eventos RabbitMQ/Inbox |
+| 049 | Consultar log Git | Wizard/histórico, E2E Web, CI, runbook e diagnóstico Docker |
+
+O núcleo compartilhado de confirmação e commit foi integrado junto ao workflow no 046;
+047/048 acrescentam suas provas específicas de segurança, atomicidade e transporte, em vez
+de manter versões provisórias incompatíveis do mesmo processador. As funcionalidades do
+plano foram preservadas; os nomes reais dos commits distinguem implementação de testes.
+
+- **447 testes aprovados**, 1 warning de depreciação de terceiro (Starlette/AnyIO), 77,45 s.
+  Resultado persistido em `test-results/sprint4.xml`; cobertura em `coverage.xml`/`coverage.json`.
+- ERP **95,49%**; M23 **100%** (793 statements, 190 branches); M2 **100%**
+  (825 statements, 130 branches). Ambos os gates `--fail-under=100` passaram sobre essa execução.
+  A cobertura Python não mede JavaScript; Web foi exercitada em Chromium real.
+- Ruff check/format limpos (255 arquivos); mypy strict sem erros (243 arquivos incluindo
+  scripts); lockfile conferido; pip-audit sem vulnerabilidades conhecidas; Prettier limpo.
+- PostgreSQL/MinIO/Chromium reais: criação e atualização por SKU, rejeição integral, relatório,
+  preview obsoleto, rollback tardio, confirmação, retry, corrida entre commits e troca de empresa.
+- E2E adicional dos cinco eventos M23 atravessa Outbox/RabbitMQ/Inbox e verifica deduplicação.
+  Publica exclusivamente IDs de eventos da fixture, sem consumir a fila pendente do usuário.
+- Capturas desktop 1440 px e mobile 390 px revisadas em
+  `test-results/import-preview-desktop.png` e `test-results/import-preview-mobile.png`.
+  Sem overflow horizontal da página; tabelas possuem rolagem interna.
+- Alembic local **0013 (head)**. Ida/volta `base → 0013 → 0012 → 0013` validada novamente
+  em banco temporário exclusivo, seguida de 15 testes de schema. Apenas esse banco foi removido;
+  o banco homologado não sofreu downgrade.
+- Docker recuperado com autorização: soquetes residuais preservados em quarentena;
+  quatro contêineres saudáveis reutilizam os volumes originais. Nenhum reset/prune executado.
+  Veja o [diagnóstico e limites da investigação](docker-recovery-2026-09-09.md).
+- CI inclui MinIO e os gates M2/M23, mas não foi executada remotamente.
+
+Configuração local de bucket privado, credenciais de serviço e grants adicionais é descrita
+no [runbook operacional M23](product-import-runbook.md); não foram inseridos segredos root
+na aplicação nem alteradas credenciais locais do usuário. Os testes usam seus próprios buckets.
+O commit inicial limitado é síncrono; workers existentes publicam a Outbox. Worker dedicado
+para cargas maiores e modos parciais permanecem fora desta entrega.
+
+Entrega técnica pronta para homologação. Sprint 4 só será DONE após aprovação explícita do
+usuário; nenhum trabalho de Sprint 5 foi iniciado.

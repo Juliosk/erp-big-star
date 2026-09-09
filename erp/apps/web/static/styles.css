@@ -10,6 +10,41 @@
   background: var(--paper);
   font-size: 15px;
 }
+#imports .panel {
+  margin-bottom: 24px;
+}
+#import-fingerprint {
+  overflow-wrap: anywhere;
+}
+#imports .toolbar {
+  flex-wrap: wrap;
+}
+.import-invalid {
+  background: #fff0f2;
+}
+#import-file {
+  max-width: 100%;
+}
+#import-track {
+  grid-template-columns: repeat(5, 1fr);
+}
+#import-track [aria-current="step"] {
+  border-top-color: var(--accent);
+  font-weight: 700;
+}
+#imports .panel .page-heading {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+#import-actions {
+  justify-content: flex-start;
+  gap: 12px;
+}
+@media (max-width: 680px) {
+  #import-track {
+    grid-template-columns: 1fr 1fr;
+  }
+}
 * {
   box-sizing: border-box;
 }
@@ -108,6 +143,10 @@ nav span {
     12px "Cascadia Mono",
     monospace;
   color: var(--sky);
+}
+nav a:not([aria-current="page"]) {
+  background: transparent;
+  border-left-color: transparent;
 }
 .company-context {
   margin-top: 40px;
@@ -491,10 +530,18 @@ dialog::backdrop {
     font-size: 9px;
   }
   .side-label,
-  nav,
   .side-footer,
   .company-context p {
     display: none;
+  }
+  nav {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  nav a {
+    flex: 1;
+    gap: 12px;
   }
   .company-context {
     margin-top: 18px;

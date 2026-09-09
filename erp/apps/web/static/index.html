@@ -15,7 +15,12 @@
       >
       <p class="side-label">GESTÃO INDUSTRIAL</p>
       <nav aria-label="Navegação principal">
-        <a href="#products" aria-current="page">Produtos <span>M2</span></a>
+        <a id="products-nav" href="#products" aria-current="page"
+          >Produtos <span>M2</span></a
+        >
+        <a id="imports-nav" href="#imports" hidden
+          >Importações <span>M23</span></a
+        >
       </nav>
       <div class="company-context">
         <label for="company">Empresa de trabalho</label
@@ -67,6 +72,114 @@
         </form>
       </section>
       <div id="notice" role="status" aria-live="polite" hidden></div>
+      <section id="imports" hidden aria-labelledby="imports-title">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">GOVERNANÇA DE DADOS / M23</p>
+            <h1 id="imports-title">Importação de produtos</h1>
+            <p>
+              Crie ou atualize por SKU na empresa selecionada. Uma linha
+              inválida bloqueia toda a carga.
+            </p>
+          </div>
+        </div>
+        <ol
+          class="lifecycle-track"
+          id="import-track"
+          aria-label="Etapas da importação"
+        >
+          <li>1. Arquivo</li>
+          <li>2. Validação</li>
+          <li>3. Preview</li>
+          <li>4. Confirmação</li>
+          <li>5. Resultado</li>
+        </ol>
+        <section class="panel">
+          <h2>Preparar arquivo</h2>
+          <div class="toolbar">
+            <div>
+              <label for="import-template">Template</label
+              ><select id="import-template"></select>
+            </div>
+            <button id="import-provision" class="secondary">
+              Habilitar template de produtos
+            </button>
+            <button id="import-download" class="secondary">
+              Baixar modelo XLSX
+            </button>
+          </div>
+          <form id="import-upload-form">
+            <label for="import-file">Arquivo XLSX</label>
+            <input id="import-file" type="file" accept=".xlsx" required />
+            <p class="hint">
+              Até 1.000 linhas e 10 MiB. SKU como texto, sem fórmulas. Somente
+              nome e unidade podem mudar em produtos existentes.
+            </p>
+            <button id="import-upload" type="submit">Enviar arquivo</button>
+          </form>
+        </section>
+        <section
+          id="import-job"
+          class="panel"
+          hidden
+          aria-labelledby="import-job-title"
+        >
+          <div class="page-heading">
+            <div>
+              <h2 id="import-job-title"></h2>
+              <p id="import-job-status" role="status"></p>
+            </div>
+            <span id="import-job-version" class="version"></span>
+          </div>
+          <div class="toolbar" id="import-actions"></div>
+          <p id="import-fingerprint" class="hint"></p>
+          <div class="table-wrap">
+            <table>
+              <caption>
+                Preview: valores atuais e propostos
+              </caption>
+              <thead>
+                <tr>
+                  <th>Linha / SKU</th>
+                  <th>Ação</th>
+                  <th>Atual</th>
+                  <th>Proposto</th>
+                  <th>Diferenças / Erros</th>
+                </tr>
+              </thead>
+              <tbody id="import-preview-rows"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="page-heading">
+            <h2>Histórico da empresa</h2>
+            <button id="import-refresh" class="secondary">
+              Atualizar histórico
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Arquivo</th>
+                  <th>Situação</th>
+                  <th>Versão</th>
+                  <th>Ação</th>
+                </tr>
+              </thead>
+              <tbody id="import-history"></tbody>
+            </table>
+          </div>
+          <footer class="pagination">
+            <span id="import-page">Página 1</span>
+            <div>
+              <button id="import-previous" class="secondary">Anterior</button
+              ><button id="import-next" class="secondary">Próxima</button>
+            </div>
+          </footer>
+        </section>
+      </section>
       <section id="catalog" hidden aria-labelledby="catalog-title">
         <div class="page-heading">
           <div>

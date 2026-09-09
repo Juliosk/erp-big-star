@@ -16,11 +16,14 @@ from pydantic import SecretStr
 from sqlalchemy import select
 
 from erp.apps.api.app import create_app
+from erp.apps.api.import_composition import compose_imports
 from erp.modules.product.infrastructure import ProductModel, ProductRepository
 from erp.platform.audit import AuditEventModel
 from erp.platform.config import Settings, get_settings
 from erp.platform.config.settings import Environment
+from erp.platform.database import Database
 from erp.platform.outbox import OutboxEventModel
+from erp.platform.storage import ObjectStorage
 from tests.integration.product_api_support import ApiFixture, product_api
 
 pytestmark = [pytest.mark.integration, pytest.mark.browser]
@@ -34,7 +37,9 @@ class BrowserServer:
 
 
 @contextmanager
-def browser_server(*, read_only: bool = False) -> Iterator[BrowserServer]:
+def browser_server(
+    *, read_only: bool = False, import_storage: ObjectStorage | None = None
+) -> Iterator[BrowserServer]:
     with product_api() as fixture, socket.socket() as listener:
         token = "browser-" + uuid4().hex
         values = get_settings().model_dump()
@@ -48,10 +53,22 @@ def browser_server(*, read_only: bool = False) -> Iterator[BrowserServer]:
         if read_only:
             values["dev_auth_permissions"] = ("admin.company.read", "product.product.read")
         settings = Settings.model_validate(values)
+        if import_storage is not None:
+            settings = settings.model_copy(
+                update={
+                    "dev_auth_permissions": (
+                        *settings.dev_auth_permissions,
+                        "data.import.execute",
+                        "data.import.confirm",
+                    )
+                }
+            )
+        database = Database(settings)
+        application = create_app(settings, database)
+        if import_storage is not None:
+            application.state.imports = compose_imports(database, settings, import_storage)
         listener.bind(("127.0.0.1", 0))
-        server = uvicorn.Server(
-            uvicorn.Config(create_app(settings), log_config=None, log_level="warning")
-        )
+        server = uvicorn.Server(uvicorn.Config(application, log_config=None, log_level="warning"))
         thread = threading.Thread(target=server.run, kwargs={"sockets": [listener]}, daemon=True)
         thread.start()
         try:
