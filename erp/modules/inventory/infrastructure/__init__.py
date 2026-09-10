@@ -5,6 +5,11 @@ from erp.modules.inventory.infrastructure.catalogue import (
     PostgresInventoryCatalogue,
     PostgresInventoryDirectory,
 )
+from erp.modules.inventory.infrastructure.ledger_model import (
+    InventoryPostingModel,
+    InventoryTransactionModel,
+)
+from erp.modules.inventory.infrastructure.ledger_repository import InventoryLedgerRepository
 from erp.modules.inventory.infrastructure.lot_model import InventoryLotModel
 from erp.modules.inventory.infrastructure.pool_model import InventoryPoolModel
 from erp.modules.inventory.infrastructure.repository import (
@@ -22,10 +27,13 @@ from erp.modules.inventory.infrastructure.warehouse_model import (
 )
 
 __all__ = [
+    "InventoryLedgerRepository",
     "InventoryLotModel",
     "InventoryLotRepository",
     "InventoryPoolModel",
     "InventoryPoolRepository",
+    "InventoryPostingModel",
+    "InventoryTransactionModel",
     "LocationRepository",
     "LotRepository",
     "PoolRepository",

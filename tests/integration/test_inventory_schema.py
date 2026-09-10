@@ -6,12 +6,14 @@ from typing import Any
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
-from sqlalchemy import Connection, inspect
+from sqlalchemy import Connection, inspect, text
 
 from erp.modules.admin.infrastructure import BranchModel, CompanyModel
 from erp.modules.inventory.infrastructure import (
     InventoryLotModel,
     InventoryPoolModel,
+    InventoryPostingModel,
+    InventoryTransactionModel,
     WarehouseLocationModel,
     WarehouseModel,
 )
@@ -37,12 +39,16 @@ def test_inventory_foundation_migration_matches_orm_and_tenant_fks() -> None:
         assert WarehouseLocationModel.__table__.schema == "inventory"
         assert InventoryPoolModel.__table__.schema == "inventory"
         assert InventoryLotModel.__table__.schema == "inventory"
+        assert InventoryTransactionModel.__table__.schema == "inventory"
+        assert InventoryPostingModel.__table__.schema == "inventory"
         inspector = inspect(connection)
         assert set(inspector.get_table_names(schema="inventory")) >= {
             "warehouse",
             "location",
             "inventory_pool",
             "inventory_lot",
+            "inventory_transaction",
+            "inventory_posting",
         }
         warehouse_columns = {
             column["name"]: column for column in inspector.get_columns("warehouse", "inventory")
@@ -64,6 +70,34 @@ def test_inventory_foundation_migration_matches_orm_and_tenant_fks() -> None:
         }
         assert set(lot_columns) == set(InventoryLotModel.__table__.columns.keys())
         assert lot_columns["expires_on"]["nullable"]
+        transaction_columns = {
+            column["name"]: column
+            for column in inspector.get_columns("inventory_transaction", "inventory")
+        }
+        assert set(transaction_columns) == set(InventoryTransactionModel.__table__.columns.keys())
+        posting_columns = {
+            column["name"]: column
+            for column in inspector.get_columns("inventory_posting", "inventory")
+        }
+        assert set(posting_columns) == set(InventoryPostingModel.__table__.columns.keys())
+        triggers = set(
+            connection.execute(
+                text(
+                    """
+                    SELECT trigger_name
+                    FROM information_schema.triggers
+                    WHERE event_object_schema = 'inventory'
+                      AND event_object_table IN ('inventory_transaction', 'inventory_posting')
+                    """
+                )
+            ).scalars()
+        )
+        assert {
+            "trg_inventory_transaction_append_only_update",
+            "trg_inventory_transaction_append_only_delete",
+            "trg_inventory_posting_append_only_update",
+            "trg_inventory_posting_append_only_delete",
+        }.issubset(triggers)
         lot_foreign_keys = inspector.get_foreign_keys("inventory_lot", "inventory")
         assert {
             tuple(foreign_key["constrained_columns"]): foreign_key["referred_schema"]
