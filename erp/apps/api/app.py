@@ -26,6 +26,7 @@ from erp.modules.admin.infrastructure import (
 from erp.modules.admin.infrastructure.dev_security import DevSecurityContextResolver
 from erp.modules.customer.api import router as customer_router
 from erp.modules.customer.application import (
+    Customer360Service,
     CustomerDuplicateService,
     CustomerGroupService,
     CustomerQueries,
@@ -33,6 +34,7 @@ from erp.modules.customer.application import (
 )
 from erp.modules.customer.application.creation import CustomerCreationService
 from erp.modules.customer.application.permissions import CustomerAuthorization
+from erp.modules.customer.infrastructure.customer360 import PostgresCustomer360
 from erp.modules.customer.infrastructure.customer_creation import PostgresCustomerCreation
 from erp.modules.customer.infrastructure.customer_directory import PostgresCustomerDirectory
 from erp.modules.customer.infrastructure.customer_duplicates import PostgresCustomerDuplicates
@@ -79,6 +81,7 @@ def create_app(
     customer_updates: CustomerUpdateService | None = None,
     customer_groups: CustomerGroupService | None = None,
     customer_duplicates: CustomerDuplicateService | None = None,
+    customer_360: Customer360Service | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -104,6 +107,14 @@ def create_app(
     resolved_customer_updates = customer_updates
     resolved_customer_groups = customer_groups
     resolved_customer_duplicates = customer_duplicates
+    resolved_customer_360 = customer_360
+    if resolved_customer_360 is None and isinstance(resolved_database, Database):
+        resolved_customer_360 = Customer360Service(
+            PostgresCustomer360(resolved_database),
+            CustomerAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
     if resolved_customer_duplicates is None and isinstance(resolved_database, Database):
         resolved_customer_duplicates = CustomerDuplicateService(
             PostgresCustomerDuplicates(resolved_database),
@@ -235,6 +246,7 @@ def create_app(
     application.state.customer_updates = resolved_customer_updates
     application.state.customer_groups = resolved_customer_groups
     application.state.customer_duplicates = resolved_customer_duplicates
+    application.state.customer_360 = resolved_customer_360
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)

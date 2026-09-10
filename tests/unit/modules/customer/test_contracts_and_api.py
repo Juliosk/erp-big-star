@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 
 from erp.modules.customer.api.creation import get_creation
+from erp.modules.customer.api.customer360 import get_customer360
 from erp.modules.customer.api.duplicates import get_duplicates
 from erp.modules.customer.api.groups import get_groups
 from erp.modules.customer.api.queries import get_queries
@@ -40,6 +41,7 @@ def test_public_contract_exports_customer_reference_without_infrastructure() -> 
         (get_updates, "CUSTOMER_COMMAND_UNAVAILABLE"),
         (get_groups, "CUSTOMER_GROUP_UNAVAILABLE"),
         (get_duplicates, "CUSTOMER_DUPLICATE_UNAVAILABLE"),
+        (get_customer360, "CUSTOMER_360_UNAVAILABLE"),
     ],
 )
 def test_api_dependency_providers_fail_closed(provider: object, code: str) -> None:

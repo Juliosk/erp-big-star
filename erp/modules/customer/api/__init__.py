@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from erp.modules.customer.api.creation import router as creation_router
+from erp.modules.customer.api.customer360 import router as customer360_router
 from erp.modules.customer.api.duplicates import router as duplicate_router
 from erp.modules.customer.api.groups import router as group_router
 from erp.modules.customer.api.queries import router as query_router
@@ -14,5 +15,6 @@ router.include_router(creation_router)
 router.include_router(update_router)
 router.include_router(group_router)
 router.include_router(duplicate_router)
+router.include_router(customer360_router)
 
 __all__ = ["router"]
