@@ -24,3 +24,31 @@ lotes, ledger imutável e projeção durável de saldo transacional por empresa.
 
 Reserva HARD/SOFT e disponibilidade concorrente completa pertencem à Sprint 7. A Sprint 6
 prepara as estruturas necessárias, mas não antecipa o motor de reserva.
+
+## Entrega dos commits 062–063
+
+Os cadastros físicos agora possuem repositórios tenant-bound para `Warehouse`, `Location`,
+`Pool` e `Lot`. Cada repositório recebe um `company_id` imutável e aplica esse filtro em
+leituras e gravações; referências a filial, depósito, localização-pai e produto também são
+validadas dentro da mesma empresa antes do `flush`.
+
+O serviço de aplicação exige as permissões específicas `inventory.<recurso>.read` e
+`inventory.<recurso>.create`, além da autorização de empresa do contexto de trabalho. Falhas
+de permissão, escopo, validação, recurso inexistente e conflito de unicidade são convertidas
+para o Error Contract comum da API.
+
+Rotas públicas adicionadas:
+
+- `GET/POST /api/v1/inventory/warehouses`
+- `GET /api/v1/inventory/warehouses/{warehouse_id}`
+- `GET/POST /api/v1/inventory/locations`
+- `GET /api/v1/inventory/locations/{location_id}`
+- `GET/POST /api/v1/inventory/pools`
+- `GET /api/v1/inventory/pools/{pool_id}`
+- `GET/POST /api/v1/inventory/lots`
+- `GET /api/v1/inventory/lots/{lot_id}`
+
+As consultas recebem `company_id` explicitamente e retornam paginação (`data` + `meta`). As
+respostas individuais incluem `ETag`; criações retornam `201` e `Location`. A camada de
+composição inicializa os serviços PostgreSQL automaticamente quando a aplicação usa o
+`Database` padrão.

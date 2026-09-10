@@ -42,6 +42,13 @@ from erp.modules.customer.infrastructure.customer_groups import PostgresCustomer
 from erp.modules.customer.infrastructure.customer_updates import PostgresCustomerUpdates
 from erp.modules.governance.api import router as import_router
 from erp.modules.governance.application.imports import ImportService
+from erp.modules.inventory.api import router as inventory_router
+from erp.modules.inventory.application import (
+    InventoryAuthorization,
+    InventoryCatalogService,
+    InventoryQueries,
+)
+from erp.modules.inventory.infrastructure import PostgresInventoryCatalogue
 from erp.modules.product.api import router as product_router
 from erp.modules.product.application import ProductQueries
 from erp.modules.product.application.barcodes import ProductBarcodeService
@@ -82,6 +89,8 @@ def create_app(
     customer_groups: CustomerGroupService | None = None,
     customer_duplicates: CustomerDuplicateService | None = None,
     customer_360: Customer360Service | None = None,
+    inventory_queries: InventoryQueries | None = None,
+    inventory_creation: InventoryCatalogService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -108,6 +117,23 @@ def create_app(
     resolved_customer_groups = customer_groups
     resolved_customer_duplicates = customer_duplicates
     resolved_customer_360 = customer_360
+    resolved_inventory_queries = inventory_queries
+    resolved_inventory_creation = inventory_creation
+    if isinstance(resolved_database, Database) and (
+        resolved_inventory_queries is None or resolved_inventory_creation is None
+    ):
+        inventory_catalogue = PostgresInventoryCatalogue(resolved_database)
+        inventory_authorization = InventoryAuthorization(
+            CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+        )
+        if resolved_inventory_queries is None:
+            resolved_inventory_queries = InventoryQueries(
+                inventory_catalogue, inventory_authorization
+            )
+        if resolved_inventory_creation is None:
+            resolved_inventory_creation = InventoryCatalogService(
+                inventory_catalogue, inventory_authorization
+            )
     if resolved_customer_360 is None and isinstance(resolved_database, Database):
         resolved_customer_360 = Customer360Service(
             PostgresCustomer360(resolved_database),
@@ -247,11 +273,14 @@ def create_app(
     application.state.customer_groups = resolved_customer_groups
     application.state.customer_duplicates = resolved_customer_duplicates
     application.state.customer_360 = resolved_customer_360
+    application.state.inventory_queries = resolved_inventory_queries
+    application.state.inventory_creation = resolved_inventory_creation
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)
     application.include_router(product_router)
     application.include_router(customer_router)
+    application.include_router(inventory_router)
     application.include_router(session_router)
     application.include_router(import_router)
     mount_web(application)

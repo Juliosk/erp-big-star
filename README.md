@@ -8,9 +8,11 @@ arquitetura consolidada e o README de governança técnica em `Arquivos .MD/`.
 - Wave: `W1 — Corporate & Master Data Foundation`
 - Sprint concluída e homologada: `3 — M2 Product Master`, commits `030–039`
 - Sprint entregue para homologação: `5 — M14 Customer Core`, commits `050–059`
-- Schema atual: Alembic `0017`
+- Schema atual: Alembic `0018`
 - APIs atuais: health checks, `/api/v1/admin`, `/api/v1/products`, `/api/v1/customers`,
   `/api/v1/customer-groups` e importação `/api/v1/data`
+- Inventory Foundation: `/api/v1/inventory` (warehouses, locations, pools e lots), com RBAC
+  por cadastro e isolamento estrito por `company_id`.
 - M2: consultas, criação idempotente, PATCH concorrente, lifecycle estrito, barcodes e telas `/ui/`.
 - DevSecurityContextResolver opt-in somente local/test; sem flag ou adapter real, autenticação segue 503.
 - Produção exige provedor de identidade real. Veja o [runbook M2](docs/product-master-runbook.md).
