@@ -1,5 +1,8 @@
 """Internal M5 persistence adapters, wired only at the composition boundary."""
 
+from erp.modules.inventory.infrastructure.balance_model import InventoryBalanceModel
+from erp.modules.inventory.infrastructure.balance_repository import InventoryBalanceRepository
+from erp.modules.inventory.infrastructure.balances import PostgresInventoryBalances
 from erp.modules.inventory.infrastructure.catalogue import (
     PostgresInventoryCatalog,
     PostgresInventoryCatalogue,
@@ -27,6 +30,8 @@ from erp.modules.inventory.infrastructure.warehouse_model import (
 )
 
 __all__ = [
+    "InventoryBalanceModel",
+    "InventoryBalanceRepository",
     "InventoryLedgerRepository",
     "InventoryLotModel",
     "InventoryLotRepository",
@@ -37,6 +42,7 @@ __all__ = [
     "LocationRepository",
     "LotRepository",
     "PoolRepository",
+    "PostgresInventoryBalances",
     "PostgresInventoryCatalog",
     "PostgresInventoryCatalogue",
     "PostgresInventoryDirectory",

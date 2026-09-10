@@ -1,5 +1,6 @@
 """Pure M5 inventory domain models."""
 
+from erp.modules.inventory.domain.balance import InventoryBalance
 from erp.modules.inventory.domain.ledger import (
     InventoryPosting,
     InventoryTransaction,
@@ -11,6 +12,7 @@ from erp.modules.inventory.domain.stock import InventoryState, Quantity
 from erp.modules.inventory.domain.warehouse import Warehouse, WarehouseLocation
 
 __all__ = [
+    "InventoryBalance",
     "InventoryLot",
     "InventoryLotStatus",
     "InventoryPool",

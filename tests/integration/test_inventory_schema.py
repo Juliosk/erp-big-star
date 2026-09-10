@@ -10,6 +10,7 @@ from sqlalchemy import Connection, inspect, text
 
 from erp.modules.admin.infrastructure import BranchModel, CompanyModel
 from erp.modules.inventory.infrastructure import (
+    InventoryBalanceModel,
     InventoryLotModel,
     InventoryPoolModel,
     InventoryPostingModel,
@@ -41,6 +42,7 @@ def test_inventory_foundation_migration_matches_orm_and_tenant_fks() -> None:
         assert InventoryLotModel.__table__.schema == "inventory"
         assert InventoryTransactionModel.__table__.schema == "inventory"
         assert InventoryPostingModel.__table__.schema == "inventory"
+        assert InventoryBalanceModel.__table__.schema == "inventory"
         inspector = inspect(connection)
         assert set(inspector.get_table_names(schema="inventory")) >= {
             "warehouse",
@@ -49,6 +51,7 @@ def test_inventory_foundation_migration_matches_orm_and_tenant_fks() -> None:
             "inventory_lot",
             "inventory_transaction",
             "inventory_posting",
+            "inventory_balance",
         }
         warehouse_columns = {
             column["name"]: column for column in inspector.get_columns("warehouse", "inventory")
@@ -80,6 +83,16 @@ def test_inventory_foundation_migration_matches_orm_and_tenant_fks() -> None:
             for column in inspector.get_columns("inventory_posting", "inventory")
         }
         assert set(posting_columns) == set(InventoryPostingModel.__table__.columns.keys())
+        balance_columns = {
+            column["name"]: column
+            for column in inspector.get_columns("inventory_balance", "inventory")
+        }
+        assert set(balance_columns) == set(InventoryBalanceModel.__table__.columns.keys())
+        balance_uniques = {
+            constraint["name"]
+            for constraint in inspector.get_unique_constraints("inventory_balance", "inventory")
+        }
+        assert "uq_inventory_balance_dimensions" in balance_uniques
         triggers = set(
             connection.execute(
                 text(
