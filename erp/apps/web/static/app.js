@@ -1,4 +1,5 @@
 import { mountImports } from "./imports.js";
+import { mountCustomers } from "./customers.js";
 const $ = (id) => document.getElementById(id);
 const labels = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -12,6 +13,12 @@ const errors = {
   BARCODE_CONFLICT: "Este código de barras já existe na empresa.",
   PRODUCT_IDENTIFIER_CONFLICT:
     "Código ou SKU já cadastrado. Confira os identificadores.",
+  CUSTOMER_DUPLICATE_EXACT_MATCH:
+    "CPF/CNPJ já cadastrado para a empresa selecionada.",
+  CUSTOMER_GROUP_CONFLICT: "Grupo de clientes já cadastrado nesta empresa.",
+  CUSTOMER_GROUP_MEMBER_CONFLICT: "Este cliente já pertence ao grupo.",
+  CUSTOMER_MERGE_REQUEST_CONFLICT:
+    "Já existe uma solicitação pendente para este par de clientes.",
   PERMISSION_FORBIDDEN: "Sua identidade não tem permissão para esta ação.",
   RESOURCE_NOT_FOUND: "Cadastro não encontrado na empresa selecionada.",
   INVALID_LIFECYCLE_TRANSITION:
@@ -30,20 +37,42 @@ let token = "",
   company = "",
   page = 1,
   current = null,
-  generation = 0;
+  generation = 0,
+  area = "products";
 let lastCreation = { body: "", key: "" };
 const can = (action) => permissions.has(`product.product.${action}`);
+let customers;
 const imports = mountImports({
   api,
   context: () => ({ company, permissions }),
   notice,
   enter: () => {
+    area = "imports";
     $("imports-nav").setAttribute("aria-current", "page");
     $("products-nav").removeAttribute("aria-current");
+    $("customers-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent =
       "Governança / Importações";
     generation++;
     current = null;
+    $("catalog").hidden = true;
+    $("detail").hidden = true;
+    customers?.hide();
+  },
+});
+customers = mountCustomers({
+  api,
+  context: () => ({ company, permissions }),
+  notice,
+  enter: () => {
+    area = "customers";
+    $("customers-nav").setAttribute("aria-current", "page");
+    $("products-nav").removeAttribute("aria-current");
+    $("imports-nav").removeAttribute("aria-current");
+    document.querySelector(".topbar > span").textContent = "Cadastros / Clientes";
+    generation++;
+    current = null;
+    imports.reset();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -54,7 +83,9 @@ function notice(message) {
 }
 function reset() {
   imports.reset();
+  customers.reset();
   $("imports-nav").hidden = true;
+  $("customers-nav").hidden = true;
   token = "";
   permissions.clear();
   current = null;
@@ -157,6 +188,7 @@ async function connect() {
     : "Conectado";
   $("new-product").hidden = !can("create");
   $("imports-nav").hidden = !permissions.has("data.import.execute");
+  $("customers-nav").hidden = !permissions.has("crm.customer.read");
   if (!company) {
     notice(
       "Nenhuma empresa ativa autorizada. Configure os escopos da identidade.",
@@ -168,10 +200,13 @@ async function connect() {
   await loadList();
 }
 async function loadList() {
+  area = "products";
   $("products-nav").setAttribute("aria-current", "page");
   $("imports-nav").removeAttribute("aria-current");
+  $("customers-nav").removeAttribute("aria-current");
   document.querySelector(".topbar > span").textContent = "Cadastros / Produtos";
   imports.reset();
+  customers.hide();
   const epoch = ++generation;
   current = null;
   $("detail").hidden = true;
@@ -326,6 +361,7 @@ bind(
     page = 1;
     notice("");
     $("create-dialog").close();
+    if (area === "customers") return customers.show();
     await loadList();
   },
   "change",
@@ -340,6 +376,9 @@ bind(
 );
 bind("refresh", () => loadList());
 bind("imports-nav", () => imports.show());
+bind("customers-nav", () => {
+  if (company) return customers.show();
+});
 bind("products-nav", () => {
   if (company) return loadList();
 });

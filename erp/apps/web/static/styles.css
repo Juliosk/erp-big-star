@@ -40,9 +40,56 @@
   justify-content: flex-start;
   gap: 12px;
 }
+.heading-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.compact-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 18px;
+}
+.compact-list li {
+  padding: 11px 0;
+  border-bottom: 1px solid var(--sky);
+  line-height: 1.45;
+}
+#customer-detail-status .status {
+  font-size: 13px;
+}
+.status.ACTIVE {
+  background: var(--sky);
+  font-weight: 700;
+}
+.status.INACTIVE {
+  border: 1px solid var(--sky);
+  color: var(--muted);
+}
+.status.BLOCKED {
+  background: #fff0f2;
+  color: var(--accent);
+  font-weight: 700;
+}
+#customer-detail h3 {
+  margin: 18px 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+}
+#customer-groups .table-wrap {
+  margin-top: 20px;
+}
 @media (max-width: 680px) {
   #import-track {
     grid-template-columns: 1fr 1fr;
+  }
+  .heading-actions {
+    width: 100%;
+  }
+  .heading-actions button {
+    flex: 1;
   }
 }
 * {
@@ -536,12 +583,14 @@ dialog::backdrop {
   }
   nav {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin-top: 12px;
   }
   nav a {
     flex: 1;
     gap: 12px;
+    min-width: 150px;
   }
   .company-context {
     margin-top: 18px;

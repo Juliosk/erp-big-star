@@ -55,6 +55,10 @@ class Settings(BaseSettings):
         "product.product.update",
         "product.product.activate",
         "product.product.discontinue",
+        "crm.customer.read",
+        "crm.customer.create",
+        "crm.customer.update",
+        "crm.customer.merge",
     )
 
     @model_validator(mode="after")

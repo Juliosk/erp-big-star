@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Produtos · Big Star / Forma Kids</title>
+    <title>Cadastros · Big Star / Forma Kids</title>
     <link rel="stylesheet" href="./styles.css" />
     <script type="module" src="./app.js"></script>
   </head>
@@ -21,6 +21,9 @@
         <a id="imports-nav" href="#imports" hidden
           >Importações <span>M23</span></a
         >
+        <a id="customers-nav" href="#customers" hidden
+          >Clientes <span>M14</span></a
+        >
       </nav>
       <div class="company-context">
         <label for="company">Empresa de trabalho</label
@@ -30,7 +33,7 @@
         <p>Cadastros e alterações ficam restritos à empresa selecionada.</p>
       </div>
       <div class="side-footer">
-        Product Master<small>Fundação de cadastros · W1</small>
+        Cadastros centrais<small>Fundação de domínios · W1</small>
       </div>
     </aside>
     <main>
@@ -179,6 +182,165 @@
             </div>
           </footer>
         </section>
+      </section>
+      <section id="customers" hidden aria-labelledby="customers-title">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">CUSTOMER CORE / M14</p>
+            <h1 id="customers-title">Clientes</h1>
+            <p>
+              Golden record comercial e fiscal, sempre restrito à empresa de
+              trabalho.
+            </p>
+          </div>
+          <div class="heading-actions">
+            <button id="customers-groups-button" class="secondary">
+              Grupos
+            </button>
+            <button id="new-customer" hidden>+ Novo cliente</button>
+          </div>
+        </div>
+        <div class="toolbar">
+          <div>
+            <label for="customer-status-filter">Situação do cliente</label
+            ><select id="customer-status-filter">
+              <option value="">Todas as situações</option>
+              <option value="ACTIVE">Ativo</option>
+              <option value="INACTIVE">Inativo</option>
+              <option value="BLOCKED">Bloqueado</option>
+            </select>
+          </div>
+          <button id="customer-refresh" class="secondary">
+            Atualizar lista
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <caption class="sr-only">
+              Clientes da empresa selecionada
+            </caption>
+            <thead>
+              <tr>
+                <th>Cliente / Documento</th>
+                <th>Nome fantasia</th>
+                <th>Tipo</th>
+                <th>Situação</th>
+                <th><span class="sr-only">Ação</span></th>
+              </tr>
+            </thead>
+            <tbody id="customer-rows"></tbody>
+          </table>
+          <div id="customers-empty" class="empty" hidden>
+            <span aria-hidden="true">◇</span>
+            <h2>Nenhum cliente nesta seleção</h2>
+            <p>Crie o primeiro cliente ou altere o filtro de situação.</p>
+          </div>
+        </div>
+        <footer class="pagination">
+          <span id="customer-page-label">Página 1</span>
+          <div>
+            <button id="customer-previous" class="secondary">Anterior</button
+            ><button id="customer-next" class="secondary">Próxima</button>
+          </div>
+        </footer>
+      </section>
+      <section id="customer-detail" hidden aria-labelledby="customer-detail-title">
+        <button id="back-customers" class="quiet">← Voltar aos clientes</button>
+        <button id="refresh-customer-detail" class="quiet">
+          Atualizar 360
+        </button>
+        <div class="page-heading">
+          <div>
+            <p id="customer-detail-identity" class="eyebrow"></p>
+            <h1 id="customer-detail-title"></h1>
+            <p id="customer-detail-meta"></p>
+          </div>
+          <span id="customer-detail-status"></span>
+        </div>
+        <div class="detail-columns">
+          <section class="panel">
+            <h2>Dados mestre</h2>
+            <form id="customer-edit-form">
+              <label for="customer-legal-name">Razão social / Nome</label
+              ><input id="customer-legal-name" required maxlength="200" />
+              <label for="customer-trade-name">Nome fantasia</label
+              ><input id="customer-trade-name" maxlength="200" />
+              <label for="customer-status">Situação</label
+              ><select id="customer-status">
+                <option value="ACTIVE">Ativo</option>
+                <option value="INACTIVE">Inativo</option>
+                <option value="BLOCKED">Bloqueado</option>
+              </select>
+              <button id="save-customer" type="submit">
+                Salvar cliente
+              </button>
+            </form>
+          </section>
+          <section class="panel">
+            <h2>Contatos e endereços</h2>
+            <h3>Contatos</h3>
+            <ul id="customer-contact-list" class="compact-list"></ul>
+            <h3>Endereços</h3>
+            <ul id="customer-address-list" class="compact-list"></ul>
+          </section>
+          <section class="panel">
+            <h2>Grupos</h2>
+            <ul id="customer-group-list" class="compact-list"></ul>
+            <form id="customer-assign-form">
+              <label for="customer-assign-group">Vincular grupo</label
+              ><select id="customer-assign-group"></select>
+              <button id="assign-customer-group" type="submit" class="secondary">
+                Vincular grupo
+              </button>
+            </form>
+          </section>
+          <section class="panel">
+            <h2>Status de mesclagem</h2>
+            <ul id="customer-merge-list" class="compact-list"></ul>
+            <div class="transition-actions">
+              <button id="detect-duplicates" class="secondary">
+                Verificar duplicidades
+              </button>
+              <button id="request-merge" hidden>
+                Solicitar mesclagem
+              </button>
+            </div>
+          </section>
+        </div>
+      </section>
+      <section id="customer-groups" hidden aria-labelledby="customer-groups-title">
+        <button id="back-customers-from-groups" class="quiet">
+          ← Voltar aos clientes
+        </button>
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">SEGMENTAÇÃO / M14</p>
+            <h1 id="customer-groups-title">Grupos de clientes</h1>
+            <p>
+              Segmentos comerciais com código único por empresa e vínculo
+              auditável.
+            </p>
+          </div>
+          <button id="new-group" hidden>+ Novo grupo</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Nome</th>
+                <th>Descrição</th>
+                <th>Situação</th>
+              </tr>
+            </thead>
+            <tbody id="customer-group-rows"></tbody>
+          </table>
+          <div id="customer-groups-empty" class="empty" hidden>
+            <span aria-hidden="true">◇</span>
+            <h2>Nenhum grupo cadastrado</h2>
+            <p>Crie segmentos como VIP, Varejo, Atacado ou representantes.</p>
+          </div>
+        </div>
       </section>
       <section id="catalog" hidden aria-labelledby="catalog-title">
         <div class="page-heading">
@@ -364,6 +526,93 @@
           <p id="create-error" role="alert" hidden></p>
           <footer class="dialog-footer">
             <button type="submit">Criar produto</button>
+          </footer>
+        </form>
+      </dialog>
+      <dialog id="customer-create-dialog">
+        <form id="customer-create-form">
+          <div class="dialog-heading">
+            <div>
+              <p class="eyebrow">CUSTOMER CORE</p>
+              <h2>Novo cliente</h2>
+            </div>
+            <button
+              id="close-customer-create"
+              type="button"
+              class="quiet"
+              aria-label="Fechar formulário de cliente"
+            >
+              ×
+            </button>
+          </div>
+          <div class="form-grid">
+            <div>
+              <label for="customer-create-type">Tipo</label
+              ><select id="customer-create-type" name="customer_type">
+                <option value="INDIVIDUAL">Pessoa física</option>
+                <option value="COMPANY">Pessoa jurídica</option>
+              </select>
+            </div>
+            <div>
+              <label for="customer-create-identity-type">Documento</label
+              ><select id="customer-create-identity-type" name="identity_type">
+                <option value="CPF">CPF</option>
+                <option value="CNPJ">CNPJ</option>
+              </select>
+            </div>
+          </div>
+          <label for="customer-create-identity-value">CPF/CNPJ</label
+          ><input
+            id="customer-create-identity-value"
+            name="identity_value"
+            required
+            maxlength="18"
+            autocomplete="off"
+          />
+          <label for="customer-create-legal-name">Razão social / Nome</label
+          ><input
+            id="customer-create-legal-name"
+            name="legal_name"
+            required
+            maxlength="200"
+          />
+          <label for="customer-create-trade-name">Nome fantasia</label
+          ><input
+            id="customer-create-trade-name"
+            name="trade_name"
+            maxlength="200"
+          />
+          <p id="customer-create-error" role="alert" hidden></p>
+          <footer class="dialog-footer">
+            <button type="submit">Criar cliente</button>
+          </footer>
+        </form>
+      </dialog>
+      <dialog id="group-create-dialog">
+        <form id="group-create-form">
+          <div class="dialog-heading">
+            <div>
+              <p class="eyebrow">SEGMENTAÇÃO</p>
+              <h2>Novo grupo</h2>
+            </div>
+            <button
+              id="close-group-create"
+              type="button"
+              class="quiet"
+              aria-label="Fechar formulário de grupo"
+            >
+              ×
+            </button>
+          </div>
+          <label for="group-code">Código do grupo</label
+          ><input id="group-code" required maxlength="50" />
+          <label for="group-name">Nome do grupo</label
+          ><input id="group-name" required maxlength="120" />
+          <label for="group-description">Descrição do grupo</label
+          ><input id="group-description" maxlength="500" />
+          <p id="group-create-error" role="alert" hidden></p>
+          <footer class="dialog-footer">
+            <button type="submit">Criar grupo</button>
           </footer>
         </form>
       </dialog>
