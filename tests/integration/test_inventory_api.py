@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete
+from sqlalchemy import delete, text
 
 from erp.apps.api.app import create_app
 from erp.modules.admin.application import SecurityContext
@@ -20,6 +20,7 @@ from erp.modules.admin.domain import (
 )
 from erp.modules.admin.infrastructure import BranchModel, BranchRepository
 from erp.modules.inventory.application.permissions import (
+    INVENTORY_ADJUSTMENT_CREATE,
     INVENTORY_LOCATION_CREATE,
     INVENTORY_LOCATION_READ,
     INVENTORY_LOT_CREATE,
@@ -30,13 +31,19 @@ from erp.modules.inventory.application.permissions import (
     INVENTORY_WAREHOUSE_READ,
 )
 from erp.modules.inventory.infrastructure import (
+    InventoryBalanceModel,
     InventoryLotModel,
     InventoryPoolModel,
+    InventoryPostingModel,
+    InventoryTransactionModel,
     WarehouseLocationModel,
     WarehouseModel,
 )
 from erp.modules.product.infrastructure import ProductRepository
+from erp.platform.audit import AuditEventModel
 from erp.platform.config import get_settings
+from erp.platform.idempotency.models import IdempotencyRecordModel
+from erp.platform.outbox import OutboxEventModel
 from tests.integration.test_product_persistence import Fixture, _cnpj, fixture
 
 pytestmark = pytest.mark.integration
@@ -79,6 +86,7 @@ def inventory_api() -> Iterator[InventoryApiFixture]:
                     INVENTORY_POOL_CREATE,
                     INVENTORY_LOT_READ,
                     INVENTORY_LOT_CREATE,
+                    INVENTORY_ADJUSTMENT_CREATE,
                 }
             ),
             scopes=frozenset({Scope(ScopeType.COMPANY, data.company_id)}),
@@ -90,6 +98,41 @@ def inventory_api() -> Iterator[InventoryApiFixture]:
             async def cleanup_inventory() -> None:
                 company_ids = (data.company_id, data.other_company_id)
                 async with data.database.session() as session, session.begin():
+                    await session.execute(text("SET LOCAL erp.allow_ledger_cleanup = 'on'"))
+                    await session.execute(
+                        delete(InventoryBalanceModel).where(
+                            InventoryBalanceModel.company_id.in_(company_ids)
+                        )
+                    )
+                    await session.execute(
+                        delete(InventoryPostingModel).where(
+                            InventoryPostingModel.company_id.in_(company_ids)
+                        )
+                    )
+                    await session.execute(
+                        delete(InventoryTransactionModel).where(
+                            InventoryTransactionModel.company_id.in_(company_ids)
+                        )
+                    )
+                    await session.execute(
+                        delete(OutboxEventModel).where(
+                            OutboxEventModel.source_module == "inventory"
+                        )
+                    )
+                    await session.execute(
+                        delete(AuditEventModel).where(
+                            AuditEventModel.module == "inventory",
+                            AuditEventModel.company_id.in_(company_ids),
+                        )
+                    )
+                    await session.execute(
+                        delete(IdempotencyRecordModel).where(
+                            IdempotencyRecordModel.scope.in_(
+                                f"inventory:{company_id}:{data.actor_id}"
+                                for company_id in company_ids
+                            )
+                        )
+                    )
                     await session.execute(
                         delete(InventoryLotModel).where(
                             InventoryLotModel.company_id.in_(company_ids)

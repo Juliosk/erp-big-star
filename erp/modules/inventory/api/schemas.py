@@ -59,6 +59,20 @@ class InventoryLotResponse(BaseModel):
     version: int
 
 
+class InventoryBalanceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    company_id: UUID
+    product_id: UUID
+    warehouse_id: UUID
+    location_id: UUID | None
+    lot_id: UUID | None
+    pool_id: UUID | None
+    state: str
+    quantity: str
+    version: int
+
+
 class WarehouseListResponse(BaseModel):
     data: list[WarehouseResponse]
     meta: PageMetadata
@@ -117,6 +131,7 @@ __all__ = [
     "CreateInventoryPoolRequest",
     "CreateLocationRequest",
     "CreateWarehouseRequest",
+    "InventoryBalanceResponse",
     "InventoryLotListResponse",
     "InventoryLotResponse",
     "InventoryPoolListResponse",

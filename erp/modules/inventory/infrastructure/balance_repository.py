@@ -15,7 +15,7 @@ from erp.modules.inventory.domain import (
 )
 from erp.modules.inventory.infrastructure.balance_model import InventoryBalanceModel
 from erp.platform.concurrency import OptimisticLockError
-from erp.platform.errors import ApplicationError
+from erp.platform.errors import ApplicationError, ErrorDetail
 
 
 class InventoryBalanceRepository:
@@ -36,7 +36,7 @@ class InventoryBalanceRepository:
             )
         model = await self._find_model_for_update(posting)
         if model is None:
-            balance = InventoryBalance.from_posting(posting)
+            balance = _balance_from_posting(posting)
             model = _model(balance)
             self._session.add(model)
             try:
@@ -46,7 +46,7 @@ class InventoryBalanceRepository:
                     raise OptimisticLockError(expected_version=1) from error
                 raise
             return _balance(model)
-        balance = _balance(model).apply(posting.quantity_delta)
+        balance = _apply_quantity(_balance(model), posting)
         model.quantity = balance.quantity.value
         await self._session.flush()
         return _balance(model)
@@ -122,6 +122,29 @@ def _model(balance: InventoryBalance) -> InventoryBalanceModel:
         state=balance.state,
         quantity=balance.quantity.value,
         version=balance.version,
+    )
+
+
+def _balance_from_posting(posting: InventoryPosting) -> InventoryBalance:
+    try:
+        return InventoryBalance.from_posting(posting)
+    except ValueError as error:
+        raise _negative_balance_error() from error
+
+
+def _apply_quantity(balance: InventoryBalance, posting: InventoryPosting) -> InventoryBalance:
+    try:
+        return balance.apply(posting.quantity_delta)
+    except ValueError as error:
+        raise _negative_balance_error() from error
+
+
+def _negative_balance_error() -> ApplicationError:
+    return ApplicationError(
+        code="INVENTORY_NEGATIVE_BALANCE",
+        message="Inventory balance cannot become negative.",
+        status_code=409,
+        details=[ErrorDetail(message="The requested stock adjustment would create negative stock.")],
     )
 
 

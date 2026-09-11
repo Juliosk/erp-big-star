@@ -1,6 +1,7 @@
 """Inventory catalogue creation endpoints."""
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, Response
 
@@ -18,6 +19,7 @@ from erp.modules.inventory.api.schemas import (
 )
 from erp.modules.inventory.application.catalogue import InventoryCatalogService
 from erp.modules.inventory.application.commands import (
+    CommandMetadata,
     CreateInventoryLot,
     CreateInventoryPool,
     CreateLocation,
@@ -37,6 +39,14 @@ def get_creation(request: Request) -> InventoryCatalogService:
             status_code=503,
         )
     return service
+
+
+def metadata(request: Request) -> CommandMetadata:
+    return CommandMetadata(
+        UUID(request.state.request_id),
+        UUID(request.state.correlation_id),
+        request.client.host if request.client is not None else None,
+    )
 
 
 @router.post("/warehouses", status_code=201, response_model=WarehouseResponse)
@@ -136,4 +146,4 @@ async def create_lot(
     return InventoryLotResponse.model_validate(result)
 
 
-__all__ = ["get_creation", "router"]
+__all__ = ["get_creation", "metadata", "router"]

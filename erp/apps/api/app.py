@@ -44,11 +44,13 @@ from erp.modules.governance.api import router as import_router
 from erp.modules.governance.application.imports import ImportService
 from erp.modules.inventory.api import router as inventory_router
 from erp.modules.inventory.application import (
+    InventoryAdjustmentService,
     InventoryAuthorization,
     InventoryCatalogService,
     InventoryQueries,
 )
 from erp.modules.inventory.infrastructure import PostgresInventoryCatalogue
+from erp.modules.inventory.infrastructure.adjustments import PostgresInventoryAdjustments
 from erp.modules.product.api import router as product_router
 from erp.modules.product.application import ProductQueries
 from erp.modules.product.application.barcodes import ProductBarcodeService
@@ -91,6 +93,7 @@ def create_app(
     customer_360: Customer360Service | None = None,
     inventory_queries: InventoryQueries | None = None,
     inventory_creation: InventoryCatalogService | None = None,
+    inventory_adjustments: InventoryAdjustmentService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -119,8 +122,11 @@ def create_app(
     resolved_customer_360 = customer_360
     resolved_inventory_queries = inventory_queries
     resolved_inventory_creation = inventory_creation
+    resolved_inventory_adjustments = inventory_adjustments
     if isinstance(resolved_database, Database) and (
-        resolved_inventory_queries is None or resolved_inventory_creation is None
+        resolved_inventory_queries is None
+        or resolved_inventory_creation is None
+        or resolved_inventory_adjustments is None
     ):
         inventory_catalogue = PostgresInventoryCatalogue(resolved_database)
         inventory_authorization = InventoryAuthorization(
@@ -133,6 +139,13 @@ def create_app(
         if resolved_inventory_creation is None:
             resolved_inventory_creation = InventoryCatalogService(
                 inventory_catalogue, inventory_authorization
+            )
+        if resolved_inventory_adjustments is None:
+            resolved_inventory_adjustments = InventoryAdjustmentService(
+                PostgresInventoryAdjustments(
+                    resolved_database, ttl_seconds=resolved_settings.idempotency_ttl_seconds
+                ),
+                inventory_authorization,
             )
     if resolved_customer_360 is None and isinstance(resolved_database, Database):
         resolved_customer_360 = Customer360Service(
@@ -275,6 +288,7 @@ def create_app(
     application.state.customer_360 = resolved_customer_360
     application.state.inventory_queries = resolved_inventory_queries
     application.state.inventory_creation = resolved_inventory_creation
+    application.state.inventory_adjustments = resolved_inventory_adjustments
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)
