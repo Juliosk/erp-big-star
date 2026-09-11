@@ -21,6 +21,7 @@ from erp.modules.admin.domain import (
 from erp.modules.admin.infrastructure import BranchModel, BranchRepository
 from erp.modules.inventory.application.permissions import (
     INVENTORY_ADJUSTMENT_CREATE,
+    INVENTORY_BALANCE_READ,
     INVENTORY_LOCATION_CREATE,
     INVENTORY_LOCATION_READ,
     INVENTORY_LOT_CREATE,
@@ -87,6 +88,7 @@ def inventory_api() -> Iterator[InventoryApiFixture]:
                     INVENTORY_LOT_READ,
                     INVENTORY_LOT_CREATE,
                     INVENTORY_ADJUSTMENT_CREATE,
+                    INVENTORY_BALANCE_READ,
                 }
             ),
             scopes=frozenset({Scope(ScopeType.COMPANY, data.company_id)}),

@@ -73,6 +73,21 @@ class InventoryBalanceResponse(BaseModel):
     version: int
 
 
+class InventoryPostingResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    company_id: UUID
+    transaction_id: UUID
+    sequence: int
+    product_id: UUID
+    warehouse_id: UUID
+    location_id: UUID | None
+    lot_id: UUID | None
+    pool_id: UUID | None
+    state: str
+    quantity_delta: str
+
+
 class WarehouseListResponse(BaseModel):
     data: list[WarehouseResponse]
     meta: PageMetadata
@@ -90,6 +105,16 @@ class InventoryPoolListResponse(BaseModel):
 
 class InventoryLotListResponse(BaseModel):
     data: list[InventoryLotResponse]
+    meta: PageMetadata
+
+
+class InventoryBalanceListResponse(BaseModel):
+    data: list[InventoryBalanceResponse]
+    meta: PageMetadata
+
+
+class InventoryPostingListResponse(BaseModel):
+    data: list[InventoryPostingResponse]
     meta: PageMetadata
 
 
@@ -131,11 +156,14 @@ __all__ = [
     "CreateInventoryPoolRequest",
     "CreateLocationRequest",
     "CreateWarehouseRequest",
+    "InventoryBalanceListResponse",
     "InventoryBalanceResponse",
     "InventoryLotListResponse",
     "InventoryLotResponse",
     "InventoryPoolListResponse",
     "InventoryPoolResponse",
+    "InventoryPostingListResponse",
+    "InventoryPostingResponse",
     "PageMetadata",
     "WarehouseListResponse",
     "WarehouseLocationListResponse",

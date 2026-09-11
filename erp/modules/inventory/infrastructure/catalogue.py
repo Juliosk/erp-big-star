@@ -5,12 +5,17 @@ from uuid import UUID
 from erp.modules.inventory.application.commands import InventoryCatalogStore
 from erp.modules.inventory.application.queries import InventoryDirectory, InventoryPage
 from erp.modules.inventory.domain import (
+    InventoryBalance,
     InventoryLot,
     InventoryLotStatus,
     InventoryPool,
+    InventoryPosting,
+    InventoryState,
     Warehouse,
     WarehouseLocation,
 )
+from erp.modules.inventory.infrastructure.balance_repository import InventoryBalanceRepository
+from erp.modules.inventory.infrastructure.ledger_repository import InventoryLedgerRepository
 from erp.modules.inventory.infrastructure.repository import (
     InventoryLotRepository,
     InventoryPoolRepository,
@@ -145,6 +150,55 @@ class PostgresInventoryCatalogue(InventoryCatalogStore, InventoryDirectory):
     async def get_lot(self, company_id: UUID, lot_id: UUID) -> InventoryLot | None:
         async with self._database.session() as session:
             return await InventoryLotRepository(session, company_id=company_id).get(lot_id)
+
+    async def list_balances(
+        self,
+        company_id: UUID,
+        *,
+        product_id: UUID | None,
+        warehouse_id: UUID | None,
+        lot_id: UUID | None,
+        state: InventoryState | None,
+        page: int,
+        page_size: int,
+    ) -> InventoryPage[InventoryBalance]:
+        async with self._database.session() as session:
+            repository = InventoryBalanceRepository(session, company_id=company_id)
+            offset = (page - 1) * page_size
+            items = await repository.list(
+                product_id=product_id,
+                warehouse_id=warehouse_id,
+                lot_id=lot_id,
+                state=state,
+                limit=page_size,
+                offset=offset,
+            )
+            more = await repository.list(
+                product_id=product_id,
+                warehouse_id=warehouse_id,
+                lot_id=lot_id,
+                state=state,
+                limit=1,
+                offset=offset + page_size,
+            )
+            return InventoryPage(items, page, page_size, bool(more))
+
+    async def list_lot_postings(
+        self,
+        company_id: UUID,
+        lot_id: UUID,
+        *,
+        page: int,
+        page_size: int,
+    ) -> InventoryPage[InventoryPosting]:
+        async with self._database.session() as session:
+            repository = InventoryLedgerRepository(session, company_id=company_id)
+            offset = (page - 1) * page_size
+            items = await repository.list_postings(lot_id=lot_id, limit=page_size, offset=offset)
+            more = await repository.list_postings(
+                lot_id=lot_id, limit=1, offset=offset + page_size
+            )
+            return InventoryPage(items, page, page_size, bool(more))
 
 
 # US spelling is a convenient import for API composition and external callers.

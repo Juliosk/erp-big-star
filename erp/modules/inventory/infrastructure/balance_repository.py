@@ -55,6 +55,38 @@ class InventoryBalanceRepository:
         model = await self._find_model(posting, for_update=False)
         return None if model is None else _balance(model)
 
+    async def list(
+        self,
+        *,
+        product_id: UUID | None = None,
+        warehouse_id: UUID | None = None,
+        lot_id: UUID | None = None,
+        state: InventoryState | None = None,
+        limit: int,
+        offset: int,
+    ) -> tuple[InventoryBalance, ...]:
+        statement = select(InventoryBalanceModel).where(
+            InventoryBalanceModel.company_id == self._company_id
+        )
+        if product_id is not None:
+            statement = statement.where(InventoryBalanceModel.product_id == product_id)
+        if warehouse_id is not None:
+            statement = statement.where(InventoryBalanceModel.warehouse_id == warehouse_id)
+        if lot_id is not None:
+            statement = statement.where(InventoryBalanceModel.lot_id == lot_id)
+        if state is not None:
+            statement = statement.where(InventoryBalanceModel.state == state)
+        result = await self._session.scalars(
+            statement.order_by(
+                InventoryBalanceModel.product_id,
+                InventoryBalanceModel.warehouse_id,
+                InventoryBalanceModel.id,
+            )
+            .limit(limit)
+            .offset(offset)
+        )
+        return tuple(_balance(model) for model in result)
+
     async def save(self, balance: InventoryBalance, *, expected_version: int) -> InventoryBalance:
         if balance.company_id != self._company_id:
             raise ApplicationError(

@@ -8,10 +8,14 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 from erp.modules.admin.api import resolve_security_context
 from erp.modules.admin.contracts import SecurityContext
 from erp.modules.inventory.api.schemas import (
+    InventoryBalanceListResponse,
+    InventoryBalanceResponse,
     InventoryLotListResponse,
     InventoryLotResponse,
     InventoryPoolListResponse,
     InventoryPoolResponse,
+    InventoryPostingListResponse,
+    InventoryPostingResponse,
     PageMetadata,
     WarehouseListResponse,
     WarehouseLocationListResponse,
@@ -19,7 +23,12 @@ from erp.modules.inventory.api.schemas import (
     WarehouseResponse,
 )
 from erp.modules.inventory.application.queries import InventoryQueries
-from erp.modules.inventory.domain import InventoryLotStatus
+from erp.modules.inventory.domain import (
+    InventoryBalance,
+    InventoryLotStatus,
+    InventoryPosting,
+    InventoryState,
+)
 from erp.platform.errors import ApplicationError
 
 router = APIRouter(prefix="/api/v1/inventory", tags=["inventory"])
@@ -182,6 +191,87 @@ async def get_lot(
     response.headers["ETag"] = f'"{result.version}"'
     response.headers["Cache-Control"] = "no-store"
     return InventoryLotResponse.model_validate(result)
+
+
+@router.get("/balances", response_model=InventoryBalanceListResponse)
+async def list_balances(
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[InventoryQueries, Depends(get_queries)],
+    company_id: UUID,
+    product_id: UUID | None = None,
+    warehouse_id: UUID | None = None,
+    lot_id: UUID | None = None,
+    state: InventoryState | None = None,
+    page: Annotated[int, Query(ge=1, le=100_000)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> InventoryBalanceListResponse:
+    result = await service.list_balances(
+        context,
+        company_id,
+        product_id=product_id,
+        warehouse_id=warehouse_id,
+        lot_id=lot_id,
+        state=state,
+        page=page,
+        page_size=page_size,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return InventoryBalanceListResponse(
+        data=[_balance_response(item) for item in result.items],
+        meta=PageMetadata(page=result.page, page_size=result.page_size, has_more=result.has_more),
+    )
+
+
+@router.get("/lots/{lot_id}/postings", response_model=InventoryPostingListResponse)
+async def list_lot_postings(
+    lot_id: UUID,
+    company_id: UUID,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[InventoryQueries, Depends(get_queries)],
+    page: Annotated[int, Query(ge=1, le=100_000)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> InventoryPostingListResponse:
+    result = await service.list_lot_postings(
+        context, company_id, lot_id, page=page, page_size=page_size
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return InventoryPostingListResponse(
+        data=[_posting_response(item) for item in result.items],
+        meta=PageMetadata(page=result.page, page_size=result.page_size, has_more=result.has_more),
+    )
+
+
+def _balance_response(balance: InventoryBalance) -> InventoryBalanceResponse:
+    return InventoryBalanceResponse(
+        id=balance.id,
+        company_id=balance.company_id,
+        product_id=balance.product_id,
+        warehouse_id=balance.warehouse_id,
+        location_id=balance.location_id,
+        lot_id=balance.lot_id,
+        pool_id=balance.pool_id,
+        state=balance.state.value,
+        quantity=f"{balance.quantity.value:.6f}",
+        version=balance.version,
+    )
+
+
+def _posting_response(posting: InventoryPosting) -> InventoryPostingResponse:
+    return InventoryPostingResponse(
+        id=posting.id,
+        company_id=posting.company_id,
+        transaction_id=posting.transaction_id,
+        sequence=posting.sequence,
+        product_id=posting.product_id,
+        warehouse_id=posting.warehouse_id,
+        location_id=posting.location_id,
+        lot_id=posting.lot_id,
+        pool_id=posting.pool_id,
+        state=posting.state.value,
+        quantity_delta=f"{posting.quantity_delta:.6f}",
+    )
 
 
 __all__ = ["get_queries", "router"]

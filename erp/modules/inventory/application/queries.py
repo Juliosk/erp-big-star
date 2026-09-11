@@ -6,6 +6,7 @@ from uuid import UUID
 
 from erp.modules.admin.contracts import SecurityContext
 from erp.modules.inventory.application.permissions import (
+    INVENTORY_BALANCE_READ,
     INVENTORY_LOCATION_READ,
     INVENTORY_LOT_READ,
     INVENTORY_POOL_READ,
@@ -13,9 +14,12 @@ from erp.modules.inventory.application.permissions import (
     InventoryAuthorization,
 )
 from erp.modules.inventory.domain import (
+    InventoryBalance,
     InventoryLot,
     InventoryLotStatus,
     InventoryPool,
+    InventoryPosting,
+    InventoryState,
     Warehouse,
     WarehouseLocation,
 )
@@ -68,6 +72,27 @@ class InventoryDirectory(Protocol):
     ) -> InventoryPage[InventoryLot]: ...
 
     async def get_lot(self, company_id: UUID, lot_id: UUID) -> InventoryLot | None: ...
+
+    async def list_balances(
+        self,
+        company_id: UUID,
+        *,
+        product_id: UUID | None,
+        warehouse_id: UUID | None,
+        lot_id: UUID | None,
+        state: InventoryState | None,
+        page: int,
+        page_size: int,
+    ) -> InventoryPage[InventoryBalance]: ...
+
+    async def list_lot_postings(
+        self,
+        company_id: UUID,
+        lot_id: UUID,
+        *,
+        page: int,
+        page_size: int,
+    ) -> InventoryPage[InventoryPosting]: ...
 
 
 class InventoryQueries:
@@ -188,6 +213,51 @@ class InventoryQueries:
         if item is None:
             raise _not_found("Inventory lot")
         return item
+
+    async def list_balances(
+        self,
+        context: SecurityContext,
+        company_id: UUID,
+        *,
+        product_id: UUID | None = None,
+        warehouse_id: UUID | None = None,
+        lot_id: UUID | None = None,
+        state: InventoryState | None = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> InventoryPage[InventoryBalance]:
+        await self._authorization.require(context, company_id, INVENTORY_BALANCE_READ)
+        _validate_page(page, page_size)
+        if state is not None and not isinstance(state, InventoryState):
+            raise ApplicationError(
+                code="VALIDATION_ERROR", message="Invalid inventory state.", status_code=422
+            )
+        return await self._directory.list_balances(
+            company_id,
+            product_id=product_id,
+            warehouse_id=warehouse_id,
+            lot_id=lot_id,
+            state=state,
+            page=page,
+            page_size=page_size,
+        )
+
+    async def list_lot_postings(
+        self,
+        context: SecurityContext,
+        company_id: UUID,
+        lot_id: UUID,
+        *,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> InventoryPage[InventoryPosting]:
+        await self._authorization.require(context, company_id, INVENTORY_LOT_READ)
+        _validate_page(page, page_size)
+        if await self._directory.get_lot(company_id, lot_id) is None:
+            raise _not_found("Inventory lot")
+        return await self._directory.list_lot_postings(
+            company_id, lot_id, page=page, page_size=page_size
+        )
 
 
 def _validate_page(page: int, page_size: int) -> None:

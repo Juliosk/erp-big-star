@@ -11,6 +11,9 @@ from erp.modules.admin.domain import Branch
 from erp.modules.admin.infrastructure import BranchRepository
 from erp.modules.inventory.application.permissions import (
     INVENTORY_ADJUSTMENT_CREATE,
+    INVENTORY_BALANCE_READ,
+    INVENTORY_LOT_CREATE,
+    INVENTORY_LOT_READ,
     INVENTORY_WAREHOUSE_CREATE,
     INVENTORY_WAREHOUSE_READ,
 )
@@ -36,6 +39,9 @@ def _allow_adjustment(api: InventoryApiFixture) -> None:
         permissions=frozenset(
             {
                 INVENTORY_ADJUSTMENT_CREATE,
+                INVENTORY_BALANCE_READ,
+                INVENTORY_LOT_CREATE,
+                INVENTORY_LOT_READ,
                 INVENTORY_WAREHOUSE_CREATE,
                 INVENTORY_WAREHOUSE_READ,
             }
@@ -58,21 +64,37 @@ def _seed_stock_dimensions(api: InventoryApiFixture) -> tuple[str, str]:
             await ProductRepository(session, company_id=api.data.company_id).add(
                 product, actor_id=api.data.actor_id
             )
-        warehouse = api.client.post(
-            "/api/v1/inventory/warehouses",
-            json={
-                "company_id": str(api.data.company_id),
-                "branch_id": str(branch.id),
-                "code": "WHADJ",
-                "name": "Adjustment warehouse",
-            },
-            headers=api.headers,
-        )
-        assert warehouse.status_code == 201
-        return str(product.id), warehouse.json()["id"]
+        return str(branch.id), str(product.id)
 
     assert api.client.portal is not None
-    return cast("tuple[str, str]", api.client.portal.call(seed))
+    branch_id, product_id = cast("tuple[str, str]", api.client.portal.call(seed))
+    warehouse = api.client.post(
+        "/api/v1/inventory/warehouses",
+        json={
+            "company_id": str(api.data.company_id),
+            "branch_id": branch_id,
+            "code": "WHADJ",
+            "name": "Adjustment warehouse",
+        },
+        headers=api.headers,
+    )
+    assert warehouse.status_code == 201
+    return product_id, str(warehouse.json()["id"])
+
+
+def _seed_lot_dimensions(api: InventoryApiFixture) -> tuple[str, str, str]:
+    product_id, warehouse_id = _seed_stock_dimensions(api)
+    lot = api.client.post(
+        "/api/v1/inventory/lots",
+        json={
+            "company_id": str(api.data.company_id),
+            "product_id": product_id,
+            "code": "TRACE-LOT",
+        },
+        headers=api.headers,
+    )
+    assert lot.status_code == 201
+    return product_id, warehouse_id, str(lot.json()["id"])
 
 
 def _adjustment_body(
@@ -210,3 +232,51 @@ def test_negative_adjustment_rolls_back_ledger_balance_audit_and_outbox() -> Non
 
         assert api.client.portal is not None
         assert api.client.portal.call(counts) == (0, 0, 0, 0)
+
+
+def test_balance_and_lot_trace_queries_are_company_scoped() -> None:
+    with inventory_api() as api:
+        _allow_adjustment(api)
+        product_id, warehouse_id, lot_id = _seed_lot_dimensions(api)
+        body = _adjustment_body(api, product_id=product_id, warehouse_id=warehouse_id)
+        body["lines"][0]["lot_id"] = lot_id
+        adjustment = api.client.post(
+            "/api/v1/inventory/adjustments",
+            json=body,
+            headers={**api.headers, "Idempotency-Key": str(uuid4())},
+        )
+        assert adjustment.status_code == 201
+
+        balances = api.client.get(
+            f"/api/v1/inventory/balances?company_id={api.data.company_id}"
+            f"&product_id={product_id}&lot_id={lot_id}",
+            headers=api.headers,
+        )
+        assert balances.status_code == 200
+        assert balances.json()["data"][0]["lot_id"] == lot_id
+        assert balances.json()["data"][0]["quantity"] == "5.000000"
+        assert balances.json()["meta"] == {"page": 1, "page_size": 50, "has_more": False}
+
+        postings = api.client.get(
+            f"/api/v1/inventory/lots/{lot_id}/postings?company_id={api.data.company_id}",
+            headers=api.headers,
+        )
+        assert postings.status_code == 200
+        assert postings.json()["data"][0]["transaction_id"] == adjustment.json()["transaction_id"]
+        assert postings.json()["data"][0]["lot_id"] == lot_id
+        assert postings.json()["data"][0]["quantity_delta"] == "5.000000"
+
+        hidden_balances = api.client.get(
+            f"/api/v1/inventory/balances?company_id={api.data.other_company_id}"
+            f"&product_id={product_id}&lot_id={lot_id}",
+            headers=api.headers,
+        )
+        assert hidden_balances.status_code == 404
+        assert hidden_balances.json()["error"]["code"] == "RESOURCE_NOT_FOUND"
+
+        hidden_postings = api.client.get(
+            f"/api/v1/inventory/lots/{lot_id}/postings?company_id={api.data.other_company_id}",
+            headers=api.headers,
+        )
+        assert hidden_postings.status_code == 404
+        assert hidden_postings.json()["error"]["code"] == "RESOURCE_NOT_FOUND"

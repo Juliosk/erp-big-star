@@ -87,6 +87,32 @@ class InventoryLedgerRepository:
         )
         return tuple(_posting(model) for model in result)
 
+    async def list_postings(
+        self,
+        *,
+        lot_id: UUID | None = None,
+        product_id: UUID | None = None,
+        limit: int,
+        offset: int,
+    ) -> tuple[InventoryPosting, ...]:
+        statement = select(InventoryPostingModel).where(
+            InventoryPostingModel.company_id == self._company_id
+        )
+        if lot_id is not None:
+            statement = statement.where(InventoryPostingModel.lot_id == lot_id)
+        if product_id is not None:
+            statement = statement.where(InventoryPostingModel.product_id == product_id)
+        result = await self._session.scalars(
+            statement.order_by(
+                InventoryPostingModel.created_at,
+                InventoryPostingModel.transaction_id,
+                InventoryPostingModel.sequence,
+            )
+            .limit(limit)
+            .offset(offset)
+        )
+        return tuple(_posting(model) for model in result)
+
 
 def _transaction(model: InventoryTransactionModel) -> InventoryTransaction:
     return InventoryTransaction(
