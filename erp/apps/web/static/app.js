@@ -1,5 +1,6 @@
 import { mountImports } from "./imports.js";
 import { mountCustomers } from "./customers.js";
+import { mountInventory } from "./inventory.js";
 const $ = (id) => document.getElementById(id);
 const labels = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -19,6 +20,8 @@ const errors = {
   CUSTOMER_GROUP_MEMBER_CONFLICT: "Este cliente já pertence ao grupo.",
   CUSTOMER_MERGE_REQUEST_CONFLICT:
     "Já existe uma solicitação pendente para este par de clientes.",
+  INVENTORY_NEGATIVE_BALANCE:
+    "O ajuste deixaria saldo negativo. Revise quantidade, lote e depósito.",
   PERMISSION_FORBIDDEN: "Sua identidade não tem permissão para esta ação.",
   RESOURCE_NOT_FOUND: "Cadastro não encontrado na empresa selecionada.",
   INVALID_LIFECYCLE_TRANSITION:
@@ -41,7 +44,7 @@ let token = "",
   area = "products";
 let lastCreation = { body: "", key: "" };
 const can = (action) => permissions.has(`product.product.${action}`);
-let customers;
+let customers, inventory;
 const imports = mountImports({
   api,
   context: () => ({ company, permissions }),
@@ -51,6 +54,7 @@ const imports = mountImports({
     $("imports-nav").setAttribute("aria-current", "page");
     $("products-nav").removeAttribute("aria-current");
     $("customers-nav").removeAttribute("aria-current");
+    $("inventory-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent =
       "Governança / Importações";
     generation++;
@@ -58,6 +62,7 @@ const imports = mountImports({
     $("catalog").hidden = true;
     $("detail").hidden = true;
     customers?.hide();
+    inventory?.hide();
   },
 });
 customers = mountCustomers({
@@ -69,10 +74,32 @@ customers = mountCustomers({
     $("customers-nav").setAttribute("aria-current", "page");
     $("products-nav").removeAttribute("aria-current");
     $("imports-nav").removeAttribute("aria-current");
+    $("inventory-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent = "Cadastros / Clientes";
     generation++;
     current = null;
     imports.reset();
+    inventory?.hide();
+    $("catalog").hidden = true;
+    $("detail").hidden = true;
+  },
+});
+inventory = mountInventory({
+  api,
+  context: () => ({ company, permissions }),
+  notice,
+  enter: () => {
+    area = "inventory";
+    $("inventory-nav").setAttribute("aria-current", "page");
+    $("products-nav").removeAttribute("aria-current");
+    $("imports-nav").removeAttribute("aria-current");
+    $("customers-nav").removeAttribute("aria-current");
+    document.querySelector(".topbar > span").textContent =
+      "Operações / Inventário";
+    generation++;
+    current = null;
+    imports.reset();
+    customers.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -84,8 +111,10 @@ function notice(message) {
 function reset() {
   imports.reset();
   customers.reset();
+  inventory.reset();
   $("imports-nav").hidden = true;
   $("customers-nav").hidden = true;
+  $("inventory-nav").hidden = true;
   token = "";
   permissions.clear();
   current = null;
@@ -189,6 +218,10 @@ async function connect() {
   $("new-product").hidden = !can("create");
   $("imports-nav").hidden = !permissions.has("data.import.execute");
   $("customers-nav").hidden = !permissions.has("crm.customer.read");
+  $("inventory-nav").hidden =
+    !permissions.has("inventory.balance.read") &&
+    !permissions.has("inventory.warehouse.read") &&
+    !permissions.has("inventory.adjustment.create");
   if (!company) {
     notice(
       "Nenhuma empresa ativa autorizada. Configure os escopos da identidade.",
@@ -204,9 +237,11 @@ async function loadList() {
   $("products-nav").setAttribute("aria-current", "page");
   $("imports-nav").removeAttribute("aria-current");
   $("customers-nav").removeAttribute("aria-current");
+  $("inventory-nav").removeAttribute("aria-current");
   document.querySelector(".topbar > span").textContent = "Cadastros / Produtos";
   imports.reset();
   customers.hide();
+  inventory.hide();
   const epoch = ++generation;
   current = null;
   $("detail").hidden = true;
@@ -362,6 +397,7 @@ bind(
     notice("");
     $("create-dialog").close();
     if (area === "customers") return customers.show();
+    if (area === "inventory") return inventory.show();
     await loadList();
   },
   "change",
@@ -378,6 +414,9 @@ bind("refresh", () => loadList());
 bind("imports-nav", () => imports.show());
 bind("customers-nav", () => {
   if (company) return customers.show();
+});
+bind("inventory-nav", () => {
+  if (company) return inventory.show();
 });
 bind("products-nav", () => {
   if (company) return loadList();

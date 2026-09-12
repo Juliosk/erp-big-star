@@ -18,6 +18,7 @@ def test_shell_contains_no_tokens_and_has_strict_same_origin_policy() -> None:
         assert settings.dev_auth_token.get_secret_value() not in page.text
         assert client.get("/ui/app.js").status_code == 200
         assert client.get("/ui/customers.js").status_code == 200
+        assert client.get("/ui/inventory.js").status_code == 200
         assert client.get("/ui/styles.css").status_code == 200
         assert client.get("/api/v1/admin/session-context").status_code == 401
         result = client.get(
@@ -28,6 +29,7 @@ def test_shell_contains_no_tokens_and_has_strict_same_origin_policy() -> None:
         assert result.json()["development_auth"] is True
         assert "product.product.discontinue" in result.json()["permissions"]
         assert "crm.customer.merge" in result.json()["permissions"]
+        assert "inventory.adjustment.create" in result.json()["permissions"]
         assert result.json()["actor_id"] == str(settings.dev_auth_actor_id)
         assert settings.dev_auth_token.get_secret_value() not in result.text
         assert (

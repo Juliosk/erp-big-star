@@ -52,3 +52,18 @@ As consultas recebem `company_id` explicitamente e retornam paginação (`data` 
 respostas individuais incluem `ETag`; criações retornam `201` e `Location`. A camada de
 composição inicializa os serviços PostgreSQL automaticamente quando a aplicação usa o
 `Database` padrão.
+
+## Entrega dos commits 068–069
+
+O fluxo assíncrono M5 consome `InventoryAdjusted` publicado pelo Outbox através
+do RabbitMQ, valida o envelope público do domínio `inventory` e persiste uma
+projeção idempotente em `inventory.inventory_movement_projection`. O Inbox
+registra replays por consumidor/evento e impede duplicidade de projeções,
+mantendo rastreabilidade de `event_id`, `transaction_id`, quantidade de postings
+e payload original.
+
+A interface Web `/ui/` ganhou a seção **Estoque / M5**, exibida apenas para
+identidades com grants de leitura ou ajuste de inventário. A tela opera somente
+pelas APIs oficiais: saldos versionados, estrutura física, ajuste rápido
+idempotente e rastreabilidade por lote. O runbook operacional detalhado está em
+[inventory-foundation-runbook.md](inventory-foundation-runbook.md).

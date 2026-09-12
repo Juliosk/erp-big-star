@@ -7,12 +7,13 @@ arquitetura consolidada e o README de governança técnica em `Arquivos .MD/`.
 
 - Wave: `W1 — Corporate & Master Data Foundation`
 - Sprint concluída e homologada: `3 — M2 Product Master`, commits `030–039`
-- Sprint entregue para homologação: `5 — M14 Customer Core`, commits `050–059`
-- Schema atual: Alembic `0018`
+- Sprint entregue para homologação: `6 — M5 Inventory Foundation`, commits `060–069`
+- Schema atual: Alembic `0021`
 - APIs atuais: health checks, `/api/v1/admin`, `/api/v1/products`, `/api/v1/customers`,
   `/api/v1/customer-groups` e importação `/api/v1/data`
-- Inventory Foundation: `/api/v1/inventory` (warehouses, locations, pools e lots), com RBAC
-  por cadastro e isolamento estrito por `company_id`.
+- Inventory Foundation: `/api/v1/inventory` (estrutura física, lotes, saldos,
+  ajustes, ledger, Outbox/Inbox e `/ui/`), com RBAC e isolamento estrito por
+  `company_id`.
 - M2: consultas, criação idempotente, PATCH concorrente, lifecycle estrito, barcodes e telas `/ui/`.
 - DevSecurityContextResolver opt-in somente local/test; sem flag ou adapter real, autenticação segue 503.
 - Produção exige provedor de identidade real. Veja o [runbook M2](docs/product-master-runbook.md).
@@ -75,5 +76,7 @@ Consulte o [runbook M23](docs/product-import-runbook.md) para configurar MinIO/g
 executar o wizard, tratar inconsistências e recuperar tentativas com resultado incerto.
 Consulte o [runbook M14](docs/customer-core-runbook.md) para Customer 360, grupos,
 duplicidades, permissões CRM e validação browser.
+Consulte o [runbook M5](docs/inventory-foundation-runbook.md) para ajustes de
+estoque, ledger, projeção assíncrona e validação da tela de inventário.
 O [diagnóstico do Docker](docs/docker-recovery-2026-09-09.md) registra a recuperação local
 dos soquetes residuais, sem remoção dos volumes de dados.

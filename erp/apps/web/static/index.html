@@ -24,6 +24,9 @@
         <a id="customers-nav" href="#customers" hidden
           >Clientes <span>M14</span></a
         >
+        <a id="inventory-nav" href="#inventory" hidden
+          >Estoque <span>M5</span></a
+        >
       </nav>
       <div class="company-context">
         <label for="company">Empresa de trabalho</label
@@ -340,6 +343,190 @@
             <h2>Nenhum grupo cadastrado</h2>
             <p>Crie segmentos como VIP, Varejo, Atacado ou representantes.</p>
           </div>
+        </div>
+      </section>
+      <section id="inventory" hidden aria-labelledby="inventory-title">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">INVENTORY FOUNDATION / M5</p>
+            <h1 id="inventory-title">Inventário</h1>
+            <p>
+              Consulta de saldos, estrutura física, ajustes auditáveis e
+              rastreabilidade por lote na empresa de trabalho.
+            </p>
+          </div>
+          <button id="inventory-refresh" class="secondary">
+            Atualizar inventário
+          </button>
+        </div>
+        <div class="inventory-grid">
+          <section class="panel inventory-wide">
+            <div class="page-heading">
+              <div>
+                <h2>Saldos versionados</h2>
+                <p class="hint">
+                  Projeção transacional por produto, depósito, lote, estado e
+                  versão de concorrência otimista.
+                </p>
+              </div>
+              <div>
+                <label for="inventory-lot-filter">Filtrar lote</label
+                ><select id="inventory-lot-filter">
+                  <option value="">Todos os lotes</option>
+                </select>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <caption class="sr-only">
+                  Saldos de estoque da empresa selecionada
+                </caption>
+                <thead>
+                  <tr>
+                    <th>Produto</th>
+                    <th>Depósito</th>
+                    <th>Lote</th>
+                    <th>Estado</th>
+                    <th>Quantidade</th>
+                    <th>Versão</th>
+                  </tr>
+                </thead>
+                <tbody id="inventory-balance-rows"></tbody>
+              </table>
+              <div id="inventory-empty" class="empty" hidden>
+                <span aria-hidden="true">◇</span>
+                <h2>Nenhum saldo nesta seleção</h2>
+                <p>Registre um ajuste de entrada para iniciar o ledger.</p>
+              </div>
+            </div>
+            <footer class="pagination">
+              <span id="inventory-page-label">Página 1</span>
+              <div>
+                <button id="inventory-previous" class="secondary">
+                  Anterior
+                </button
+                ><button id="inventory-next" class="secondary">Próxima</button>
+              </div>
+            </footer>
+          </section>
+          <section class="panel">
+            <h2>Estrutura física</h2>
+            <h3>Depósitos</h3>
+            <div class="table-wrap compact-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Nome</th>
+                    <th>Situação</th>
+                    <th>Versão</th>
+                  </tr>
+                </thead>
+                <tbody id="inventory-warehouse-rows"></tbody>
+              </table>
+            </div>
+            <h3>Lotes</h3>
+            <div class="table-wrap compact-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Produto</th>
+                    <th>Situação</th>
+                    <th>Vencimento</th>
+                  </tr>
+                </thead>
+                <tbody id="inventory-lot-rows"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel">
+            <h2>Ajuste rápido</h2>
+            <p id="inventory-readonly" class="hint" hidden>
+              Identidade atual possui apenas leitura de estoque.
+            </p>
+            <form id="inventory-adjustment-form" class="inventory-adjustment-grid">
+              <label for="inventory-adjustment-type">Tipo</label
+              ><select id="inventory-adjustment-type">
+                <option value="INBOUND">Entrada</option>
+                <option value="OUTBOUND">Saída</option>
+                <option value="BALANCE">Balanço</option>
+              </select>
+              <label for="inventory-product-id">Produto ID</label
+              ><input
+                id="inventory-product-id"
+                required
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="UUID do produto"
+              />
+              <label for="inventory-warehouse-id">Depósito</label
+              ><select id="inventory-warehouse-id" required>
+                <option value="">Cadastre um depósito</option>
+              </select>
+              <label for="inventory-lot-id">Lote</label
+              ><select id="inventory-lot-id">
+                <option value="">Sem lote</option>
+              </select>
+              <label for="inventory-state">Estado</label
+              ><select id="inventory-state">
+                <option value="AVAILABLE">Disponível</option>
+                <option value="BLOCKED">Bloqueado</option>
+                <option value="QUARANTINE">Quarentena</option>
+              </select>
+              <label for="inventory-adjustment-quantity">Quantidade</label
+              ><input
+                id="inventory-adjustment-quantity"
+                type="number"
+                min="0.000001"
+                step="0.000001"
+                required
+                placeholder="0,000000"
+              />
+              <label for="inventory-adjustment-reason">Justificativa</label
+              ><textarea
+                id="inventory-adjustment-reason"
+                rows="3"
+                minlength="3"
+                maxlength="500"
+                required
+              >Ajuste operacional de estoque</textarea>
+              <button type="submit">Registrar ajuste</button>
+            </form>
+          </section>
+          <section class="panel inventory-wide">
+            <div class="page-heading">
+              <div>
+                <h2>Rastreabilidade do lote</h2>
+                <p class="hint">
+                  Lê os lançamentos append-only do ledger, sem editar fatos
+                  fiscais.
+                </p>
+              </div>
+              <div class="heading-actions">
+                <select id="inventory-trace-lot-id">
+                  <option value="">Selecione um lote</option>
+                </select>
+                <button id="inventory-trace-refresh" class="secondary">
+                  Ver rastreio
+                </button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Transação</th>
+                    <th>Seq.</th>
+                    <th>Estado</th>
+                    <th>Delta</th>
+                    <th>Depósito</th>
+                  </tr>
+                </thead>
+                <tbody id="inventory-trace-rows"></tbody>
+              </table>
+            </div>
+          </section>
         </div>
       </section>
       <section id="catalog" hidden aria-labelledby="catalog-title">

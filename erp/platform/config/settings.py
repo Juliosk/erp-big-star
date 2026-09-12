@@ -59,6 +59,16 @@ class Settings(BaseSettings):
         "crm.customer.create",
         "crm.customer.update",
         "crm.customer.merge",
+        "inventory.balance.read",
+        "inventory.warehouse.read",
+        "inventory.warehouse.create",
+        "inventory.location.read",
+        "inventory.location.create",
+        "inventory.pool.read",
+        "inventory.pool.create",
+        "inventory.lot.read",
+        "inventory.lot.create",
+        "inventory.adjustment.create",
     )
 
     @model_validator(mode="after")

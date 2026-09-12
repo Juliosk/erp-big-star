@@ -81,6 +81,43 @@
 #customer-groups .table-wrap {
   margin-top: 20px;
 }
+#inventory .panel .page-heading {
+  margin-top: 0;
+  margin-bottom: 18px;
+}
+.inventory-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+  gap: 24px;
+}
+.inventory-wide {
+  grid-column: 1 / -1;
+}
+.inventory-adjustment-grid {
+  display: grid;
+  gap: 12px;
+}
+.inventory-adjustment-grid textarea {
+  resize: vertical;
+}
+.compact-table {
+  margin-bottom: 22px;
+}
+#inventory h3 {
+  margin: 18px 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+}
+#inventory td:nth-child(1),
+#inventory td:nth-child(2),
+#inventory td:nth-child(3),
+#inventory td:nth-child(5),
+#inventory td:nth-child(6) {
+  font-family: "Cascadia Mono", monospace;
+  font-size: 13px;
+}
 @media (max-width: 680px) {
   #import-track {
     grid-template-columns: 1fr 1fr;
@@ -90,6 +127,22 @@
   }
   .heading-actions button {
     flex: 1;
+  }
+  .inventory-grid {
+    grid-template-columns: 1fr;
+  }
+  #inventory table {
+    white-space: normal;
+    table-layout: fixed;
+  }
+  #inventory th,
+  #inventory td {
+    overflow-wrap: anywhere;
+    padding: 12px 10px;
+  }
+  #inventory .heading-actions select,
+  #inventory .heading-actions button {
+    width: 100%;
   }
 }
 * {
