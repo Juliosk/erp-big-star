@@ -8,16 +8,28 @@ from erp.modules.inventory.domain.ledger import (
 )
 from erp.modules.inventory.domain.lot import InventoryLot, InventoryLotStatus
 from erp.modules.inventory.domain.pool import InventoryPool, InventoryPoolKind
+from erp.modules.inventory.domain.reservation import (
+    InventoryAvailability,
+    InventoryReservation,
+    InventoryReservationAllocation,
+    InventoryReservationKind,
+    InventoryReservationStatus,
+)
 from erp.modules.inventory.domain.stock import InventoryState, Quantity
 from erp.modules.inventory.domain.warehouse import Warehouse, WarehouseLocation
 
 __all__ = [
+    "InventoryAvailability",
     "InventoryBalance",
     "InventoryLot",
     "InventoryLotStatus",
     "InventoryPool",
     "InventoryPoolKind",
     "InventoryPosting",
+    "InventoryReservation",
+    "InventoryReservationAllocation",
+    "InventoryReservationKind",
+    "InventoryReservationStatus",
     "InventoryState",
     "InventoryTransaction",
     "InventoryTransactionType",
