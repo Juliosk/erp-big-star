@@ -36,6 +36,8 @@ from erp.modules.inventory.infrastructure import (
     InventoryLotModel,
     InventoryPoolModel,
     InventoryPostingModel,
+    InventoryReservationAllocationModel,
+    InventoryReservationModel,
     InventoryTransactionModel,
     WarehouseLocationModel,
     WarehouseModel,
@@ -119,6 +121,16 @@ def inventory_api() -> Iterator[InventoryApiFixture]:
                     await session.execute(
                         delete(OutboxEventModel).where(
                             OutboxEventModel.source_module == "inventory"
+                        )
+                    )
+                    await session.execute(
+                        delete(InventoryReservationAllocationModel).where(
+                            InventoryReservationAllocationModel.company_id.in_(company_ids)
+                        )
+                    )
+                    await session.execute(
+                        delete(InventoryReservationModel).where(
+                            InventoryReservationModel.company_id.in_(company_ids)
                         )
                     )
                     await session.execute(

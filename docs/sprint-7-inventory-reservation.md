@@ -50,3 +50,12 @@ unicidade por `company_id + reference_type + reference_id` e mantém expiração
 opcional. As allocations carregam as dimensões de contenção
 produto/depósito/localização/lote/pool/estado, com FKs compostas por empresa
 para preservar tenant isolation.
+
+## Entrega do Commit 072
+
+O adapter `PostgresInventoryReservations` implementa leitura tenant-bound de
+reservas e disponibilidade. `InventoryAvailabilityQueryService` autoriza
+`inventory.availability.read`, calcula `on_hand`, `hard_reserved`,
+`soft_reserved` e `available`, e mantém SOFT separado da disponibilidade rígida.
+`InventoryReservationQueryService` prepara a superfície de leitura que será
+exposta pela API no lote seguinte.

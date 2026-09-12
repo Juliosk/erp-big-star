@@ -15,6 +15,7 @@ from erp.modules.admin.contracts import (
 )
 
 INVENTORY_BALANCE_READ = PermissionCode("inventory.balance.read")
+INVENTORY_AVAILABILITY_READ = PermissionCode("inventory.availability.read")
 INVENTORY_RESERVATION_MANAGE = PermissionCode("inventory.reservation.manage")
 INVENTORY_TRANSFER_CREATE = PermissionCode("inventory.transfer.create")
 INVENTORY_ADJUSTMENT_CREATE = PermissionCode("inventory.adjustment.create")
@@ -51,6 +52,11 @@ def inventory_permission_registry() -> PermissionRegistry:
         )
         for code, description, risk in (
             (INVENTORY_BALANCE_READ, "Read inventory balances", PermissionRiskLevel.LOW),
+            (
+                INVENTORY_AVAILABILITY_READ,
+                "Read inventory availability",
+                PermissionRiskLevel.LOW,
+            ),
             (
                 INVENTORY_RESERVATION_MANAGE,
                 "Manage inventory reservations",
@@ -116,6 +122,7 @@ class InventoryAuthorization:
 __all__ = [
     "INVENTORY_ADJUSTMENT_CONFIRM",
     "INVENTORY_ADJUSTMENT_CREATE",
+    "INVENTORY_AVAILABILITY_READ",
     "INVENTORY_BALANCE_READ",
     "INVENTORY_CYCLE_COUNT_MANAGE",
     "INVENTORY_LOCATION_CREATE",

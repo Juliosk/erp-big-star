@@ -12,14 +12,24 @@ from erp.modules.inventory.application.catalogue import (
 from erp.modules.inventory.application.ledger import InventoryLedgerEntry
 from erp.modules.inventory.application.permissions import InventoryAuthorization
 from erp.modules.inventory.application.queries import InventoryQueries
+from erp.modules.inventory.application.reservations import (
+    InventoryAvailabilityDirectory,
+    InventoryAvailabilityQueryService,
+    InventoryReservationQueryService,
+    InventoryReservationStore,
+)
 
 __all__ = [
     "InventoryAdjustmentService",
     "InventoryAuthorization",
+    "InventoryAvailabilityDirectory",
+    "InventoryAvailabilityQueryService",
     "InventoryBalanceService",
     "InventoryBalanceStore",
     "InventoryCatalogService",
     "InventoryCreationService",
     "InventoryLedgerEntry",
     "InventoryQueries",
+    "InventoryReservationQueryService",
+    "InventoryReservationStore",
 ]

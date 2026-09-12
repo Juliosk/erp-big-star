@@ -16,6 +16,7 @@ from erp.modules.admin.domain import (
 from erp.modules.inventory.application.permissions import (
     INVENTORY_ADJUSTMENT_CONFIRM,
     INVENTORY_ADJUSTMENT_CREATE,
+    INVENTORY_AVAILABILITY_READ,
     INVENTORY_BALANCE_READ,
     INVENTORY_CYCLE_COUNT_MANAGE,
     INVENTORY_RESERVATION_MANAGE,
@@ -41,12 +42,14 @@ def test_inventory_permission_registry_matches_official_m5_codes() -> None:
     assert tuple(permission.code for permission in registry.all()) == (
         INVENTORY_ADJUSTMENT_CONFIRM,
         INVENTORY_ADJUSTMENT_CREATE,
+        INVENTORY_AVAILABILITY_READ,
         INVENTORY_BALANCE_READ,
         INVENTORY_CYCLE_COUNT_MANAGE,
         INVENTORY_RESERVATION_MANAGE,
         INVENTORY_TRANSFER_CREATE,
     )
     assert registry.get(INVENTORY_BALANCE_READ).risk_level is PermissionRiskLevel.LOW
+    assert registry.get(INVENTORY_AVAILABILITY_READ).risk_level is PermissionRiskLevel.LOW
     assert registry.get(INVENTORY_ADJUSTMENT_CONFIRM).risk_level is PermissionRiskLevel.CRITICAL
     assert (
         registry.get(INVENTORY_ADJUSTMENT_CONFIRM).data_classification

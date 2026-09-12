@@ -60,6 +60,8 @@ class Settings(BaseSettings):
         "crm.customer.update",
         "crm.customer.merge",
         "inventory.balance.read",
+        "inventory.availability.read",
+        "inventory.reservation.manage",
         "inventory.warehouse.read",
         "inventory.warehouse.create",
         "inventory.location.read",

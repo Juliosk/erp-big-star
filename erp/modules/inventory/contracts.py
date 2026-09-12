@@ -7,6 +7,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from erp.modules.inventory.application.permissions import (
+    INVENTORY_AVAILABILITY_READ,
     INVENTORY_BALANCE_READ,
     INVENTORY_RESERVATION_MANAGE,
     InventoryAuthorization,
@@ -109,6 +110,7 @@ class InventoryReservationExpired:
 
 
 __all__ = [
+    "INVENTORY_AVAILABILITY_READ",
     "INVENTORY_BALANCE_READ",
     "INVENTORY_RESERVATION_MANAGE",
     "InventoryAuthorization",
