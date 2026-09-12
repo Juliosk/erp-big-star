@@ -12,6 +12,7 @@ from erp.modules.admin.infrastructure import BranchModel, CompanyModel
 from erp.modules.inventory.infrastructure import (
     InventoryBalanceModel,
     InventoryLotModel,
+    InventoryMovementProjectionModel,
     InventoryPoolModel,
     InventoryPostingModel,
     InventoryTransactionModel,
@@ -43,6 +44,7 @@ def test_inventory_foundation_migration_matches_orm_and_tenant_fks() -> None:
         assert InventoryTransactionModel.__table__.schema == "inventory"
         assert InventoryPostingModel.__table__.schema == "inventory"
         assert InventoryBalanceModel.__table__.schema == "inventory"
+        assert InventoryMovementProjectionModel.__table__.schema == "inventory"
         inspector = inspect(connection)
         assert set(inspector.get_table_names(schema="inventory")) >= {
             "warehouse",
@@ -52,6 +54,7 @@ def test_inventory_foundation_migration_matches_orm_and_tenant_fks() -> None:
             "inventory_transaction",
             "inventory_posting",
             "inventory_balance",
+            "inventory_movement_projection",
         }
         warehouse_columns = {
             column["name"]: column for column in inspector.get_columns("warehouse", "inventory")
@@ -93,6 +96,13 @@ def test_inventory_foundation_migration_matches_orm_and_tenant_fks() -> None:
             for constraint in inspector.get_unique_constraints("inventory_balance", "inventory")
         }
         assert "uq_inventory_balance_dimensions" in balance_uniques
+        movement_columns = {
+            column["name"]: column
+            for column in inspector.get_columns("inventory_movement_projection", "inventory")
+        }
+        assert set(movement_columns) == set(
+            InventoryMovementProjectionModel.__table__.columns.keys()
+        )
         triggers = set(
             connection.execute(
                 text(

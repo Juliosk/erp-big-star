@@ -34,8 +34,13 @@ class InventoryAdjustmentEffects:
                     "id": str(posting.id),
                     "product_id": str(posting.product_id),
                     "warehouse_id": str(posting.warehouse_id),
+                    "location_id": str(posting.location_id)
+                    if posting.location_id is not None
+                    else None,
+                    "lot_id": str(posting.lot_id) if posting.lot_id is not None else None,
+                    "pool_id": str(posting.pool_id) if posting.pool_id is not None else None,
                     "state": posting.state,
-                    "quantity_delta": str(posting.quantity_delta),
+                    "quantity_delta": f"{posting.quantity_delta:.6f}",
                 }
                 for posting in entry.postings
             ],
@@ -44,8 +49,13 @@ class InventoryAdjustmentEffects:
                     "id": str(balance.id),
                     "product_id": str(balance.product_id),
                     "warehouse_id": str(balance.warehouse_id),
+                    "location_id": str(balance.location_id)
+                    if balance.location_id is not None
+                    else None,
+                    "lot_id": str(balance.lot_id) if balance.lot_id is not None else None,
+                    "pool_id": str(balance.pool_id) if balance.pool_id is not None else None,
                     "state": balance.state,
-                    "quantity": str(balance.quantity.value),
+                    "quantity": f"{balance.quantity.value:.6f}",
                     "version": balance.version,
                 }
                 for balance in balances

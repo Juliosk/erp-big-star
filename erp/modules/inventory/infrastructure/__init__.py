@@ -16,6 +16,16 @@ from erp.modules.inventory.infrastructure.ledger_model import (
 )
 from erp.modules.inventory.infrastructure.ledger_repository import InventoryLedgerRepository
 from erp.modules.inventory.infrastructure.lot_model import InventoryLotModel
+from erp.modules.inventory.infrastructure.movement_projection import (
+    INVENTORY_ADJUSTED,
+    INVENTORY_MOVEMENT_PROJECTOR,
+    InventoryMovementProjectionConsumer,
+    InventoryMovementProjectionModel,
+)
+from erp.modules.inventory.infrastructure.movement_transport import (
+    INVENTORY_ADJUSTED_ROUTING_KEY,
+    RabbitInventoryMovementTransport,
+)
 from erp.modules.inventory.infrastructure.pool_model import InventoryPoolModel
 from erp.modules.inventory.infrastructure.repository import (
     InventoryLotRepository,
@@ -32,12 +42,17 @@ from erp.modules.inventory.infrastructure.warehouse_model import (
 )
 
 __all__ = [
+    "INVENTORY_ADJUSTED",
+    "INVENTORY_ADJUSTED_ROUTING_KEY",
+    "INVENTORY_MOVEMENT_PROJECTOR",
     "InventoryAdjustmentEffects",
     "InventoryBalanceModel",
     "InventoryBalanceRepository",
     "InventoryLedgerRepository",
     "InventoryLotModel",
     "InventoryLotRepository",
+    "InventoryMovementProjectionConsumer",
+    "InventoryMovementProjectionModel",
     "InventoryPoolModel",
     "InventoryPoolRepository",
     "InventoryPostingModel",
@@ -50,6 +65,7 @@ __all__ = [
     "PostgresInventoryCatalog",
     "PostgresInventoryCatalogue",
     "PostgresInventoryDirectory",
+    "RabbitInventoryMovementTransport",
     "WarehouseLocationModel",
     "WarehouseLocationRepository",
     "WarehouseModel",
