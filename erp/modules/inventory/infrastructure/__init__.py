@@ -36,6 +36,10 @@ from erp.modules.inventory.infrastructure.repository import (
     WarehouseLocationRepository,
     WarehouseRepository,
 )
+from erp.modules.inventory.infrastructure.reservation_model import (
+    InventoryReservationAllocationModel,
+    InventoryReservationModel,
+)
 from erp.modules.inventory.infrastructure.warehouse_model import (
     WarehouseLocationModel,
     WarehouseModel,
@@ -56,6 +60,8 @@ __all__ = [
     "InventoryPoolModel",
     "InventoryPoolRepository",
     "InventoryPostingModel",
+    "InventoryReservationAllocationModel",
+    "InventoryReservationModel",
     "InventoryTransactionModel",
     "LocationRepository",
     "LotRepository",

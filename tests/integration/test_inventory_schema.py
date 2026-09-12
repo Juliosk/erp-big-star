@@ -15,6 +15,8 @@ from erp.modules.inventory.infrastructure import (
     InventoryMovementProjectionModel,
     InventoryPoolModel,
     InventoryPostingModel,
+    InventoryReservationAllocationModel,
+    InventoryReservationModel,
     InventoryTransactionModel,
     WarehouseLocationModel,
     WarehouseModel,
@@ -45,6 +47,8 @@ def test_inventory_foundation_migration_matches_orm_and_tenant_fks() -> None:
         assert InventoryPostingModel.__table__.schema == "inventory"
         assert InventoryBalanceModel.__table__.schema == "inventory"
         assert InventoryMovementProjectionModel.__table__.schema == "inventory"
+        assert InventoryReservationModel.__table__.schema == "inventory"
+        assert InventoryReservationAllocationModel.__table__.schema == "inventory"
         inspector = inspect(connection)
         assert set(inspector.get_table_names(schema="inventory")) >= {
             "warehouse",
@@ -55,6 +59,8 @@ def test_inventory_foundation_migration_matches_orm_and_tenant_fks() -> None:
             "inventory_posting",
             "inventory_balance",
             "inventory_movement_projection",
+            "inventory_reservation",
+            "inventory_reservation_allocation",
         }
         warehouse_columns = {
             column["name"]: column for column in inspector.get_columns("warehouse", "inventory")
@@ -103,6 +109,23 @@ def test_inventory_foundation_migration_matches_orm_and_tenant_fks() -> None:
         assert set(movement_columns) == set(
             InventoryMovementProjectionModel.__table__.columns.keys()
         )
+        reservation_columns = {
+            column["name"]: column
+            for column in inspector.get_columns("inventory_reservation", "inventory")
+        }
+        assert set(reservation_columns) == set(InventoryReservationModel.__table__.columns.keys())
+        allocation_columns = {
+            column["name"]: column
+            for column in inspector.get_columns("inventory_reservation_allocation", "inventory")
+        }
+        assert set(allocation_columns) == set(
+            InventoryReservationAllocationModel.__table__.columns.keys()
+        )
+        reservation_uniques = {
+            constraint["name"]
+            for constraint in inspector.get_unique_constraints("inventory_reservation", "inventory")
+        }
+        assert "uq_inventory_reservation_reference" in reservation_uniques
         triggers = set(
             connection.execute(
                 text(

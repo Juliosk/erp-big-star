@@ -41,3 +41,12 @@ como `on_hand - HARD`, mantendo SOFT separado para visibilidade operacional.
 
 Os contratos públicos foram estendidos com referências de disponibilidade,
 reserva e eventos de reserva v1, sem exportar tipos de infraestrutura.
+
+## Entrega do Commit 071
+
+A migration `0022` adiciona `inventory.inventory_reservation` e
+`inventory.inventory_reservation_allocation`. O aggregate é versionado, possui
+unicidade por `company_id + reference_type + reference_id` e mantém expiração
+opcional. As allocations carregam as dimensões de contenção
+produto/depósito/localização/lote/pool/estado, com FKs compostas por empresa
+para preservar tenant isolation.
