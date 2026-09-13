@@ -42,3 +42,15 @@ Os contratos públicos introduzem `PricingResolutionService`,
 dependentes apenas da superfície pública de M9. O RBAC inicial segue a matriz:
 `pricing.price.simulate`, `pricing.price.create`, `pricing.price.activate`,
 `pricing.margin.view` e `pricing.exception.request`.
+
+## Entrega do Commit 081
+
+A migration `0023` cria o schema `pricing` e as tabelas fundacionais:
+`price_list`, `price_list_version`, `price_list_item`,
+`minimum_margin_policy` e `pricing_snapshot`. Todas as entidades persistentes
+possuem `company_id`; listas, versões e itens usam chaves/constraints compostas
+para impedir leitura ou escrita cruzada entre empresas.
+
+Os modelos SQLAlchemy foram alinhados à migration e o teste de schema compara a
+metadata ORM contra o banco aplicado, incluindo FKs tenant-bound para produto via
+`(company_id, product_id)`.
