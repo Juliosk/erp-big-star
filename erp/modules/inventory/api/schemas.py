@@ -1,11 +1,17 @@
 """Public inventory request and response schemas."""
 
-from datetime import date
+from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from erp.modules.inventory.domain import InventoryLotStatus, InventoryPoolKind
+from erp.modules.inventory.domain import (
+    InventoryLotStatus,
+    InventoryPoolKind,
+    InventoryReservationKind,
+    InventoryReservationStatus,
+)
 
 
 class PageMetadata(BaseModel):
@@ -88,6 +94,46 @@ class InventoryPostingResponse(BaseModel):
     quantity_delta: str
 
 
+class InventoryAvailabilityResponse(BaseModel):
+    company_id: UUID
+    product_id: UUID
+    warehouse_id: UUID
+    location_id: UUID | None
+    lot_id: UUID | None
+    pool_id: UUID | None
+    state: str
+    on_hand: str
+    hard_reserved: str
+    soft_reserved: str
+    available: str
+    version: int
+
+
+class InventoryReservationAllocationResponse(BaseModel):
+    id: UUID
+    product_id: UUID
+    warehouse_id: UUID
+    location_id: UUID | None
+    lot_id: UUID | None
+    pool_id: UUID | None
+    state: str
+    quantity: str
+
+
+class InventoryReservationResponse(BaseModel):
+    id: UUID
+    company_id: UUID
+    reservation_kind: InventoryReservationKind
+    status: InventoryReservationStatus
+    reference_type: str
+    reference_id: UUID
+    expires_at: datetime | None
+    created_at: datetime
+    created_by: UUID
+    version: int
+    allocations: list[InventoryReservationAllocationResponse]
+
+
 class WarehouseListResponse(BaseModel):
     data: list[WarehouseResponse]
     meta: PageMetadata
@@ -113,9 +159,24 @@ class InventoryBalanceListResponse(BaseModel):
     meta: PageMetadata
 
 
+class InventoryAvailabilityListResponse(BaseModel):
+    data: list[InventoryAvailabilityResponse]
+    meta: PageMetadata
+
+
 class InventoryPostingListResponse(BaseModel):
     data: list[InventoryPostingResponse]
     meta: PageMetadata
+
+
+class InventoryReservationListResponse(BaseModel):
+    data: list[InventoryReservationResponse]
+    meta: PageMetadata
+
+
+class InventoryReservationCommandResponse(BaseModel):
+    reservation: InventoryReservationResponse
+    idempotency_replayed: bool = False
 
 
 class CreateWarehouseRequest(BaseModel):
@@ -151,11 +212,35 @@ class CreateInventoryLotRequest(BaseModel):
     expires_on: date | None = None
 
 
+class InventoryReservationLineRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    product_id: UUID
+    warehouse_id: UUID
+    location_id: UUID | None = None
+    lot_id: UUID | None = None
+    pool_id: UUID | None = None
+    state: str = "AVAILABLE"
+    quantity: Decimal = Field(max_digits=18, decimal_places=6)
+
+
+class CreateInventoryReservationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    company_id: UUID
+    reservation_kind: InventoryReservationKind
+    reference_type: str = Field(min_length=2, max_length=64)
+    reference_id: UUID
+    expires_at: datetime | None = None
+    lines: list[InventoryReservationLineRequest] = Field(min_length=1, max_length=100)
+
+
 __all__ = [
     "CreateInventoryLotRequest",
     "CreateInventoryPoolRequest",
+    "CreateInventoryReservationRequest",
     "CreateLocationRequest",
     "CreateWarehouseRequest",
+    "InventoryAvailabilityListResponse",
+    "InventoryAvailabilityResponse",
     "InventoryBalanceListResponse",
     "InventoryBalanceResponse",
     "InventoryLotListResponse",
@@ -164,6 +249,11 @@ __all__ = [
     "InventoryPoolResponse",
     "InventoryPostingListResponse",
     "InventoryPostingResponse",
+    "InventoryReservationAllocationResponse",
+    "InventoryReservationCommandResponse",
+    "InventoryReservationLineRequest",
+    "InventoryReservationListResponse",
+    "InventoryReservationResponse",
     "PageMetadata",
     "WarehouseListResponse",
     "WarehouseLocationListResponse",

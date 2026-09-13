@@ -42,7 +42,7 @@ def create_customer(api: CustomerApiFixture) -> dict[str, Any]:
     return cast(dict[str, Any], response.json()["customer"])
 
 
-def group_counts(api: CustomerApiFixture) -> tuple[int, int, int, int]:
+def group_counts(api: CustomerApiFixture, *, customer_id: UUID) -> tuple[int, int, int, int]:
     async def query() -> tuple[int, int, int, int]:
         async with api.data.database.session() as session:
             groups = await session.scalar(
@@ -70,6 +70,7 @@ def group_counts(api: CustomerApiFixture) -> tuple[int, int, int, int]:
                 .where(
                     OutboxEventModel.source_module == "crm",
                     OutboxEventModel.event_type == "CustomerGroupChanged",
+                    OutboxEventModel.aggregate_id == customer_id,
                 )
             )
             return groups or 0, members or 0, audit or 0, outbox or 0
@@ -117,7 +118,7 @@ def test_create_list_and_assign_customer_group_emits_effects() -> None:
         body = assignment.json()
         assert body["customer_id"] == customer["id"]
         assert body["customer_group_id"] == group["id"]
-        assert group_counts(api) == (1, 1, 1, 1)
+        assert group_counts(api, customer_id=UUID(customer["id"])) == (1, 1, 1, 1)
 
         async def verify() -> None:
             async with api.data.database.session() as session:
@@ -207,4 +208,4 @@ def test_failed_group_assignment_effect_rolls_back_membership(
                     json={"company_id": str(api.data.company_id), "customer_group_id": group["id"]},
                     headers=api.headers,
                 )
-        assert group_counts(api) == (1, 0, 0, 0)
+        assert group_counts(api, customer_id=UUID(customer["id"])) == (1, 0, 0, 0)

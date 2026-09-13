@@ -59,3 +59,34 @@ reservas e disponibilidade. `InventoryAvailabilityQueryService` autoriza
 `soft_reserved` e `available`, e mantém SOFT separado da disponibilidade rígida.
 `InventoryReservationQueryService` prepara a superfície de leitura que será
 exposta pela API no lote seguinte.
+
+## Entrega do Commit 073
+
+`InventoryReservationService` executa comandos transacionais de reserva e
+liberação com autorização por `company_id` e permissão
+`inventory.reservation.manage`. O adapter PostgreSQL aplica idempotência por
+ator/empresa/operação, bloqueia o bucket de saldo com `SELECT FOR UPDATE` para
+reservas HARD e compara o disponível (`on_hand - HARD ativo`) antes de persistir.
+Reservas SOFT são registradas para visibilidade operacional, mas não reduzem ATP.
+
+Release exige versão positiva no comando e utiliza o versionamento otimista do
+aggregate, preservando erro estável `VERSION_CONFLICT` para versões obsoletas.
+Eventos de reserva e auditoria permanecem no corte planejado dos commits 076/077,
+sem antecipar dependências de pedidos.
+
+## Entrega do Commit 074
+
+Foram expostos os endpoints oficiais:
+
+- `GET /api/v1/inventory/availability`
+- `GET /api/v1/inventory/reservations`
+- `POST /api/v1/inventory/reservations`
+- `GET /api/v1/inventory/reservations/{reservation_id}`
+- `POST /api/v1/inventory/reservations/{reservation_id}/release`
+
+Os writes exigem `Idempotency-Key`; o release exige `If-Match` com versão entre
+aspas e retorna ETag atualizado. As APIs aplicam RBAC, Error Contract padronizado,
+`Cache-Control: no-store` e escopo estrito por empresa. Leituras cruzadas por
+`company_id` ocultam recursos fora do tenant pelo contrato `RESOURCE_NOT_FOUND`
+quando a identidade possui acesso corporativo, mantendo o padrão já usado em
+saldos e rastreabilidade de lotes.

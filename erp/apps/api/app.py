@@ -46,11 +46,15 @@ from erp.modules.inventory.api import router as inventory_router
 from erp.modules.inventory.application import (
     InventoryAdjustmentService,
     InventoryAuthorization,
+    InventoryAvailabilityQueryService,
     InventoryCatalogService,
     InventoryQueries,
+    InventoryReservationQueryService,
+    InventoryReservationService,
 )
 from erp.modules.inventory.infrastructure import PostgresInventoryCatalogue
 from erp.modules.inventory.infrastructure.adjustments import PostgresInventoryAdjustments
+from erp.modules.inventory.infrastructure.reservations import PostgresInventoryReservations
 from erp.modules.product.api import router as product_router
 from erp.modules.product.application import ProductQueries
 from erp.modules.product.application.barcodes import ProductBarcodeService
@@ -94,6 +98,9 @@ def create_app(
     inventory_queries: InventoryQueries | None = None,
     inventory_creation: InventoryCatalogService | None = None,
     inventory_adjustments: InventoryAdjustmentService | None = None,
+    inventory_availability: InventoryAvailabilityQueryService | None = None,
+    inventory_reservation_queries: InventoryReservationQueryService | None = None,
+    inventory_reservations: InventoryReservationService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -123,12 +130,21 @@ def create_app(
     resolved_inventory_queries = inventory_queries
     resolved_inventory_creation = inventory_creation
     resolved_inventory_adjustments = inventory_adjustments
+    resolved_inventory_availability = inventory_availability
+    resolved_inventory_reservation_queries = inventory_reservation_queries
+    resolved_inventory_reservations = inventory_reservations
     if isinstance(resolved_database, Database) and (
         resolved_inventory_queries is None
         or resolved_inventory_creation is None
         or resolved_inventory_adjustments is None
+        or resolved_inventory_availability is None
+        or resolved_inventory_reservation_queries is None
+        or resolved_inventory_reservations is None
     ):
         inventory_catalogue = PostgresInventoryCatalogue(resolved_database)
+        inventory_reservation_store = PostgresInventoryReservations(
+            resolved_database, ttl_seconds=resolved_settings.idempotency_ttl_seconds
+        )
         inventory_authorization = InventoryAuthorization(
             CompanyAccessService(PostgresCorporateDirectory(resolved_database))
         )
@@ -146,6 +162,18 @@ def create_app(
                     resolved_database, ttl_seconds=resolved_settings.idempotency_ttl_seconds
                 ),
                 inventory_authorization,
+            )
+        if resolved_inventory_availability is None:
+            resolved_inventory_availability = InventoryAvailabilityQueryService(
+                inventory_reservation_store, inventory_authorization
+            )
+        if resolved_inventory_reservation_queries is None:
+            resolved_inventory_reservation_queries = InventoryReservationQueryService(
+                inventory_reservation_store, inventory_authorization
+            )
+        if resolved_inventory_reservations is None:
+            resolved_inventory_reservations = InventoryReservationService(
+                inventory_reservation_store, inventory_authorization
             )
     if resolved_customer_360 is None and isinstance(resolved_database, Database):
         resolved_customer_360 = Customer360Service(
@@ -289,6 +317,9 @@ def create_app(
     application.state.inventory_queries = resolved_inventory_queries
     application.state.inventory_creation = resolved_inventory_creation
     application.state.inventory_adjustments = resolved_inventory_adjustments
+    application.state.inventory_availability = resolved_inventory_availability
+    application.state.inventory_reservation_queries = resolved_inventory_reservation_queries
+    application.state.inventory_reservations = resolved_inventory_reservations
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)
