@@ -71,6 +71,11 @@ class Settings(BaseSettings):
         "inventory.lot.read",
         "inventory.lot.create",
         "inventory.adjustment.create",
+        "pricing.price.simulate",
+        "pricing.price.create",
+        "pricing.price.activate",
+        "pricing.margin.view",
+        "pricing.exception.request",
     )
 
     @model_validator(mode="after")
