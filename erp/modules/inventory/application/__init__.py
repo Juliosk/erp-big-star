@@ -16,6 +16,7 @@ from erp.modules.inventory.application.reservations import (
     InventoryAvailabilityDirectory,
     InventoryAvailabilityQueryService,
     InventoryReservationQueryService,
+    InventoryReservationService,
     InventoryReservationStore,
 )
 
@@ -31,5 +32,6 @@ __all__ = [
     "InventoryLedgerEntry",
     "InventoryQueries",
     "InventoryReservationQueryService",
+    "InventoryReservationService",
     "InventoryReservationStore",
 ]

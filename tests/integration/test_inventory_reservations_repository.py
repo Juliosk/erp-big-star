@@ -1,5 +1,6 @@
 """Reservation repository and availability query use real PostgreSQL."""
 
+import asyncio
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -15,6 +16,11 @@ from erp.modules.inventory.application import (
     InventoryAvailabilityQueryService,
     InventoryReservationQueryService,
 )
+from erp.modules.inventory.application.commands import (
+    CommandMetadata,
+    CreateInventoryReservation,
+    InventoryReservationLine,
+)
 from erp.modules.inventory.application.permissions import (
     INVENTORY_AVAILABILITY_READ,
     INVENTORY_RESERVATION_MANAGE,
@@ -28,6 +34,7 @@ from erp.modules.inventory.domain import (
     Quantity,
 )
 from erp.modules.inventory.infrastructure import PostgresInventoryReservations
+from erp.platform.errors import ApplicationError
 from tests.integration.test_inventory_adjustments_api import (
     _adjustment_body,
     _allow_adjustment,
@@ -70,6 +77,36 @@ def _reservation(
                 state=InventoryState.AVAILABLE,
                 quantity=Quantity.of(quantity),
             ),
+        ),
+    )
+
+
+def _reserve_command(
+    api: InventoryApiFixture,
+    *,
+    product_id: UUID,
+    warehouse_id: UUID,
+    lot_id: UUID,
+    quantity: str,
+) -> CreateInventoryReservation:
+    return CreateInventoryReservation(
+        company_id=api.data.company_id,
+        reservation_kind=InventoryReservationKind.HARD,
+        reference_type="ORDER",
+        reference_id=uuid4(),
+        lines=(
+            InventoryReservationLine(
+                product_id=product_id,
+                warehouse_id=warehouse_id,
+                lot_id=lot_id,
+                state=InventoryState.AVAILABLE,
+                quantity=Decimal(quantity),
+            ),
+        ),
+        idempotency_key=str(uuid4()),
+        metadata=CommandMetadata(
+            correlation_id=uuid4(),
+            request_id=uuid4(),
         ),
     )
 
@@ -181,6 +218,65 @@ def test_reservation_repository_and_availability_are_company_scoped() -> None:
             return len(availability.items), len(reservations.items)
 
         assert api.client.portal.call(hidden_company) == (0, 0)
+
+
+def test_hard_reservation_concurrency_prevents_over_reservation() -> None:
+    with inventory_api() as api:
+        _allow_adjustment(api)
+        product_id, warehouse_id, lot_id = _seed_lot_dimensions(api)
+        body = _adjustment_body(
+            api, product_id=product_id, warehouse_id=warehouse_id, quantity="10"
+        )
+        body["lines"][0]["lot_id"] = lot_id
+        adjustment = api.client.post(
+            "/api/v1/inventory/adjustments",
+            json=body,
+            headers={**api.headers, "Idempotency-Key": str(uuid4())},
+        )
+        assert adjustment.status_code == 201
+        repository = PostgresInventoryReservations(api.data.database)
+
+        async def reserve_competing() -> tuple[int, int, Decimal]:
+            commands = (
+                _reserve_command(
+                    api,
+                    product_id=UUID(product_id),
+                    warehouse_id=UUID(warehouse_id),
+                    lot_id=UUID(lot_id),
+                    quantity="6",
+                ),
+                _reserve_command(
+                    api,
+                    product_id=UUID(product_id),
+                    warehouse_id=UUID(warehouse_id),
+                    lot_id=UUID(lot_id),
+                    quantity="6",
+                ),
+            )
+            results = await asyncio.gather(
+                *(repository.reserve(command, api.data.actor_id) for command in commands),
+                return_exceptions=True,
+            )
+            successes = [result for result in results if not isinstance(result, Exception)]
+            conflicts = [
+                result
+                for result in results
+                if isinstance(result, ApplicationError)
+                and result.code == "INVENTORY_RESERVATION_CONFLICT"
+            ]
+            availability = await repository.list_availability(
+                api.data.company_id,
+                product_id=UUID(product_id),
+                warehouse_id=UUID(warehouse_id),
+                lot_id=UUID(lot_id),
+                state=InventoryState.AVAILABLE,
+                page=1,
+                page_size=50,
+            )
+            return len(successes), len(conflicts), availability.items[0].available.value
+
+        assert api.client.portal is not None
+        assert api.client.portal.call(reserve_competing) == (1, 1, Decimal("4.000000"))
 
 
 def test_reservation_repository_filters_status_and_kind() -> None:
