@@ -54,3 +54,16 @@ para impedir leitura ou escrita cruzada entre empresas.
 Os modelos SQLAlchemy foram alinhados à migration e o teste de schema compara a
 metadata ORM contra o banco aplicado, incluindo FKs tenant-bound para produto via
 `(company_id, product_id)`.
+
+## Entrega do Commit 082
+
+`PricingCatalogService` foi criado como serviço de aplicação do M9, com
+autorização por `PricingAuthorization` e dependência apenas das portas públicas
+`PricingCatalogue`, `PricingCatalogStore` e `PricingDirectory`. O serviço cria
+listas de preço, abre versões draft sequenciais e lista dados por empresa sem
+expor tipos de infraestrutura.
+
+O adapter `PostgresPricingCatalogue` controla sessões e delega persistência ao
+`PriceListRepository`, sempre instanciado com `company_id` explícito. O teste de
+integração cobre criação/listagem, versões `DRAFT` sequenciais, conflito de
+código por empresa, RBAC e isolamento entre empresas.
