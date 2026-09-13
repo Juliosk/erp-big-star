@@ -18,7 +18,7 @@ from sqlalchemy import select
 from erp.apps.api.app import create_app
 from erp.modules.admin.domain import Branch
 from erp.modules.admin.infrastructure import BranchRepository
-from erp.modules.inventory.infrastructure import InventoryBalanceModel
+from erp.modules.inventory.infrastructure import InventoryBalanceModel, InventoryReservationModel
 from erp.modules.product.infrastructure import ProductRepository
 from erp.platform.config import Settings, get_settings
 from erp.platform.config.settings import Environment
@@ -142,19 +142,37 @@ def test_inventory_web_balances_adjustments_trace_and_company_isolation() -> Non
             expect(page.locator("#notice")).to_contain_text("Ajuste registrado")
             expect(page.locator("#inventory-balance-rows")).to_contain_text("7.250000")
             expect(page.locator("#inventory-balance-rows")).to_contain_text("v1")
+            expect(page.locator("#inventory-availability-rows")).to_contain_text("7.250000")
             page.locator("#inventory-trace-lot-id").select_option(lot_id)
             expect(page.locator("#inventory-trace-rows")).to_contain_text("7.250000")
 
+            page.locator("#inventory-reservation-product-id").fill(product_id)
+            page.locator("#inventory-reservation-warehouse-id").select_option(warehouse_id)
+            page.locator("#inventory-reservation-lot-id").select_option(lot_id)
+            page.locator("#inventory-reservation-quantity").fill("2.25")
+            page.get_by_role("button", name="Criar reserva", exact=True).click()
+            expect(page.locator("#notice")).to_contain_text("Reserva criada")
+            expect(page.locator("#inventory-reservation-rows")).to_contain_text("HARD")
+            expect(page.locator("#inventory-reservation-rows")).to_contain_text("ACTIVE")
+            expect(page.locator("#inventory-reservation-rows")).to_contain_text("2.250000")
+            expect(page.locator("#inventory-availability-rows")).to_contain_text("5.000000")
+
+            page.get_by_role("button", name="Liberar", exact=True).click()
+            expect(page.locator("#notice")).to_contain_text("Reserva liberada")
+            expect(page.locator("#inventory-reservation-rows")).to_contain_text("RELEASED")
+            expect(page.locator("#inventory-availability-rows")).to_contain_text("7.250000")
+
             artifacts = Path("test-results")
             artifacts.mkdir(exist_ok=True)
-            page.screenshot(path=str(artifacts / "inventory-desktop.png"), full_page=True)
+            page.screenshot(path=str(artifacts / "inventory-reservations-desktop.png"), full_page=True)
             page.set_viewport_size({"width": 390, "height": 844})
             assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
-            page.screenshot(path=str(artifacts / "inventory-mobile.png"), full_page=True)
+            page.screenshot(path=str(artifacts / "inventory-reservations-mobile.png"), full_page=True)
             page.set_viewport_size({"width": 1440, "height": 1000})
             page.locator("#company").select_option(str(server.fixture.data.other_company_id))
             expect(page.locator("#inventory-empty")).to_be_visible()
             expect(page.locator("#inventory-balance-rows tr")).to_have_count(0)
+            expect(page.locator("#inventory-reservation-rows tr")).to_have_count(0)
             assert page.evaluate("localStorage.length + sessionStorage.length") == 0
             assert failures == []
             browser.close()
@@ -174,10 +192,36 @@ def test_inventory_web_balances_adjustments_trace_and_company_isolation() -> Non
                         OutboxEventModel.event_type == "InventoryAdjusted",
                     )
                 )
+                reservation = await session.scalar(
+                    select(InventoryReservationModel).where(
+                        InventoryReservationModel.company_id == server.fixture.data.company_id,
+                        InventoryReservationModel.status == "RELEASED",
+                    )
+                )
+                reservation_events = set(
+                    (
+                        await session.scalars(
+                            select(OutboxEventModel.event_type).where(
+                                OutboxEventModel.source_module == "inventory",
+                                OutboxEventModel.event_type.in_(
+                                    [
+                                        "InventoryReservationCreated",
+                                        "InventoryReservationReleased",
+                                    ]
+                                ),
+                            )
+                        )
+                    ).all()
+                )
                 assert balance is not None
                 assert f"{balance.quantity:.6f}" == "7.250000"
                 assert balance.version == 1
                 assert outbox is not None
                 assert outbox.event_type == "InventoryAdjusted"
+                assert reservation is not None
+                assert reservation_events == {
+                    "InventoryReservationCreated",
+                    "InventoryReservationReleased",
+                }
 
         server.fixture.client.portal.call(verify_effects)

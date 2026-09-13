@@ -134,3 +134,39 @@ por `INVENTORY_RESERVATION_CONFLICT`, `hard_reserved` fecha exatamente em
 `10.000000` e ATP final em `0.000000`. Assim, a Sprint comprova prevenção de
 over-reservation mesmo sob corrida paralela, preservando precisão decimal de
 seis casas e isolamento por `company_id`.
+
+## Entrega do Commit 078
+
+O Cockpit M5 em `/ui/` foi expandido com o bloco "Reservas e disponibilidade
+ATP". A tela passa a exibir a disponibilidade por bucket, com colunas de saldo
+em mãos, HARD, SOFT e ATP, e lista as reservas da empresa com referência, tipo,
+status, bucket, quantidade e versão.
+
+A criação de reserva HARD/SOFT usa o contrato oficial
+`POST /api/v1/inventory/reservations` com `Idempotency-Key`; a liberação usa
+`POST /api/v1/inventory/reservations/{id}/release` com `If-Match` baseado na
+versão corrente. A navegação respeita permissões de disponibilidade/reserva e a
+empresa de trabalho selecionada.
+
+## Entrega do Commit 079
+
+O E2E Chromium cobre o fluxo completo: conexão via Dev Auth, seleção da empresa,
+ajuste de entrada, leitura de saldo, leitura de ATP, criação de reserva HARD,
+queda da disponibilidade, liberação da reserva, restauração do ATP e troca para
+empresa sem dados para validar isolamento por `company_id`.
+
+O teste confirma que não há erro de página nem persistência em `localStorage` ou
+`sessionStorage`, gera screenshots em
+`test-results/inventory-reservations-desktop.png` e
+`test-results/inventory-reservations-mobile.png`, e valida no PostgreSQL que a
+reserva foi liberada e que os eventos `InventoryReservationCreated` e
+`InventoryReservationReleased` foram gravados no Outbox.
+
+## Encerramento da Sprint 7
+
+A Sprint 7 entrega reserva de estoque pronta para consumo por módulos de pedido:
+domínio HARD/SOFT, schema, persistência, APIs oficiais, lock transacional contra
+over-reservation, expiração automática, Audit/Outbox, teste concorrente estrito
+e Cockpit Web validado por Chromium. O motor de alocação e integrações de pedido
+permanecem fora de escopo e devem consumir os contratos públicos em sprints
+posteriores.
