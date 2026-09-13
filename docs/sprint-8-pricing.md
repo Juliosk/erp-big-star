@@ -81,3 +81,15 @@ Todos os contratos validam RBAC (`pricing.price.create` para mutações e
 de trabalho e Error Contract padronizado para conflitos, permissões e recursos
 inexistentes. As respostas incluem ETag baseada em versão para preparar o fluxo
 concorrente de ativação do Commit 084.
+
+## Entrega do Commit 084
+
+A ativação oficial de versões foi exposta em
+`POST /api/v1/pricing/price-list-versions/{id}/activate`, exigindo
+`If-Match` e `Idempotency-Key`. O fluxo valida `pricing.price.activate`,
+bloqueia transacionalmente a lista de preço, ativa somente versões `DRAFT` com
+itens e retorna `VERSION_CONFLICT` quando a versão esperada está obsoleta.
+
+O comando grava Audit com snapshots antes/depois e publica
+`PriceListVersionActivated` via Outbox na mesma transação de negócio. Replays
+idempotentes reutilizam a resposta pública original e não duplicam efeitos.

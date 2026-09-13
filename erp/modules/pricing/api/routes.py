@@ -14,10 +14,14 @@ from erp.modules.pricing.api.schemas import (
     PriceListItemResponse,
     PriceListListResponse,
     PriceListResponse,
+    PriceListVersionCommandResponse,
     PriceListVersionListResponse,
     PriceListVersionResponse,
 )
+from erp.modules.pricing.api.versioning import require_version
 from erp.modules.pricing.application import (
+    ActivatePriceListVersion,
+    CommandMetadata,
     CreatePriceList,
     CreatePriceListItem,
     CreatePriceListVersion,
@@ -29,6 +33,7 @@ from erp.modules.pricing.domain import (
     PriceListVersion,
 )
 from erp.platform.errors import ApplicationError
+from erp.platform.idempotency import require_idempotency_key
 
 router = APIRouter(prefix="/api/v1/pricing", tags=["pricing"])
 
@@ -42,6 +47,14 @@ def get_catalogue(request: Request) -> PricingCatalogService:
             status_code=503,
         )
     return service
+
+
+def metadata(request: Request) -> CommandMetadata:
+    return CommandMetadata(
+        UUID(request.state.request_id),
+        UUID(request.state.correlation_id),
+        request.client.host if request.client is not None else None,
+    )
 
 
 @router.get("/price-lists", response_model=PriceListListResponse)
@@ -178,6 +191,41 @@ async def get_price_list_version(
     return _price_list_version_response(result)
 
 
+@router.post(
+    "/price-list-versions/{price_list_version_id}/activate",
+    response_model=PriceListVersionCommandResponse,
+)
+async def activate_price_list_version(
+    price_list_version_id: UUID,
+    company_id: UUID,
+    request: Request,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[PricingCatalogService, Depends(get_catalogue)],
+    expected_version: Annotated[int, Depends(require_version)],
+    idempotency_key: Annotated[str, Depends(require_idempotency_key)],
+) -> PriceListVersionCommandResponse:
+    result = await service.activate_price_list_version(
+        context,
+        ActivatePriceListVersion(
+            company_id=company_id,
+            price_list_version_id=price_list_version_id,
+            expected_version=expected_version,
+            idempotency_key=idempotency_key,
+            metadata=metadata(request),
+        ),
+    )
+    response.headers["ETag"] = f'"{result.price_list_version.version}"'
+    response.headers["Idempotency-Replayed"] = str(result.idempotency_replayed).lower()
+    response.headers["Cache-Control"] = "no-store"
+    return PriceListVersionCommandResponse(
+        price_list_version=_price_list_version_response(result.price_list_version),
+        event_id=result.event_id,
+        audit_event_id=result.audit_event_id,
+        idempotency_replayed=result.idempotency_replayed,
+    )
+
+
 def _price_list_response(price_list: PriceList) -> PriceListResponse:
     return PriceListResponse(
         id=price_list.id,
@@ -221,4 +269,4 @@ def _price_list_version_response(version: PriceListVersion) -> PriceListVersionR
     )
 
 
-__all__ = ["get_catalogue", "router"]
+__all__ = ["get_catalogue", "metadata", "router"]

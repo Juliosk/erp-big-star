@@ -1,5 +1,6 @@
 """PostgreSQL adapter for M9 pricing catalogue reads and writes."""
 
+from datetime import UTC, datetime
 from uuid import UUID
 
 from erp.modules.pricing.application.commands import (
@@ -10,14 +11,19 @@ from erp.modules.pricing.application.commands import (
 )
 from erp.modules.pricing.domain import PriceList, PriceListStatus, PriceListVersion
 from erp.modules.pricing.infrastructure.price_list_repository import PriceListRepository
+from erp.modules.pricing.infrastructure.pricing_effects import PricingEffects
 from erp.platform.database import Database
+from erp.platform.errors import ApplicationError
+from erp.platform.idempotency import IdempotencyService
 
 
 class PostgresPricingCatalogue(PricingCatalogue):
     """Session-owning adapter; lower repositories remain company-scoped."""
 
-    def __init__(self, database: Database) -> None:
+    def __init__(self, database: Database, *, ttl_seconds: int) -> None:
         self._database = database
+        self._idempotency = IdempotencyService(ttl_seconds=ttl_seconds)
+        self._effects = PricingEffects()
 
     async def create_price_list(self, price_list: PriceList, actor_id: UUID) -> PriceList:
         async with self._database.session() as session, session.begin():
@@ -38,7 +44,53 @@ class PostgresPricingCatalogue(PricingCatalogue):
     async def activate_price_list_version(
         self, command: ActivatePriceListVersion, actor_id: UUID
     ) -> PricingCommandResult:
-        raise NotImplementedError("Activation is delivered by Sprint 8 Commit 084.")
+        async with self._database.session() as session, session.begin():
+            decision = await self._idempotency.begin(
+                session,
+                scope=f"pricing:{command.company_id}:{actor_id}",
+                operation="pricing.price-list-version.activate",
+                key=command.idempotency_key,
+                payload=command.payload(),
+            )
+            if decision.replayed:
+                if decision.response_body is None:
+                    raise RuntimeError("Completed idempotency record has no response body.")
+                return PricingCommandResult.replay(decision.response_body)
+
+            repository = PriceListRepository(session, company_id=command.company_id)
+            before = await repository.get_price_list_version_for_update(
+                command.price_list_version_id
+            )
+            if before is None:
+                raise ApplicationError(
+                    code="RESOURCE_NOT_FOUND",
+                    message="Price-list version not found in the selected company.",
+                    status_code=404,
+                )
+            await repository.lock_price_list(before.price_list_id)
+            active_before = await repository.active_version_for_price_list(
+                before.price_list_id, excluding=before.id, for_update=True
+            )
+            if active_before is not None:
+                await repository.supersede_version(active_before, actor_id=actor_id)
+            activated = await repository.activate_version(
+                before,
+                actor_id=actor_id,
+                expected_version=command.expected_version,
+                activated_at=datetime.now(UTC),
+            )
+            result = await self._effects.record_version_activation(
+                session,
+                activated,
+                actor_id=actor_id,
+                metadata=command.metadata,
+                before=before,
+                superseded=active_before,
+            )
+            await self._idempotency.complete(
+                session, decision, response_status=200, response_body=result.to_dict()
+            )
+            return result
 
     async def get_price_list(self, company_id: UUID, price_list_id: UUID) -> PriceList | None:
         async with self._database.session() as session:

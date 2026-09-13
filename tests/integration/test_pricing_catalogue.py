@@ -86,7 +86,7 @@ def test_pricing_catalogue_creates_lists_and_draft_versions_company_scoped() -> 
         async with fixture() as data:
             try:
                 service = PricingCatalogService(
-                    PostgresPricingCatalogue(data.database),
+                    PostgresPricingCatalogue(data.database, ttl_seconds=86400),
                     PricingAuthorization(
                         CompanyAccessService(PostgresCorporateDirectory(data.database))
                     ),
@@ -158,7 +158,7 @@ def test_pricing_catalogue_rejects_duplicate_code_and_missing_permission() -> No
         async with fixture() as data:
             try:
                 service = PricingCatalogService(
-                    PostgresPricingCatalogue(data.database),
+                    PostgresPricingCatalogue(data.database, ttl_seconds=86400),
                     PricingAuthorization(
                         CompanyAccessService(PostgresCorporateDirectory(data.database))
                     ),

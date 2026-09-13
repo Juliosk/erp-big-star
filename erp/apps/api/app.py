@@ -182,7 +182,9 @@ def create_app(
             )
     if resolved_pricing_catalogue is None and isinstance(resolved_database, Database):
         resolved_pricing_catalogue = PricingCatalogService(
-            PostgresPricingCatalogue(resolved_database),
+            PostgresPricingCatalogue(
+                resolved_database, ttl_seconds=resolved_settings.idempotency_ttl_seconds
+            ),
             PricingAuthorization(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
             ),

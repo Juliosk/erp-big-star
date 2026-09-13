@@ -111,6 +111,25 @@ class PriceListRepository:
         model = result.one_or_none()
         return None if model is None else _price_list(model)
 
+    async def lock_price_list(self, price_list_id: UUID) -> PriceList:
+        result = await self._session.scalars(
+            select(PriceListModel)
+            .where(
+                PriceListModel.company_id == self._company_id,
+                PriceListModel.id == price_list_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        model = result.one_or_none()
+        if model is None:
+            raise ApplicationError(
+                code="RESOURCE_NOT_FOUND",
+                message="Price list not found in the selected company.",
+                status_code=404,
+            )
+        return _price_list(model)
+
     async def list_price_lists(
         self,
         *,
@@ -213,8 +232,28 @@ class PriceListRepository:
         model = result.one_or_none()
         return None if model is None else _price_version(model)
 
+    async def get_price_list_version_for_update(
+        self, price_list_version_id: UUID
+    ) -> PriceListVersion | None:
+        result = await self._session.scalars(
+            select(PriceListVersionModel)
+            .options(selectinload(PriceListVersionModel.items))
+            .where(
+                PriceListVersionModel.company_id == self._company_id,
+                PriceListVersionModel.id == price_list_version_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        model = result.one_or_none()
+        return None if model is None else _price_version(model)
+
     async def active_version_for_price_list(
-        self, price_list_id: UUID, *, excluding: UUID | None = None
+        self,
+        price_list_id: UUID,
+        *,
+        excluding: UUID | None = None,
+        for_update: bool = False,
     ) -> PriceListVersion | None:
         statement = (
             select(PriceListVersionModel)
@@ -227,6 +266,8 @@ class PriceListRepository:
         )
         if excluding is not None:
             statement = statement.where(PriceListVersionModel.id != excluding)
+        if for_update:
+            statement = statement.with_for_update()
         result = await self._session.scalars(
             statement.limit(1).execution_options(populate_existing=True)
         )

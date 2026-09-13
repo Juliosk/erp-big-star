@@ -3,11 +3,11 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete
+from sqlalchemy import delete, func, select
 
 from erp.apps.api.app import create_app
 from erp.modules.admin.application import SecurityContext
@@ -29,7 +29,11 @@ from erp.modules.pricing.infrastructure import (
     PriceListVersionModel,
     PricingSnapshotModel,
 )
+from erp.modules.pricing.infrastructure.pricing_effects import PRICE_LIST_VERSION_ACTIVATED
 from erp.modules.product.infrastructure import ProductRepository
+from erp.platform.audit import AuditEventModel
+from erp.platform.idempotency import IdempotencyRecordModel
+from erp.platform.outbox import OutboxEventModel
 from tests.integration.test_product_persistence import Fixture, fixture
 
 pytestmark = pytest.mark.integration
@@ -79,6 +83,19 @@ def pricing_api() -> Iterator[PricingApiFixture]:
             async def cleanup_pricing() -> None:
                 company_ids = (data.company_id, data.other_company_id)
                 async with data.database.session() as session, session.begin():
+                    await session.execute(
+                        delete(IdempotencyRecordModel).where(
+                            IdempotencyRecordModel.scope.like("pricing:%")
+                        )
+                    )
+                    await session.execute(
+                        delete(OutboxEventModel).where(
+                            OutboxEventModel.source_module == "pricing"
+                        )
+                    )
+                    await session.execute(
+                        delete(AuditEventModel).where(AuditEventModel.module == "pricing")
+                    )
                     await session.execute(
                         delete(PricingSnapshotModel).where(
                             PricingSnapshotModel.company_id.in_(company_ids)
@@ -215,3 +232,111 @@ def test_pricing_api_enforces_rbac_scope_and_error_contract() -> None:
         assert forbidden.json()["error"]["code"] == "PERMISSION_FORBIDDEN"
         assert missing.status_code == 404
         assert missing.json()["error"]["code"] == "RESOURCE_NOT_FOUND"
+
+
+def test_pricing_api_activates_version_with_etag_audit_outbox_and_idempotency() -> None:
+    with pricing_api() as api:
+        product_id = _seed_product(api)
+        price_list = api.client.post(
+            "/api/v1/pricing/price-lists",
+            json={
+                "company_id": str(api.data.company_id),
+                "code": "ATIVACAO",
+                "name": "Tabela Ativação",
+            },
+            headers=api.headers,
+        ).json()
+        draft = api.client.post(
+            f"/api/v1/pricing/price-lists/{price_list['id']}/versions",
+            json={
+                "company_id": str(api.data.company_id),
+                "valid_from": "2026-09-13",
+                "items": [{"product_id": product_id, "price_amount": "39.90"}],
+            },
+            headers=api.headers,
+        ).json()
+        idempotency_key = str(uuid4())
+        first = api.client.post(
+            f"/api/v1/pricing/price-list-versions/{draft['id']}/activate"
+            f"?company_id={api.data.company_id}",
+            headers={
+                **api.headers,
+                "If-Match": '"1"',
+                "Idempotency-Key": idempotency_key,
+            },
+        )
+        replay = api.client.post(
+            f"/api/v1/pricing/price-list-versions/{draft['id']}/activate"
+            f"?company_id={api.data.company_id}",
+            headers={
+                **api.headers,
+                "If-Match": '"1"',
+                "Idempotency-Key": idempotency_key,
+            },
+        )
+        stale = api.client.post(
+            f"/api/v1/pricing/price-list-versions/{draft['id']}/activate"
+            f"?company_id={api.data.company_id}",
+            headers={
+                **api.headers,
+                "If-Match": '"1"',
+                "Idempotency-Key": str(uuid4()),
+            },
+        )
+        detail = api.client.get(
+            f"/api/v1/pricing/price-list-versions/{draft['id']}"
+            f"?company_id={api.data.company_id}",
+            headers=api.headers,
+        )
+
+        assert first.status_code == 200
+        assert first.headers["etag"] == '"2"'
+        assert first.headers["idempotency-replayed"] == "false"
+        assert first.json()["price_list_version"]["status"] == "ACTIVE"
+        assert first.json()["event_id"] is not None
+        assert first.json()["audit_event_id"] is not None
+        assert replay.status_code == 200
+        assert replay.headers["idempotency-replayed"] == "true"
+        assert replay.json()["price_list_version"] == first.json()["price_list_version"]
+        assert stale.status_code == 409
+        assert stale.json()["error"]["code"] == "VERSION_CONFLICT"
+        assert detail.status_code == 200
+        assert detail.headers["etag"] == '"2"'
+        assert detail.json()["status"] == "ACTIVE"
+
+        async def count_effects() -> tuple[int, int]:
+            async with api.data.database.session() as session:
+                outbox_count = await session.scalar(
+                    select(func.count())
+                    .select_from(OutboxEventModel)
+                    .where(
+                        OutboxEventModel.source_module == "pricing",
+                        OutboxEventModel.event_type == PRICE_LIST_VERSION_ACTIVATED,
+                        OutboxEventModel.aggregate_id == UUID(draft["id"]),
+                    )
+                )
+                audit_count = await session.scalar(
+                    select(func.count())
+                    .select_from(AuditEventModel)
+                    .where(
+                        AuditEventModel.module == "pricing",
+                        AuditEventModel.operation == PRICE_LIST_VERSION_ACTIVATED,
+                        AuditEventModel.entity_id == UUID(draft["id"]),
+                    )
+                )
+                return int(outbox_count or 0), int(audit_count or 0)
+
+        assert api.client.portal is not None
+        assert api.client.portal.call(count_effects) == (1, 1)
+
+
+def test_pricing_api_requires_if_match_for_activation() -> None:
+    with pricing_api() as api:
+        response = api.client.post(
+            f"/api/v1/pricing/price-list-versions/{uuid4()}/activate"
+            f"?company_id={api.data.company_id}",
+            headers={**api.headers, "Idempotency-Key": str(uuid4())},
+        )
+
+        assert response.status_code == 428
+        assert response.json()["error"]["code"] == "PRECONDITION_REQUIRED"
