@@ -60,6 +60,7 @@ from erp.modules.pricing.application import (
     PricingAuthorization,
     PricingCatalogService,
     PricingResolutionService,
+    PricingSimulationService,
 )
 from erp.modules.pricing.infrastructure import PostgresPricingCatalogue, PostgresPricingResolver
 from erp.modules.product.api import router as product_router
@@ -110,6 +111,7 @@ def create_app(
     inventory_reservations: InventoryReservationService | None = None,
     pricing_catalogue: PricingCatalogService | None = None,
     pricing_resolution: PricingResolutionService | None = None,
+    pricing_simulation: PricingSimulationService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -144,6 +146,7 @@ def create_app(
     resolved_inventory_reservations = inventory_reservations
     resolved_pricing_catalogue = pricing_catalogue
     resolved_pricing_resolution = pricing_resolution
+    resolved_pricing_simulation = pricing_simulation
     if isinstance(resolved_database, Database) and (
         resolved_inventory_queries is None
         or resolved_inventory_creation is None
@@ -197,6 +200,13 @@ def create_app(
         )
     if resolved_pricing_resolution is None and isinstance(resolved_database, Database):
         resolved_pricing_resolution = PricingResolutionService(
+            PostgresPricingResolver(resolved_database),
+            PricingAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
+    if resolved_pricing_simulation is None and isinstance(resolved_database, Database):
+        resolved_pricing_simulation = PricingSimulationService(
             PostgresPricingResolver(resolved_database),
             PricingAuthorization(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
@@ -349,6 +359,7 @@ def create_app(
     application.state.inventory_reservations = resolved_inventory_reservations
     application.state.pricing_catalogue = resolved_pricing_catalogue
     application.state.pricing_resolution = resolved_pricing_resolution
+    application.state.pricing_simulation = resolved_pricing_simulation
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)

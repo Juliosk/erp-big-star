@@ -528,3 +528,107 @@ def test_pricing_resolve_masks_margin_without_sensitive_permission() -> None:
 
         assert response.status_code == 200
         assert response.json()["effective_margin"] is None
+
+
+def test_pricing_simulate_projects_price_without_persisting_snapshot() -> None:
+    with pricing_api() as api:
+        assert api.resolver.context is not None
+        product_id = _seed_product(api)
+        price_list = api.client.post(
+            "/api/v1/pricing/price-lists",
+            json={
+                "company_id": str(api.data.company_id),
+                "code": "SIM",
+                "name": "Tabela Simulação",
+            },
+            headers=api.headers,
+        ).json()
+        draft = api.client.post(
+            f"/api/v1/pricing/price-lists/{price_list['id']}/versions",
+            json={
+                "company_id": str(api.data.company_id),
+                "valid_from": "2026-09-13",
+                "items": [{"product_id": product_id, "price_amount": "120.00"}],
+            },
+            headers=api.headers,
+        ).json()
+        api.client.post(
+            f"/api/v1/pricing/price-list-versions/{draft['id']}/activate"
+            f"?company_id={api.data.company_id}",
+            headers={
+                **api.headers,
+                "If-Match": '"1"',
+                "Idempotency-Key": str(uuid4()),
+            },
+        )
+
+        async def seed_policy_and_count_snapshots() -> int:
+            assert api.resolver.context is not None
+            service = PricingPolicyService(
+                PostgresPricingPolicies(api.data.database),
+                PricingAuthorization(
+                    CompanyAccessService(PostgresCorporateDirectory(api.data.database))
+                ),
+            )
+            await service.upsert_standard_cost_seed(
+                api.resolver.context,
+                UpsertStandardCostSeed(
+                    company_id=api.data.company_id,
+                    product_id=UUID(product_id),
+                    cost_amount=Decimal("72.00"),
+                ),
+            )
+            await service.create_minimum_margin_policy(
+                api.resolver.context,
+                CreateMinimumMarginPolicy(
+                    company_id=api.data.company_id,
+                    code="simulate",
+                    name="Simulation Margin",
+                    minimum_margin=Decimal("0.2500"),
+                ),
+            )
+            async with api.data.database.session() as session:
+                return int(
+                    await session.scalar(
+                        select(func.count()).select_from(PricingSnapshotModel)
+                    )
+                    or 0
+                )
+
+        assert api.client.portal is not None
+        before_count = api.client.portal.call(seed_policy_and_count_snapshots)
+        api.resolver.context = replace(
+            api.resolver.context,
+            permissions=api.resolver.context.permissions | {PRICING_MARGIN_VIEW_SENSITIVE},
+        )
+        response = api.client.post(
+            "/api/v1/pricing/simulate",
+            json={
+                "company_id": str(api.data.company_id),
+                "product_id": product_id,
+                "quantity": "3.000000",
+                "price_list_id": price_list["id"],
+                "proposed_unit_price": "130.00",
+            },
+            headers=api.headers,
+        )
+
+        async def count_snapshots() -> int:
+            async with api.data.database.session() as session:
+                return int(
+                    await session.scalar(
+                        select(func.count()).select_from(PricingSnapshotModel)
+                    )
+                    or 0
+                )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["persisted"] is False
+        assert body["pricing_snapshot_id"] == "00000000-0000-0000-0000-000000000000"
+        assert body["unit_price"] == "130.00"
+        assert body["total_price"] == "390.00"
+        assert body["minimum_margin"] == "0.2500"
+        assert body["effective_margin"] == "0.4462"
+        assert body["source"] == "SIMULATION_OVERRIDE"
+        assert api.client.portal.call(count_snapshots) == before_count

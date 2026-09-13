@@ -78,6 +78,10 @@ class ResolvePricingRequest(BaseModel):
     channel: str | None = Field(default=None, min_length=1, max_length=32)
 
 
+class SimulatePricingRequest(ResolvePricingRequest):
+    proposed_unit_price: Decimal | None = Field(default=None, gt=0, max_digits=18, decimal_places=2)
+
+
 class PricingResolutionResponse(BaseModel):
     pricing_snapshot_id: UUID
     company_id: UUID
@@ -92,6 +96,7 @@ class PricingResolutionResponse(BaseModel):
     minimum_margin: str | None
     effective_margin: str | None
     source: str
+    persisted: bool = True
 
 
 class CreatePriceListRequest(BaseModel):
@@ -133,4 +138,5 @@ __all__ = [
     "PriceListVersionResponse",
     "PricingResolutionResponse",
     "ResolvePricingRequest",
+    "SimulatePricingRequest",
 ]

@@ -19,6 +19,7 @@ from erp.modules.pricing.api.schemas import (
     PriceListVersionResponse,
     PricingResolutionResponse,
     ResolvePricingRequest,
+    SimulatePricingRequest,
 )
 from erp.modules.pricing.api.versioning import require_version
 from erp.modules.pricing.application import (
@@ -29,6 +30,8 @@ from erp.modules.pricing.application import (
     CreatePriceListVersion,
     PricingCatalogService,
     PricingResolutionService,
+    PricingSimulation,
+    PricingSimulationService,
 )
 from erp.modules.pricing.contracts import PricingResolution, PricingResolutionRequest
 from erp.modules.pricing.domain import (
@@ -59,6 +62,17 @@ def get_resolution(request: Request) -> PricingResolutionService:
         raise ApplicationError(
             code="PRICING_RESOLUTION_UNAVAILABLE",
             message="Pricing resolution unavailable.",
+            status_code=503,
+        )
+    return service
+
+
+def get_simulation(request: Request) -> PricingSimulationService:
+    service = getattr(request.app.state, "pricing_simulation", None)
+    if not isinstance(service, PricingSimulationService):
+        raise ApplicationError(
+            code="PRICING_SIMULATION_UNAVAILABLE",
+            message="Pricing simulation unavailable.",
             status_code=503,
         )
     return service
@@ -264,6 +278,32 @@ async def resolve_pricing(
     return _pricing_resolution_response(result)
 
 
+@router.post("/simulate", response_model=PricingResolutionResponse)
+async def simulate_pricing(
+    body: SimulatePricingRequest,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[PricingSimulationService, Depends(get_simulation)],
+) -> PricingResolutionResponse:
+    request = PricingResolutionRequest(
+        company_id=body.company_id,
+        product_id=body.product_id,
+        quantity=body.quantity,
+        price_list_id=body.price_list_id,
+        customer_id=body.customer_id,
+        customer_group_id=body.customer_group_id,
+        channel=body.channel.strip().upper() if body.channel is not None else None,
+    )
+    if body.proposed_unit_price is None:
+        result = await service.simulate(context, request)
+    else:
+        result = await service.simulate_override(
+            context, request, proposed_unit_price=body.proposed_unit_price
+        )
+    response.headers["Cache-Control"] = "no-store"
+    return _pricing_simulation_response(result)
+
+
 def _price_list_response(price_list: PriceList) -> PriceListResponse:
     return PriceListResponse(
         id=price_list.id,
@@ -326,7 +366,31 @@ def _pricing_resolution_response(result: PricingResolution) -> PricingResolution
             None if result.effective_margin is None else f"{result.effective_margin:.4f}"
         ),
         source=result.source,
+        persisted=True,
     )
 
 
-__all__ = ["get_catalogue", "get_resolution", "metadata", "router"]
+def _pricing_simulation_response(result: PricingSimulation) -> PricingResolutionResponse:
+    return PricingResolutionResponse(
+        pricing_snapshot_id=UUID(int=0),
+        company_id=result.request.company_id,
+        product_id=result.request.product_id,
+        quantity=f"{result.request.quantity:.6f}",
+        currency=result.currency,
+        unit_price=f"{result.unit_price:.2f}",
+        total_price=f"{result.total_price:.2f}",
+        minimum_price=None if result.minimum_price is None else f"{result.minimum_price:.2f}",
+        price_list_id=result.price_list_id,
+        price_list_version_id=result.price_list_version_id,
+        minimum_margin=(
+            None if result.minimum_margin is None else f"{result.minimum_margin:.4f}"
+        ),
+        effective_margin=(
+            None if result.effective_margin is None else f"{result.effective_margin:.4f}"
+        ),
+        source=result.source,
+        persisted=False,
+    )
+
+
+__all__ = ["get_catalogue", "get_resolution", "get_simulation", "metadata", "router"]

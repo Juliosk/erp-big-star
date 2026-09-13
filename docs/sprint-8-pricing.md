@@ -119,3 +119,16 @@ Cada resolução válida grava um `pricing_snapshot` com referência ao custo
 margem efetiva calculada e preço arredondado. A resposta pública retorna
 `pricing_snapshot_id`, preço unitário/total e ids da lista/versão; a margem
 efetiva só é exibida a usuários com `pricing.margin.view`.
+
+## Entrega do Commit 087
+
+`PricingSimulationService` foi criado para projetar preço e margem em tempo
+real usando as mesmas regras de lista ativa, custo `LEGACY_OPENING` e
+`minimum_margin_policy`, mas sem gravar `pricing_snapshot`. A rota
+`POST /api/v1/pricing/simulate` aceita o preço ativo ou um
+`proposed_unit_price` para cenários de negociação.
+
+O contrato retorna `persisted=false` e um `pricing_snapshot_id` nulo
+(`00000000-0000-0000-0000-000000000000`) para deixar explícito que não houve
+congelamento contábil da decisão. A margem efetiva segue protegida por
+`pricing.margin.view`.

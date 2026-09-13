@@ -32,6 +32,10 @@ from erp.modules.pricing.application.resolution import (
     PricingResolutionStore,
     PricingSnapshotDraft,
 )
+from erp.modules.pricing.application.simulation import (
+    PricingSimulation,
+    PricingSimulationService,
+)
 
 __all__ = [
     "PRICING_EXCEPTION_REQUEST",
@@ -55,6 +59,8 @@ __all__ = [
     "PricingPolicyStore",
     "PricingResolutionService",
     "PricingResolutionStore",
+    "PricingSimulation",
+    "PricingSimulationService",
     "PricingSnapshotDraft",
     "UpsertStandardCostSeed",
     "pricing_permission_registry",
