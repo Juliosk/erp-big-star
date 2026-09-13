@@ -121,3 +121,16 @@ reserva, `aggregate_version` da versão persistida, `company_id`, request/correl
 IDs e snapshot completo da reserva/allocations. Audit preserva snapshots before/after
 nas transições de status, garantindo rastreabilidade operacional e rollback total
 quando Audit ou Outbox falham.
+
+## Entrega do Commit 077
+
+A suíte de concorrência foi endurecida com disputa intensa sobre o mesmo bucket
+de disponibilidade: mesmo produto, depósito, lote, pool e estado. O cenário cria
+saldo de 10 unidades e dispara 9 reservas HARD simultâneas de 2 unidades cada,
+forçando contenção real sobre o `SELECT FOR UPDATE` do saldo disponível.
+
+O resultado esperado é determinístico: 5 reservas são aceitas, 4 são rejeitadas
+por `INVENTORY_RESERVATION_CONFLICT`, `hard_reserved` fecha exatamente em
+`10.000000` e ATP final em `0.000000`. Assim, a Sprint comprova prevenção de
+over-reservation mesmo sob corrida paralela, preservando precisão decimal de
+seis casas e isolamento por `company_id`.

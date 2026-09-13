@@ -25,6 +25,8 @@ from erp.modules.inventory.application.commands import (
 )
 from erp.modules.inventory.application.permissions import (
     INVENTORY_AVAILABILITY_READ,
+    INVENTORY_POOL_CREATE,
+    INVENTORY_POOL_READ,
     INVENTORY_RESERVATION_MANAGE,
 )
 from erp.modules.inventory.domain import (
@@ -93,6 +95,7 @@ def _reserve_command(
     warehouse_id: UUID,
     lot_id: UUID,
     quantity: str,
+    pool_id: UUID | None = None,
     expires_at: datetime | None = None,
 ) -> CreateInventoryReservation:
     return CreateInventoryReservation(
@@ -105,6 +108,7 @@ def _reserve_command(
                 product_id=product_id,
                 warehouse_id=warehouse_id,
                 lot_id=lot_id,
+                pool_id=pool_id,
                 state=InventoryState.AVAILABLE,
                 quantity=Decimal(quantity),
             ),
@@ -284,6 +288,95 @@ def test_hard_reservation_concurrency_prevents_over_reservation() -> None:
 
         assert api.client.portal is not None
         assert api.client.portal.call(reserve_competing) == (1, 1, Decimal("4.000000"))
+
+
+def test_intense_same_bucket_hard_reservation_contention_keeps_atp_exact() -> None:
+    with inventory_api() as api:
+        _allow_adjustment(api)
+        assert api.resolver.context is not None
+        api.resolver.context = replace(
+            api.resolver.context,
+            permissions=frozenset(
+                {
+                    *api.resolver.context.permissions,
+                    INVENTORY_POOL_CREATE,
+                    INVENTORY_POOL_READ,
+                }
+            ),
+        )
+        product_id, warehouse_id, lot_id = _seed_lot_dimensions(api)
+        pool = api.client.post(
+            "/api/v1/inventory/pools",
+            json={
+                "company_id": str(api.data.company_id),
+                "code": "ATP",
+                "name": "Reserva ATP",
+                "kind": "STORE",
+            },
+            headers=api.headers,
+        )
+        assert pool.status_code == 201
+        pool_id = pool.json()["id"]
+        body = _adjustment_body(
+            api, product_id=product_id, warehouse_id=warehouse_id, quantity="10"
+        )
+        body["lines"][0]["lot_id"] = lot_id
+        body["lines"][0]["pool_id"] = pool_id
+        adjustment = api.client.post(
+            "/api/v1/inventory/adjustments",
+            json=body,
+            headers={**api.headers, "Idempotency-Key": str(uuid4())},
+        )
+        assert adjustment.status_code == 201
+        repository = PostgresInventoryReservations(api.data.database)
+
+        async def reserve_many() -> tuple[int, int, Decimal, Decimal]:
+            commands = tuple(
+                _reserve_command(
+                    api,
+                    product_id=UUID(product_id),
+                    warehouse_id=UUID(warehouse_id),
+                    lot_id=UUID(lot_id),
+                    pool_id=UUID(pool_id),
+                    quantity="2",
+                )
+                for _ in range(9)
+            )
+            results = await asyncio.gather(
+                *(repository.reserve(command, api.data.actor_id) for command in commands),
+                return_exceptions=True,
+            )
+            successes = [result for result in results if not isinstance(result, Exception)]
+            conflicts = [
+                result
+                for result in results
+                if isinstance(result, ApplicationError)
+                and result.code == "INVENTORY_RESERVATION_CONFLICT"
+            ]
+            availability = await repository.list_availability(
+                api.data.company_id,
+                product_id=UUID(product_id),
+                warehouse_id=UUID(warehouse_id),
+                lot_id=UUID(lot_id),
+                state=InventoryState.AVAILABLE,
+                page=1,
+                page_size=50,
+            )
+            item = availability.items[0]
+            return (
+                len(successes),
+                len(conflicts),
+                item.hard_reserved.value,
+                item.available.value,
+            )
+
+        assert api.client.portal is not None
+        assert api.client.portal.call(reserve_many) == (
+            5,
+            4,
+            Decimal("10.000000"),
+            Decimal("0.000000"),
+        )
 
 
 def test_expiration_marks_due_reservations_and_restores_availability() -> None:
