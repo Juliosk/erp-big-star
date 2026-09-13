@@ -2,7 +2,12 @@
 
 from uuid import UUID
 
-from erp.modules.pricing.application.commands import PricingCatalogue, PricingPage
+from erp.modules.pricing.application.commands import (
+    ActivatePriceListVersion,
+    PricingCatalogue,
+    PricingCommandResult,
+    PricingPage,
+)
 from erp.modules.pricing.domain import PriceList, PriceListStatus, PriceListVersion
 from erp.modules.pricing.infrastructure.price_list_repository import PriceListRepository
 from erp.platform.database import Database
@@ -29,6 +34,11 @@ class PostgresPricingCatalogue(PricingCatalogue):
                 session, company_id=version.company_id
             ).add_price_list_version(version, actor_id=actor_id)
         return version
+
+    async def activate_price_list_version(
+        self, command: ActivatePriceListVersion, actor_id: UUID
+    ) -> PricingCommandResult:
+        raise NotImplementedError("Activation is delivered by Sprint 8 Commit 084.")
 
     async def get_price_list(self, company_id: UUID, price_list_id: UUID) -> PriceList | None:
         async with self._database.session() as session:
@@ -79,6 +89,14 @@ class PostgresPricingCatalogue(PricingCatalogue):
                 price_list_id, limit=1, offset=offset + page_size
             )
             return PricingPage(items, page, page_size, bool(more))
+
+    async def get_price_list_version(
+        self, company_id: UUID, price_list_version_id: UUID
+    ) -> PriceListVersion | None:
+        async with self._database.session() as session:
+            return await PriceListRepository(
+                session, company_id=company_id
+            ).get_price_list_version(price_list_version_id)
 
 
 __all__ = ["PostgresPricingCatalogue"]

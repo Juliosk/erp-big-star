@@ -1,3 +1,5 @@
 """HTTP boundary for M9 Pricing."""
 
-__all__: list[str] = []
+from erp.modules.pricing.api.routes import router
+
+__all__ = ["router"]

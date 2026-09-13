@@ -6,17 +6,27 @@ from uuid import UUID
 
 from erp.modules.admin.contracts import SecurityContext
 from erp.modules.pricing.application.commands import (
+    ActivatePriceListVersion,
     CreatePriceList,
     CreatePriceListVersion,
     PricingCatalogue,
+    PricingCommandResult,
     PricingPage,
 )
 from erp.modules.pricing.application.permissions import (
+    PRICING_PRICE_ACTIVATE,
     PRICING_PRICE_CREATE,
     PRICING_SIMULATE,
     PricingAuthorization,
 )
-from erp.modules.pricing.domain import PriceList, PriceListStatus, PriceListVersion
+from erp.modules.pricing.domain import (
+    Money,
+    Percentage,
+    PriceList,
+    PriceListItem,
+    PriceListStatus,
+    PriceListVersion,
+)
 from erp.platform.errors import ApplicationError, ErrorDetail
 
 T = TypeVar("T")
@@ -69,10 +79,39 @@ class PricingCatalogService:
                 valid_from=command.valid_from,
                 valid_to=command.valid_to,
                 source=command.source,
+                items=tuple(
+                    PriceListItem.create(
+                        company_id=command.company_id,
+                        version_id=command.price_list_id,
+                        product_id=item.product_id,
+                        price=Money.brl(item.price_amount),
+                        minimum_price=(
+                            None
+                            if item.minimum_price_amount is None
+                            else Money.brl(item.minimum_price_amount)
+                        ),
+                        target_margin=(
+                            None
+                            if item.target_margin is None
+                            else Percentage.ratio(item.target_margin)
+                        ),
+                    )
+                    for item in command.items
+                ),
             )
         )
         return await self._store.create_price_list_version(
             price_list_version, context.principal.user_id
+        )
+
+    async def activate_price_list_version(
+        self, context: SecurityContext, command: ActivatePriceListVersion
+    ) -> PricingCommandResult:
+        await self._authorization.require(
+            context, command.company_id, PRICING_PRICE_ACTIVATE, write=True
+        )
+        return await self._store.activate_price_list_version(
+            command, context.principal.user_id
         )
 
     async def list_price_lists(
@@ -88,6 +127,19 @@ class PricingCatalogService:
         return await self._store.list_price_lists(
             company_id, page=page, page_size=page_size, status=status
         )
+
+    async def get_price_list(
+        self, context: SecurityContext, company_id: UUID, price_list_id: UUID
+    ) -> PriceList:
+        await self._authorization.require(context, company_id, PRICING_SIMULATE)
+        result = await self._store.get_price_list(company_id, price_list_id)
+        if result is None:
+            raise ApplicationError(
+                code="RESOURCE_NOT_FOUND",
+                message="Price list not found in the selected company.",
+                status_code=404,
+            )
+        return result
 
     async def list_price_list_versions(
         self,
@@ -111,6 +163,19 @@ class PricingCatalogService:
             page=page,
             page_size=page_size,
         )
+
+    async def get_price_list_version(
+        self, context: SecurityContext, company_id: UUID, price_list_version_id: UUID
+    ) -> PriceListVersion:
+        await self._authorization.require(context, company_id, PRICING_SIMULATE)
+        result = await self._store.get_price_list_version(company_id, price_list_version_id)
+        if result is None:
+            raise ApplicationError(
+                code="RESOURCE_NOT_FOUND",
+                message="Price-list version not found in the selected company.",
+                status_code=404,
+            )
+        return result
 
     @staticmethod
     def _build(factory: Callable[[], T]) -> T:

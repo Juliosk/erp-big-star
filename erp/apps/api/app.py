@@ -55,6 +55,9 @@ from erp.modules.inventory.application import (
 from erp.modules.inventory.infrastructure import PostgresInventoryCatalogue
 from erp.modules.inventory.infrastructure.adjustments import PostgresInventoryAdjustments
 from erp.modules.inventory.infrastructure.reservations import PostgresInventoryReservations
+from erp.modules.pricing.api import router as pricing_router
+from erp.modules.pricing.application import PricingAuthorization, PricingCatalogService
+from erp.modules.pricing.infrastructure import PostgresPricingCatalogue
 from erp.modules.product.api import router as product_router
 from erp.modules.product.application import ProductQueries
 from erp.modules.product.application.barcodes import ProductBarcodeService
@@ -101,6 +104,7 @@ def create_app(
     inventory_availability: InventoryAvailabilityQueryService | None = None,
     inventory_reservation_queries: InventoryReservationQueryService | None = None,
     inventory_reservations: InventoryReservationService | None = None,
+    pricing_catalogue: PricingCatalogService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -133,6 +137,7 @@ def create_app(
     resolved_inventory_availability = inventory_availability
     resolved_inventory_reservation_queries = inventory_reservation_queries
     resolved_inventory_reservations = inventory_reservations
+    resolved_pricing_catalogue = pricing_catalogue
     if isinstance(resolved_database, Database) and (
         resolved_inventory_queries is None
         or resolved_inventory_creation is None
@@ -175,6 +180,13 @@ def create_app(
             resolved_inventory_reservations = InventoryReservationService(
                 inventory_reservation_store, inventory_authorization
             )
+    if resolved_pricing_catalogue is None and isinstance(resolved_database, Database):
+        resolved_pricing_catalogue = PricingCatalogService(
+            PostgresPricingCatalogue(resolved_database),
+            PricingAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
     if resolved_customer_360 is None and isinstance(resolved_database, Database):
         resolved_customer_360 = Customer360Service(
             PostgresCustomer360(resolved_database),
@@ -320,12 +332,14 @@ def create_app(
     application.state.inventory_availability = resolved_inventory_availability
     application.state.inventory_reservation_queries = resolved_inventory_reservation_queries
     application.state.inventory_reservations = resolved_inventory_reservations
+    application.state.pricing_catalogue = resolved_pricing_catalogue
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)
     application.include_router(product_router)
     application.include_router(customer_router)
     application.include_router(inventory_router)
+    application.include_router(pricing_router)
     application.include_router(session_router)
     application.include_router(import_router)
     mount_web(application)

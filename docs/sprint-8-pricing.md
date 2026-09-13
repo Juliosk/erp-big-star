@@ -14,7 +14,7 @@ contratos seguros para M15, M4 e M3 consumirem em sprints posteriores.
 | 081 | Schema | Migration `0023` com schema `pricing` e tabelas base |
 | 082 | Persistência/serviços | Repositório e serviços tenant-bound para listas e versões draft |
 | 083 | APIs base | `GET/POST /price-lists` e criação de versões com RBAC/Error Contract |
-| 084 | Ativação | Concorrência/ETag, Audit e Outbox `PriceActivated`/`PriceSuperseded` |
+| 084 | Ativação | Concorrência/ETag, Audit e Outbox `PriceListVersionActivated` |
 | 085 | Custo/margem | Fonte provisória `LEGACY_OPENING` e política de margem mínima |
 | 086 | Resolver | `PricingResolutionService` e `POST /pricing/resolve` |
 | 087 | Simulação | Simulador persistente e evento `PricingSimulationCompleted` |
@@ -67,3 +67,17 @@ O adapter `PostgresPricingCatalogue` controla sessões e delega persistência ao
 `PriceListRepository`, sempre instanciado com `company_id` explícito. O teste de
 integração cobre criação/listagem, versões `DRAFT` sequenciais, conflito de
 código por empresa, RBAC e isolamento entre empresas.
+
+## Entrega do Commit 083
+
+As APIs oficiais de catálogo de preços foram expostas em
+`/api/v1/pricing/price-lists`, com criação e consulta paginada de listas,
+criação de versões draft com itens e detalhe de versão por identificador. A
+composição da aplicação injeta `PricingCatalogService` com adapter PostgreSQL,
+mantendo o endpoint dentro do contexto M9.
+
+Todos os contratos validam RBAC (`pricing.price.create` para mutações e
+`pricing.price.simulate` para leitura operacional inicial), escopo pela empresa
+de trabalho e Error Contract padronizado para conflitos, permissões e recursos
+inexistentes. As respostas incluem ETag baseada em versão para preparar o fluxo
+concorrente de ativação do Commit 084.

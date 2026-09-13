@@ -1,8 +1,9 @@
 """Tenant-bound persistence for M9 price lists and versions."""
 
+from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -22,6 +23,7 @@ from erp.modules.pricing.infrastructure.price_list_model import (
     PriceListModel,
     PriceListVersionModel,
 )
+from erp.platform.concurrency import OptimisticLockError
 from erp.platform.errors import ApplicationError
 
 
@@ -195,6 +197,117 @@ class PriceListRepository:
             .execution_options(populate_existing=True)
         )
         return tuple(_price_version(model) for model in result)
+
+    async def get_price_list_version(
+        self, price_list_version_id: UUID
+    ) -> PriceListVersion | None:
+        result = await self._session.scalars(
+            select(PriceListVersionModel)
+            .options(selectinload(PriceListVersionModel.items))
+            .where(
+                PriceListVersionModel.company_id == self._company_id,
+                PriceListVersionModel.id == price_list_version_id,
+            )
+            .execution_options(populate_existing=True)
+        )
+        model = result.one_or_none()
+        return None if model is None else _price_version(model)
+
+    async def active_version_for_price_list(
+        self, price_list_id: UUID, *, excluding: UUID | None = None
+    ) -> PriceListVersion | None:
+        statement = (
+            select(PriceListVersionModel)
+            .options(selectinload(PriceListVersionModel.items))
+            .where(
+                PriceListVersionModel.company_id == self._company_id,
+                PriceListVersionModel.price_list_id == price_list_id,
+                PriceListVersionModel.status == PriceListVersionStatus.ACTIVE,
+            )
+        )
+        if excluding is not None:
+            statement = statement.where(PriceListVersionModel.id != excluding)
+        result = await self._session.scalars(
+            statement.limit(1).execution_options(populate_existing=True)
+        )
+        model = result.one_or_none()
+        return None if model is None else _price_version(model)
+
+    async def supersede_version(self, version: PriceListVersion, *, actor_id: UUID) -> None:
+        if not isinstance(actor_id, UUID):
+            raise ValueError("An explicit actor UUID is required.")
+        await self._session.execute(
+            update(PriceListVersionModel)
+            .where(
+                PriceListVersionModel.company_id == self._company_id,
+                PriceListVersionModel.id == version.id,
+                PriceListVersionModel.version == version.version,
+                PriceListVersionModel.status == PriceListVersionStatus.ACTIVE,
+            )
+            .values(
+                status=PriceListVersionStatus.SUPERSEDED,
+                version=PriceListVersionModel.version + 1,
+                updated_by=actor_id,
+                updated_at=datetime.now(UTC),
+            )
+            .execution_options(synchronize_session=False)
+        )
+
+    async def activate_version(
+        self,
+        version: PriceListVersion,
+        *,
+        actor_id: UUID,
+        expected_version: int,
+        activated_at: datetime,
+    ) -> PriceListVersion:
+        if not isinstance(actor_id, UUID):
+            raise ValueError("An explicit actor UUID is required.")
+        if activated_at.tzinfo is None:
+            raise ValueError("Activation timestamp must be timezone-aware.")
+        if version.version != expected_version:
+            raise OptimisticLockError(expected_version=expected_version)
+        if version.status is not PriceListVersionStatus.DRAFT:
+            raise ApplicationError(
+                code="INVALID_PRICE_LIST_VERSION_STATUS",
+                message="Only draft price-list versions can be activated.",
+                status_code=409,
+            )
+        try:
+            version.activate(activated_at)
+        except ValueError as error:
+            raise ApplicationError(
+                code="BUSINESS_VALIDATION_ERROR",
+                message="Invalid pricing data.",
+                status_code=422,
+            ) from error
+        result = await self._session.scalars(
+            update(PriceListVersionModel)
+            .where(
+                PriceListVersionModel.company_id == self._company_id,
+                PriceListVersionModel.id == version.id,
+                PriceListVersionModel.version == expected_version,
+                PriceListVersionModel.status == PriceListVersionStatus.DRAFT,
+            )
+            .values(
+                status=PriceListVersionStatus.ACTIVE,
+                activated_at=activated_at,
+                activated_by=actor_id,
+                updated_by=actor_id,
+                updated_at=datetime.now(UTC),
+                version=PriceListVersionModel.version + 1,
+            )
+            .returning(PriceListVersionModel)
+            .execution_options(synchronize_session=False, populate_existing=True)
+        )
+        model = result.one_or_none()
+        if model is None:
+            raise OptimisticLockError(expected_version=expected_version)
+        await self._session.flush()
+        saved = await self.get_price_list_version(version.id)
+        if saved is None:
+            raise RuntimeError("Activated price-list version disappeared during transaction.")
+        return saved
 
     async def _flush_unique(self, *, code: str) -> None:
         try:
