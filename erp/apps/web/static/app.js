@@ -220,8 +220,10 @@ async function connect() {
   $("customers-nav").hidden = !permissions.has("crm.customer.read");
   $("inventory-nav").hidden =
     !permissions.has("inventory.balance.read") &&
+    !permissions.has("inventory.availability.read") &&
     !permissions.has("inventory.warehouse.read") &&
-    !permissions.has("inventory.adjustment.create");
+    !permissions.has("inventory.adjustment.create") &&
+    !permissions.has("inventory.reservation.manage");
   if (!company) {
     notice(
       "Nenhuma empresa ativa autorizada. Configure os escopos da identidade.",

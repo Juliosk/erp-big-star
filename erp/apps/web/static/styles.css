@@ -97,6 +97,27 @@
   display: grid;
   gap: 12px;
 }
+.inventory-reservation-panel {
+  border-top: 4px solid var(--accent);
+}
+.inventory-reservation-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+  padding-top: 20px;
+  border-top: 1px solid var(--sky);
+}
+.inventory-reservation-grid label {
+  margin-top: 0 !important;
+}
+.inventory-reservation-reference {
+  grid-column: span 2;
+}
+.inventory-reservation-grid button[type="submit"] {
+  align-self: end;
+  margin-top: 0;
+}
 .inventory-adjustment-grid textarea {
   resize: vertical;
 }
@@ -130,6 +151,12 @@
   }
   .inventory-grid {
     grid-template-columns: 1fr;
+  }
+  .inventory-reservation-grid {
+    grid-template-columns: 1fr;
+  }
+  .inventory-reservation-reference {
+    grid-column: auto;
   }
   #inventory table {
     white-space: normal;

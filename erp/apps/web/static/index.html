@@ -351,7 +351,7 @@
             <p class="eyebrow">INVENTORY FOUNDATION / M5</p>
             <h1 id="inventory-title">Inventário</h1>
             <p>
-              Consulta de saldos, estrutura física, ajustes auditáveis e
+              Consulta de saldos, ATP, reservas HARD/SOFT, ajustes auditáveis e
               rastreabilidade por lote na empresa de trabalho.
             </p>
           </div>
@@ -408,6 +408,139 @@
                 ><button id="inventory-next" class="secondary">Próxima</button>
               </div>
             </footer>
+          </section>
+          <section class="panel inventory-wide inventory-reservation-panel">
+            <div class="page-heading">
+              <div>
+                <h2>Reservas e disponibilidade ATP</h2>
+                <p class="hint">
+                  Reserva HARD consome ATP; reserva SOFT mantém intenção
+                  operacional sem bloquear disponibilidade rígida.
+                </p>
+              </div>
+              <button id="inventory-availability-refresh" class="secondary">
+                Atualizar ATP
+              </button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <caption class="sr-only">
+                  Disponibilidade ATP por bucket de estoque
+                </caption>
+                <thead>
+                  <tr>
+                    <th>Produto</th>
+                    <th>Depósito</th>
+                    <th>Lote / Pool</th>
+                    <th>Estado</th>
+                    <th>Em mãos</th>
+                    <th>HARD</th>
+                    <th>SOFT</th>
+                    <th>ATP</th>
+                  </tr>
+                </thead>
+                <tbody id="inventory-availability-rows"></tbody>
+              </table>
+              <div id="inventory-availability-empty" class="empty" hidden>
+                <span aria-hidden="true">◇</span>
+                <h2>Nenhuma disponibilidade calculada</h2>
+                <p>Registre saldo disponível para iniciar reservas.</p>
+              </div>
+            </div>
+            <h3>Reservas da empresa</h3>
+            <div class="table-wrap compact-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Referência</th>
+                    <th>Tipo</th>
+                    <th>Status</th>
+                    <th>Bucket</th>
+                    <th>Qtd.</th>
+                    <th>Versão</th>
+                    <th><span class="sr-only">Ação</span></th>
+                  </tr>
+                </thead>
+                <tbody id="inventory-reservation-rows"></tbody>
+              </table>
+            </div>
+            <p id="inventory-reservation-readonly" class="hint" hidden>
+              Identidade atual possui apenas consulta de disponibilidade.
+            </p>
+            <form
+              id="inventory-reservation-form"
+              class="inventory-reservation-grid"
+            >
+              <div>
+                <label for="inventory-reservation-kind">Tipo de reserva</label
+                ><select id="inventory-reservation-kind">
+                  <option value="HARD">HARD · Bloqueia ATP</option>
+                  <option value="SOFT">SOFT · Intenção operacional</option>
+                </select>
+              </div>
+              <div>
+                <label for="inventory-reservation-state">Estado</label
+                ><select id="inventory-reservation-state">
+                  <option value="AVAILABLE">Disponível</option>
+                  <option value="BLOCKED">Bloqueado</option>
+                  <option value="QUARANTINE">Quarentena</option>
+                </select>
+              </div>
+              <div>
+                <label for="inventory-reservation-product-id">Produto ID</label
+                ><input
+                  id="inventory-reservation-product-id"
+                  required
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="UUID do produto"
+                />
+              </div>
+              <div>
+                <label for="inventory-reservation-warehouse-id">Depósito</label
+                ><select id="inventory-reservation-warehouse-id" required>
+                  <option value="">Cadastre um depósito</option>
+                </select>
+              </div>
+              <div>
+                <label for="inventory-reservation-lot-id">Lote</label
+                ><select id="inventory-reservation-lot-id">
+                  <option value="">Sem lote</option>
+                </select>
+              </div>
+              <div>
+                <label for="inventory-reservation-pool-id">Pool</label
+                ><select id="inventory-reservation-pool-id">
+                  <option value="">Sem pool</option>
+                </select>
+              </div>
+              <div>
+                <label for="inventory-reservation-quantity">Quantidade</label
+                ><input
+                  id="inventory-reservation-quantity"
+                  type="number"
+                  min="0.000001"
+                  step="0.000001"
+                  required
+                  placeholder="0,000000"
+                />
+              </div>
+              <div>
+                <label for="inventory-reservation-expires-at">Expira em</label
+                ><input id="inventory-reservation-expires-at" type="datetime-local" />
+              </div>
+              <div class="inventory-reservation-reference">
+                <label for="inventory-reservation-reference-id"
+                  >Referência operacional</label
+                ><input
+                  id="inventory-reservation-reference-id"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="Gerada automaticamente se vazio"
+                />
+              </div>
+              <button type="submit">Criar reserva</button>
+            </form>
           </section>
           <section class="panel">
             <h2>Estrutura física</h2>
