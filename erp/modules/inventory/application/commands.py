@@ -256,9 +256,9 @@ class InventoryAdjustmentResult:
                 for item in balances
                 if isinstance(item, dict)
             ),
-            event_id=UUID(str(body["event_id"])) if body["event_id"] is not None else None,
+            event_id=UUID(str(body["event_id"])) if body.get("event_id") is not None else None,
             audit_event_id=UUID(str(body["audit_event_id"]))
-            if body["audit_event_id"] is not None
+            if body.get("audit_event_id") is not None
             else None,
             idempotency_replayed=True,
         )

@@ -2,9 +2,10 @@
 
 from dataclasses import replace
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy import func, select
 
 from erp.modules.inventory.application.permissions import (
     INVENTORY_ADJUSTMENT_CREATE,
@@ -16,6 +17,11 @@ from erp.modules.inventory.application.permissions import (
     INVENTORY_WAREHOUSE_CREATE,
     INVENTORY_WAREHOUSE_READ,
 )
+from erp.modules.inventory.infrastructure import InventoryReservationModel
+from erp.platform.audit import AuditEventModel, AuditService
+from erp.platform.idempotency.models import IdempotencyRecordModel
+from erp.platform.messaging import MessageEnvelope
+from erp.platform.outbox import OutboxEventModel, OutboxService
 from tests.integration.test_inventory_adjustments_api import (
     _adjustment_body,
     _allow_adjustment,
@@ -109,6 +115,29 @@ def test_hard_reservation_locks_availability_and_replays() -> None:
         assert first.headers["idempotency-replayed"] == "false"
         assert replay.headers["idempotency-replayed"] == "true"
         assert first.json()["reservation"]["id"] == replay.json()["reservation"]["id"]
+        assert first.json()["event_id"] == replay.json()["event_id"]
+        assert first.json()["audit_event_id"] == replay.json()["audit_event_id"]
+
+        async def verify_created_event() -> None:
+            async with api.data.database.session() as session:
+                outbox = await session.scalar(
+                    select(OutboxEventModel).where(
+                        OutboxEventModel.event_id == UUID(first.json()["event_id"])
+                    )
+                )
+                audit = await session.get(AuditEventModel, UUID(first.json()["audit_event_id"]))
+                assert outbox is not None
+                assert audit is not None
+                envelope = MessageEnvelope.model_validate(outbox.payload)
+                assert envelope.message_type == "InventoryReservationCreated"
+                assert envelope.aggregate_type == "inventory_reservation"
+                assert envelope.aggregate_id == UUID(first.json()["reservation"]["id"])
+                assert envelope.company_id == api.data.company_id
+                assert audit.operation == "InventoryReservationCreated"
+                assert audit.entity_id == UUID(first.json()["reservation"]["id"])
+
+        assert api.client.portal is not None
+        api.client.portal.call(verify_created_event)
 
         availability = api.client.get(
             f"/api/v1/inventory/availability?company_id={api.data.company_id}"
@@ -213,7 +242,33 @@ def test_release_requires_if_match_updates_etag_and_restores_availability() -> N
         assert released.status_code == replay.status_code == 200
         assert released.headers["etag"] == '"2"'
         assert replay.headers["idempotency-replayed"] == "true"
+        assert released.json()["event_id"] == replay.json()["event_id"]
+        assert released.json()["audit_event_id"] == replay.json()["audit_event_id"]
         assert released.json()["reservation"]["status"] == "RELEASED"
+
+        async def verify_released_event() -> None:
+            async with api.data.database.session() as session:
+                outbox = await session.scalar(
+                    select(OutboxEventModel).where(
+                        OutboxEventModel.event_id == UUID(released.json()["event_id"])
+                    )
+                )
+                audit = await session.get(
+                    AuditEventModel, UUID(released.json()["audit_event_id"])
+                )
+                assert outbox is not None
+                assert audit is not None
+                envelope = MessageEnvelope.model_validate(outbox.payload)
+                assert envelope.message_type == "InventoryReservationReleased"
+                assert envelope.aggregate_version == 2
+                assert audit.operation == "InventoryReservationReleased"
+                assert audit.before_snapshot is not None
+                assert audit.before_snapshot["status"] == "ACTIVE"
+                assert audit.after_snapshot is not None
+                assert audit.after_snapshot["status"] == "RELEASED"
+
+        assert api.client.portal is not None
+        api.client.portal.call(verify_released_event)
 
         availability = api.client.get(
             f"/api/v1/inventory/availability?company_id={api.data.company_id}"
@@ -275,3 +330,69 @@ def test_reservation_api_enforces_rbac_and_company_scope() -> None:
         )
         assert scoped.status_code == 404
         assert scoped.json()["error"]["code"] == "RESOURCE_NOT_FOUND"
+
+
+@pytest.mark.parametrize(
+    ("component", "method"), [(AuditService, "record"), (OutboxService, "enqueue")]
+)
+def test_failed_reservation_effect_rolls_back_reservation_and_idempotency(
+    monkeypatch: pytest.MonkeyPatch, component: type[Any], method: str
+) -> None:
+    async def fail(*args: Any, **kwargs: Any) -> None:
+        raise RuntimeError("Forced reservation effect failure")
+
+    with inventory_api() as api:
+        product_id, warehouse_id, lot_id = _seed_available_stock(api)
+        body = _reservation_body(
+            api,
+            product_id=product_id,
+            warehouse_id=warehouse_id,
+            lot_id=lot_id,
+            quantity="1",
+        )
+        idempotency_key = str(uuid4())
+        with monkeypatch.context() as patch:
+            patch.setattr(component, method, fail)
+            with pytest.raises(RuntimeError, match="Forced reservation effect failure"):
+                api.client.post(
+                    "/api/v1/inventory/reservations",
+                    json=body,
+                    headers={**api.headers, "Idempotency-Key": idempotency_key},
+                )
+
+        async def counts() -> tuple[int, int, int, int]:
+            async with api.data.database.session() as session:
+                reservations = await session.scalar(
+                    select(func.count())
+                    .select_from(InventoryReservationModel)
+                    .where(InventoryReservationModel.company_id == api.data.company_id)
+                )
+                idempotency = await session.scalar(
+                    select(func.count())
+                    .select_from(IdempotencyRecordModel)
+                    .where(
+                        IdempotencyRecordModel.scope
+                        == f"inventory:{api.data.company_id}:{api.data.actor_id}",
+                        IdempotencyRecordModel.idempotency_key == idempotency_key,
+                    )
+                )
+                audit = await session.scalar(
+                    select(func.count())
+                    .select_from(AuditEventModel)
+                    .where(
+                        AuditEventModel.company_id == api.data.company_id,
+                        AuditEventModel.operation == "InventoryReservationCreated",
+                    )
+                )
+                outbox = await session.scalar(
+                    select(func.count())
+                    .select_from(OutboxEventModel)
+                    .where(
+                        OutboxEventModel.source_module == "inventory",
+                        OutboxEventModel.event_type == "InventoryReservationCreated",
+                    )
+                )
+                return reservations or 0, idempotency or 0, audit or 0, outbox or 0
+
+        assert api.client.portal is not None
+        assert api.client.portal.call(counts) == (0, 0, 0, 0)

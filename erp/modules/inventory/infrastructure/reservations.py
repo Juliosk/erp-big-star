@@ -34,6 +34,9 @@ from erp.modules.inventory.domain import (
 )
 from erp.modules.inventory.infrastructure.balance_model import InventoryBalanceModel
 from erp.modules.inventory.infrastructure.balance_repository import _balance
+from erp.modules.inventory.infrastructure.reservation_effects import (
+    InventoryReservationEffects,
+)
 from erp.modules.inventory.infrastructure.reservation_model import (
     InventoryReservationAllocationModel,
     InventoryReservationModel,
@@ -95,7 +98,13 @@ class PostgresInventoryReservations(
                         "An active or historical reservation already exists for this reference."
                     ) from error
                 raise
-            result = InventoryReservationResult(reservation)
+            result = await InventoryReservationEffects().record(
+                session,
+                reservation,
+                event_type="InventoryReservationCreated",
+                actor_id=actor_id,
+                metadata=command.metadata,
+            )
             await self._idempotency.complete(
                 session, decision, response_status=201, response_body=result.to_dict()
             )
@@ -134,13 +143,21 @@ class PostgresInventoryReservations(
                 )
             if model.version != command.expected_version:
                 raise OptimisticLockError(expected_version=command.expected_version)
+            before = _reservation(model)
             try:
-                _reservation(model).release()
+                before.release()
             except ValueError as error:
                 raise _reservation_conflict(str(error)) from error
             model.status = InventoryReservationStatus.RELEASED
             await session.flush()
-            result = InventoryReservationResult(_reservation(model))
+            result = await InventoryReservationEffects().record(
+                session,
+                _reservation(model),
+                event_type="InventoryReservationReleased",
+                actor_id=actor_id,
+                metadata=command.metadata,
+                before=before,
+            )
             await self._idempotency.complete(
                 session, decision, response_status=200, response_body=result.to_dict()
             )
@@ -180,15 +197,37 @@ class PostgresInventoryReservations(
                     .execution_options(populate_existing=True)
                 )
             ).all()
+            before_by_id: dict[UUID, InventoryReservation] = {}
             for model in models:
+                before = _reservation(model)
                 try:
-                    _reservation(model).expire(command.now)
+                    before.expire(command.now)
                 except ValueError as error:
                     raise _reservation_conflict(str(error)) from error
+                before_by_id[model.id] = before
                 model.status = InventoryReservationStatus.EXPIRED
             await session.flush()
             expired = tuple(_reservation(model) for model in models)
-            result = InventoryReservationExpirationResult(tuple(expired))
+            event_ids: list[UUID] = []
+            audit_event_ids: list[UUID] = []
+            for reservation in expired:
+                effect = await InventoryReservationEffects().record(
+                    session,
+                    reservation,
+                    event_type="InventoryReservationExpired",
+                    actor_id=actor_id,
+                    metadata=command.metadata,
+                    before=before_by_id[reservation.id],
+                )
+                if effect.event_id is not None:
+                    event_ids.append(effect.event_id)
+                if effect.audit_event_id is not None:
+                    audit_event_ids.append(effect.audit_event_id)
+            result = InventoryReservationExpirationResult(
+                expired,
+                event_ids=tuple(event_ids),
+                audit_event_ids=tuple(audit_event_ids),
+            )
             await self._idempotency.complete(
                 session, decision, response_status=200, response_body=result.to_dict()
             )

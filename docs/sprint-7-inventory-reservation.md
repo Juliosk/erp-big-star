@@ -105,3 +105,19 @@ tem versão incrementada pelo controle otimista do aggregate. Como a
 disponibilidade é derivada de reservas ativas, a expiração remove a quantidade
 HARD do cálculo reservado e restaura automaticamente o ATP sem lançar movimento
 físico no ledger imutável.
+
+## Entrega do Commit 076
+
+`InventoryReservationEffects` centraliza os efeitos transacionais de reservas.
+Criação, liberação e expiração registram Audit e Outbox antes da conclusão da
+idempotência, dentro da mesma transação do aggregate. Os eventos emitidos são:
+
+- `InventoryReservationCreated`
+- `InventoryReservationReleased`
+- `InventoryReservationExpired`
+
+Cada envelope usa `aggregate_type=inventory_reservation`, `aggregate_id` da
+reserva, `aggregate_version` da versão persistida, `company_id`, request/correlation
+IDs e snapshot completo da reserva/allocations. Audit preserva snapshots before/after
+nas transições de status, garantindo rastreabilidade operacional e rollback total
+quando Audit ou Outbox falham.

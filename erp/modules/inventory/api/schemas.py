@@ -176,6 +176,8 @@ class InventoryReservationListResponse(BaseModel):
 
 class InventoryReservationCommandResponse(BaseModel):
     reservation: InventoryReservationResponse
+    event_id: UUID | None = None
+    audit_event_id: UUID | None = None
     idempotency_replayed: bool = False
 
 

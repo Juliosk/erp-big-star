@@ -7,6 +7,7 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy import select
 
 from erp.modules.admin.contracts import CompanyAccessService
 from erp.modules.admin.domain import PermissionCode
@@ -35,7 +36,10 @@ from erp.modules.inventory.domain import (
     Quantity,
 )
 from erp.modules.inventory.infrastructure import PostgresInventoryReservations
+from erp.platform.audit import AuditEventModel
 from erp.platform.errors import ApplicationError
+from erp.platform.messaging import MessageEnvelope
+from erp.platform.outbox import OutboxEventModel
 from tests.integration.test_inventory_adjustments_api import (
     _adjustment_body,
     _allow_adjustment,
@@ -350,6 +354,28 @@ def test_expiration_marks_due_reservations_and_restores_availability() -> None:
                 page=1,
                 page_size=50,
             )
+            outbox = None
+            audit = None
+            if expiration.event_ids and expiration.audit_event_ids:
+                async with api.data.database.session() as session:
+                    outbox = await session.scalar(
+                        select(OutboxEventModel).where(
+                            OutboxEventModel.event_id == expiration.event_ids[0]
+                        )
+                    )
+                    audit = await session.get(
+                        AuditEventModel, expiration.audit_event_ids[0]
+                    )
+            assert outbox is not None
+            assert audit is not None
+            envelope = MessageEnvelope.model_validate(outbox.payload)
+            assert envelope.message_type == "InventoryReservationExpired"
+            assert envelope.aggregate_id == reserved.reservation.id
+            assert audit.operation == "InventoryReservationExpired"
+            assert audit.before_snapshot is not None
+            assert audit.before_snapshot["status"] == "ACTIVE"
+            assert audit.after_snapshot is not None
+            assert audit.after_snapshot["status"] == "EXPIRED"
             return (
                 expiration.expired[0].status.value,
                 before.items[0].available.value,

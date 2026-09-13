@@ -175,6 +175,8 @@ async def create_reservation(
     )
     return InventoryReservationCommandResponse(
         reservation=_reservation_response(result.reservation),
+        event_id=result.event_id,
+        audit_event_id=result.audit_event_id,
         idempotency_replayed=result.idempotency_replayed,
     )
 
@@ -220,6 +222,8 @@ async def release_reservation(
     _reservation_headers(response, result.reservation, replayed=result.idempotency_replayed)
     return InventoryReservationCommandResponse(
         reservation=_reservation_response(result.reservation),
+        event_id=result.event_id,
+        audit_event_id=result.audit_event_id,
         idempotency_replayed=result.idempotency_replayed,
     )
 
