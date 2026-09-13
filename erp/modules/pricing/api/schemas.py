@@ -67,6 +67,33 @@ class PriceListVersionCommandResponse(BaseModel):
     idempotency_replayed: bool = False
 
 
+class ResolvePricingRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    company_id: UUID
+    product_id: UUID
+    quantity: Decimal = Field(gt=0, max_digits=18, decimal_places=6)
+    price_list_id: UUID | None = None
+    customer_id: UUID | None = None
+    customer_group_id: UUID | None = None
+    channel: str | None = Field(default=None, min_length=1, max_length=32)
+
+
+class PricingResolutionResponse(BaseModel):
+    pricing_snapshot_id: UUID
+    company_id: UUID
+    product_id: UUID
+    quantity: str
+    currency: str
+    unit_price: str
+    total_price: str
+    minimum_price: str | None
+    price_list_id: UUID
+    price_list_version_id: UUID
+    minimum_margin: str | None
+    effective_margin: str | None
+    source: str
+
+
 class CreatePriceListRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     company_id: UUID
@@ -104,4 +131,6 @@ __all__ = [
     "PriceListVersionCommandResponse",
     "PriceListVersionListResponse",
     "PriceListVersionResponse",
+    "PricingResolutionResponse",
+    "ResolvePricingRequest",
 ]

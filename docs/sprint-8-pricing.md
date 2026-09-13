@@ -106,3 +106,16 @@ A validação de rentabilidade calcula a margem a partir de preço e custo padr�
 provisório, aplicando a política ativa de `minimum_margin_policy`. Preços abaixo
 do piso retornam `MINIMUM_MARGIN_VIOLATION`, e produtos sem seed retornam
 `STANDARD_COST_NOT_FOUND`.
+
+## Entrega do Commit 086
+
+`PricingResolutionService` foi implementado como caso de uso oficial de M9,
+exposto por `POST /api/v1/pricing/resolve`. A resolução escolhe uma lista ativa
+explícita quando informada ou prioriza listas por contexto disponível
+(`CUSTOMER_GROUP`, `CHANNEL`, `BASE`), sempre filtrando produto e empresa.
+
+Cada resolução válida grava um `pricing_snapshot` com referência ao custo
+`LEGACY_OPENING`, versão do seed, lista/versão ativa, margem mínima aplicada,
+margem efetiva calculada e preço arredondado. A resposta pública retorna
+`pricing_snapshot_id`, preço unitário/total e ids da lista/versão; a margem
+efetiva só é exibida a usuários com `pricing.margin.view`.

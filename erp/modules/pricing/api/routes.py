@@ -17,6 +17,8 @@ from erp.modules.pricing.api.schemas import (
     PriceListVersionCommandResponse,
     PriceListVersionListResponse,
     PriceListVersionResponse,
+    PricingResolutionResponse,
+    ResolvePricingRequest,
 )
 from erp.modules.pricing.api.versioning import require_version
 from erp.modules.pricing.application import (
@@ -26,7 +28,9 @@ from erp.modules.pricing.application import (
     CreatePriceListItem,
     CreatePriceListVersion,
     PricingCatalogService,
+    PricingResolutionService,
 )
+from erp.modules.pricing.contracts import PricingResolution, PricingResolutionRequest
 from erp.modules.pricing.domain import (
     PriceList,
     PriceListStatus,
@@ -44,6 +48,17 @@ def get_catalogue(request: Request) -> PricingCatalogService:
         raise ApplicationError(
             code="PRICING_UNAVAILABLE",
             message="Pricing catalogue unavailable.",
+            status_code=503,
+        )
+    return service
+
+
+def get_resolution(request: Request) -> PricingResolutionService:
+    service = getattr(request.app.state, "pricing_resolution", None)
+    if not isinstance(service, PricingResolutionService):
+        raise ApplicationError(
+            code="PRICING_RESOLUTION_UNAVAILABLE",
+            message="Pricing resolution unavailable.",
             status_code=503,
         )
     return service
@@ -226,6 +241,29 @@ async def activate_price_list_version(
     )
 
 
+@router.post("/resolve", response_model=PricingResolutionResponse)
+async def resolve_pricing(
+    body: ResolvePricingRequest,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[PricingResolutionService, Depends(get_resolution)],
+) -> PricingResolutionResponse:
+    result = await service.resolve(
+        context,
+        PricingResolutionRequest(
+            company_id=body.company_id,
+            product_id=body.product_id,
+            quantity=body.quantity,
+            price_list_id=body.price_list_id,
+            customer_id=body.customer_id,
+            customer_group_id=body.customer_group_id,
+            channel=body.channel.strip().upper() if body.channel is not None else None,
+        ),
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return _pricing_resolution_response(result)
+
+
 def _price_list_response(price_list: PriceList) -> PriceListResponse:
     return PriceListResponse(
         id=price_list.id,
@@ -269,4 +307,26 @@ def _price_list_version_response(version: PriceListVersion) -> PriceListVersionR
     )
 
 
-__all__ = ["get_catalogue", "metadata", "router"]
+def _pricing_resolution_response(result: PricingResolution) -> PricingResolutionResponse:
+    return PricingResolutionResponse(
+        pricing_snapshot_id=result.pricing_snapshot_id,
+        company_id=result.company_id,
+        product_id=result.product_id,
+        quantity=f"{result.quantity:.6f}",
+        currency=result.currency,
+        unit_price=f"{result.unit_price:.2f}",
+        total_price=f"{result.total_price:.2f}",
+        minimum_price=None if result.minimum_price is None else f"{result.minimum_price:.2f}",
+        price_list_id=result.price_list_id,
+        price_list_version_id=result.price_list_version_id,
+        minimum_margin=(
+            None if result.minimum_margin is None else f"{result.minimum_margin:.4f}"
+        ),
+        effective_margin=(
+            None if result.effective_margin is None else f"{result.effective_margin:.4f}"
+        ),
+        source=result.source,
+    )
+
+
+__all__ = ["get_catalogue", "get_resolution", "metadata", "router"]

@@ -3,6 +3,7 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
@@ -11,23 +12,34 @@ from sqlalchemy import delete, func, select
 
 from erp.apps.api.app import create_app
 from erp.modules.admin.application import SecurityContext
+from erp.modules.admin.contracts import CompanyAccessService
 from erp.modules.admin.domain import (
     AuthenticatedPrincipal,
     AuthenticationLevel,
     Scope,
     ScopeType,
 )
+from erp.modules.admin.infrastructure import PostgresCorporateDirectory
 from erp.modules.pricing.application.permissions import (
+    PRICING_MARGIN_VIEW_SENSITIVE,
     PRICING_PRICE_ACTIVATE,
     PRICING_PRICE_CREATE,
     PRICING_SIMULATE,
+    PricingAuthorization,
+)
+from erp.modules.pricing.application.policies import (
+    CreateMinimumMarginPolicy,
+    PricingPolicyService,
+    UpsertStandardCostSeed,
 )
 from erp.modules.pricing.infrastructure import (
     MinimumMarginPolicyModel,
+    PostgresPricingPolicies,
     PriceListItemModel,
     PriceListModel,
     PriceListVersionModel,
     PricingSnapshotModel,
+    StandardCostSeedModel,
 )
 from erp.modules.pricing.infrastructure.pricing_effects import PRICE_LIST_VERSION_ACTIVATED
 from erp.modules.product.infrastructure import ProductRepository
@@ -99,6 +111,11 @@ def pricing_api() -> Iterator[PricingApiFixture]:
                     await session.execute(
                         delete(PricingSnapshotModel).where(
                             PricingSnapshotModel.company_id.in_(company_ids)
+                        )
+                    )
+                    await session.execute(
+                        delete(StandardCostSeedModel).where(
+                            StandardCostSeedModel.company_id.in_(company_ids)
                         )
                     )
                     await session.execute(
@@ -340,3 +357,174 @@ def test_pricing_api_requires_if_match_for_activation() -> None:
 
         assert response.status_code == 428
         assert response.json()["error"]["code"] == "PRECONDITION_REQUIRED"
+
+
+def test_pricing_resolve_uses_active_list_cost_policy_and_snapshot() -> None:
+    with pricing_api() as api:
+        assert api.resolver.context is not None
+        product_id = _seed_product(api)
+        price_list = api.client.post(
+            "/api/v1/pricing/price-lists",
+            json={
+                "company_id": str(api.data.company_id),
+                "code": "RESOLVE",
+                "name": "Tabela Resolve",
+            },
+            headers=api.headers,
+        ).json()
+        draft = api.client.post(
+            f"/api/v1/pricing/price-lists/{price_list['id']}/versions",
+            json={
+                "company_id": str(api.data.company_id),
+                "valid_from": "2026-09-13",
+                "items": [
+                    {
+                        "product_id": product_id,
+                        "price_amount": "100.00",
+                        "minimum_price_amount": "90.00",
+                        "target_margin": "0.4000",
+                    }
+                ],
+            },
+            headers=api.headers,
+        ).json()
+        activated = api.client.post(
+            f"/api/v1/pricing/price-list-versions/{draft['id']}/activate"
+            f"?company_id={api.data.company_id}",
+            headers={
+                **api.headers,
+                "If-Match": '"1"',
+                "Idempotency-Key": str(uuid4()),
+            },
+        )
+        assert activated.status_code == 200
+
+        async def seed_policy() -> None:
+            assert api.resolver.context is not None
+            service = PricingPolicyService(
+                PostgresPricingPolicies(api.data.database),
+                PricingAuthorization(
+                    CompanyAccessService(PostgresCorporateDirectory(api.data.database))
+                ),
+            )
+            await service.upsert_standard_cost_seed(
+                api.resolver.context,
+                UpsertStandardCostSeed(
+                    company_id=api.data.company_id,
+                    product_id=UUID(product_id),
+                    cost_amount=Decimal("60.00"),
+                ),
+            )
+            await service.create_minimum_margin_policy(
+                api.resolver.context,
+                CreateMinimumMarginPolicy(
+                    company_id=api.data.company_id,
+                    code="resolve",
+                    name="Resolve Margin",
+                    minimum_margin=Decimal("0.3000"),
+                ),
+            )
+
+        assert api.client.portal is not None
+        api.client.portal.call(seed_policy)
+        api.resolver.context = replace(
+            api.resolver.context,
+            permissions=api.resolver.context.permissions | {PRICING_MARGIN_VIEW_SENSITIVE},
+        )
+        response = api.client.post(
+            "/api/v1/pricing/resolve",
+            json={
+                "company_id": str(api.data.company_id),
+                "product_id": product_id,
+                "quantity": "2.000000",
+                "price_list_id": price_list["id"],
+            },
+            headers=api.headers,
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["unit_price"] == "100.00"
+        assert body["total_price"] == "200.00"
+        assert body["minimum_margin"] == "0.3000"
+        assert body["effective_margin"] == "0.4000"
+        assert body["source"] == "PRICE_LIST:BASE"
+
+        async def snapshot_cost_reference() -> dict[str, object] | None:
+            async with api.data.database.session() as session:
+                return await session.scalar(
+                    select(PricingSnapshotModel.cost_reference).where(
+                        PricingSnapshotModel.id == UUID(body["pricing_snapshot_id"]),
+                        PricingSnapshotModel.company_id == api.data.company_id,
+                    )
+                )
+
+        cost_reference = api.client.portal.call(snapshot_cost_reference)
+        assert cost_reference is not None
+        assert cost_reference["source"] == "LEGACY_OPENING"
+        assert cost_reference["amount"] == "60.00"
+
+
+def test_pricing_resolve_masks_margin_without_sensitive_permission() -> None:
+    with pricing_api() as api:
+        assert api.resolver.context is not None
+        product_id = _seed_product(api)
+        price_list = api.client.post(
+            "/api/v1/pricing/price-lists",
+            json={
+                "company_id": str(api.data.company_id),
+                "code": "MASK",
+                "name": "Tabela Mask",
+            },
+            headers=api.headers,
+        ).json()
+        draft = api.client.post(
+            f"/api/v1/pricing/price-lists/{price_list['id']}/versions",
+            json={
+                "company_id": str(api.data.company_id),
+                "valid_from": "2026-09-13",
+                "items": [{"product_id": product_id, "price_amount": "100.00"}],
+            },
+            headers=api.headers,
+        ).json()
+        api.client.post(
+            f"/api/v1/pricing/price-list-versions/{draft['id']}/activate"
+            f"?company_id={api.data.company_id}",
+            headers={
+                **api.headers,
+                "If-Match": '"1"',
+                "Idempotency-Key": str(uuid4()),
+            },
+        )
+
+        async def seed_cost() -> None:
+            assert api.resolver.context is not None
+            service = PricingPolicyService(
+                PostgresPricingPolicies(api.data.database),
+                PricingAuthorization(
+                    CompanyAccessService(PostgresCorporateDirectory(api.data.database))
+                ),
+            )
+            await service.upsert_standard_cost_seed(
+                api.resolver.context,
+                UpsertStandardCostSeed(
+                    company_id=api.data.company_id,
+                    product_id=UUID(product_id),
+                    cost_amount=Decimal("60.00"),
+                ),
+            )
+
+        assert api.client.portal is not None
+        api.client.portal.call(seed_cost)
+        response = api.client.post(
+            "/api/v1/pricing/resolve",
+            json={
+                "company_id": str(api.data.company_id),
+                "product_id": product_id,
+                "quantity": "1.000000",
+            },
+            headers=api.headers,
+        )
+
+        assert response.status_code == 200
+        assert response.json()["effective_margin"] is None

@@ -10,11 +10,13 @@ from erp.modules.pricing.infrastructure.price_list_model import (
     PricingSnapshotModel,
     StandardCostSeedModel,
 )
+from erp.modules.pricing.infrastructure.resolution import PostgresPricingResolver
 
 __all__ = [
     "MinimumMarginPolicyModel",
     "PostgresPricingCatalogue",
     "PostgresPricingPolicies",
+    "PostgresPricingResolver",
     "PriceListItemModel",
     "PriceListModel",
     "PriceListVersionModel",
