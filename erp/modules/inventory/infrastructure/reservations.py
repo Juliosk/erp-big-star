@@ -11,6 +11,8 @@ from sqlalchemy.orm import selectinload
 
 from erp.modules.inventory.application.commands import (
     CreateInventoryReservation,
+    ExpireInventoryReservations,
+    InventoryReservationExpirationResult,
     InventoryReservationLine,
     InventoryReservationResult,
     ReleaseInventoryReservation,
@@ -139,6 +141,54 @@ class PostgresInventoryReservations(
             model.status = InventoryReservationStatus.RELEASED
             await session.flush()
             result = InventoryReservationResult(_reservation(model))
+            await self._idempotency.complete(
+                session, decision, response_status=200, response_body=result.to_dict()
+            )
+            return result
+
+    async def expire_due(
+        self, command: ExpireInventoryReservations, actor_id: UUID
+    ) -> InventoryReservationExpirationResult:
+        async with self._database.session() as session, session.begin():
+            decision = await self._idempotency.begin(
+                session,
+                scope=f"inventory:{command.company_id}:{actor_id}",
+                operation="inventory.reservation.expire_due",
+                key=command.idempotency_key,
+                payload=command.payload(),
+            )
+            if decision.replayed:
+                if decision.response_body is None:
+                    raise RuntimeError("Stored inventory expiration replay has no body.")
+                return InventoryReservationExpirationResult.replay(decision.response_body)
+            models = (
+                await session.scalars(
+                    select(InventoryReservationModel)
+                    .options(selectinload(InventoryReservationModel.allocations))
+                    .where(
+                        InventoryReservationModel.company_id == command.company_id,
+                        InventoryReservationModel.status == InventoryReservationStatus.ACTIVE,
+                        InventoryReservationModel.expires_at.is_not(None),
+                        InventoryReservationModel.expires_at <= command.now,
+                    )
+                    .order_by(
+                        InventoryReservationModel.expires_at,
+                        InventoryReservationModel.id,
+                    )
+                    .limit(command.batch_size)
+                    .with_for_update(skip_locked=True)
+                    .execution_options(populate_existing=True)
+                )
+            ).all()
+            for model in models:
+                try:
+                    _reservation(model).expire(command.now)
+                except ValueError as error:
+                    raise _reservation_conflict(str(error)) from error
+                model.status = InventoryReservationStatus.EXPIRED
+            await session.flush()
+            expired = tuple(_reservation(model) for model in models)
+            result = InventoryReservationExpirationResult(tuple(expired))
             await self._idempotency.complete(
                 session, decision, response_status=200, response_body=result.to_dict()
             )

@@ -90,3 +90,18 @@ aspas e retorna ETag atualizado. As APIs aplicam RBAC, Error Contract padronizad
 `company_id` ocultam recursos fora do tenant pelo contrato `RESOURCE_NOT_FOUND`
 quando a identidade possui acesso corporativo, mantendo o padrão já usado em
 saldos e rastreabilidade de lotes.
+
+## Entrega do Commit 075
+
+`InventoryReservationService.expire_due` e
+`PostgresInventoryReservations.expire_due` implementam a política automática de
+expiração de reservas vencidas. O comando recebe `company_id`, instante de corte
+timezone-aware, tamanho de lote e `Idempotency-Key`; a execução exige
+`inventory.reservation.manage`, mantém escopo por empresa e bloqueia reservas
+ativas vencidas com `SELECT FOR UPDATE SKIP LOCKED`.
+
+A reserva passa de `ACTIVE` para `EXPIRED` por transição terminal do domínio e
+tem versão incrementada pelo controle otimista do aggregate. Como a
+disponibilidade é derivada de reservas ativas, a expiração remove a quantidade
+HARD do cálculo reservado e restaura automaticamente o ATP sem lançar movimento
+físico no ledger imutável.

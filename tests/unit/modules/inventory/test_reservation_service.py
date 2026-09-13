@@ -2,6 +2,7 @@
 
 import asyncio
 from dataclasses import replace
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import cast
 from uuid import UUID, uuid4
@@ -19,6 +20,8 @@ from erp.modules.admin.domain import (
 from erp.modules.inventory.application.commands import (
     CommandMetadata,
     CreateInventoryReservation,
+    ExpireInventoryReservations,
+    InventoryReservationExpirationResult,
     InventoryReservationLine,
     InventoryReservationResult,
     ReleaseInventoryReservation,
@@ -45,6 +48,7 @@ class ReservationStoreStub:
     def __init__(self) -> None:
         self.reserved: list[CreateInventoryReservation] = []
         self.released: list[ReleaseInventoryReservation] = []
+        self.expired: list[ExpireInventoryReservations] = []
 
     async def reserve(
         self, command: CreateInventoryReservation, actor_id: UUID
@@ -89,6 +93,28 @@ class ReservationStoreStub:
             ),
         ).release()
         return InventoryReservationResult(reservation)
+
+    async def expire_due(
+        self, command: ExpireInventoryReservations, actor_id: UUID
+    ) -> InventoryReservationExpirationResult:
+        self.expired.append(command)
+        reservation = InventoryReservation.create(
+            company_id=command.company_id,
+            reservation_kind=InventoryReservationKind.HARD,
+            reference_type="ORDER",
+            reference_id=uuid4(),
+            created_by=actor_id,
+            allocations=(
+                InventoryReservationAllocation.create(
+                    reservation_id=uuid4(),
+                    company_id=command.company_id,
+                    product_id=uuid4(),
+                    warehouse_id=uuid4(),
+                    quantity=Quantity.of("1"),
+                ),
+            ),
+        )
+        return InventoryReservationExpirationResult((reservation.expire(command.now),))
 
 
 def _context(company_id: UUID, *, permissions: frozenset[PermissionCode]) -> SecurityContext:
@@ -182,5 +208,48 @@ def test_reservation_service_release_requires_positive_version() -> None:
         assert invalid.value.code == "BUSINESS_VALIDATION_ERROR"
         assert result.reservation.version == 2
         assert len(store.released) == 1
+
+    asyncio.run(scenario())
+
+
+def test_reservation_service_expiration_requires_aware_now_and_batch_limits() -> None:
+    async def scenario() -> None:
+        company_id = uuid4()
+        store = ReservationStoreStub()
+        service = InventoryReservationService(
+            cast(InventoryReservationStore, store), _authorization(CompanyAccessStub())
+        )
+        context = _context(company_id, permissions=frozenset({INVENTORY_RESERVATION_MANAGE}))
+        command = ExpireInventoryReservations(
+            company_id=company_id,
+            now=datetime.fromisoformat("2026-09-13T09:00:00"),
+            batch_size=100,
+            idempotency_key="expire",
+            metadata=CommandMetadata(uuid4(), uuid4()),
+        )
+        with pytest.raises(ApplicationError) as invalid_time:
+            await service.expire_due(context, command)
+        with pytest.raises(ApplicationError) as invalid_batch:
+            await service.expire_due(
+                context,
+                replace(
+                    command,
+                    now=datetime.now(UTC),
+                    batch_size=0,
+                ),
+            )
+        result = await service.expire_due(
+            context,
+            replace(
+                command,
+                now=datetime.now(UTC),
+                batch_size=1,
+            ),
+        )
+
+        assert invalid_time.value.code == "BUSINESS_VALIDATION_ERROR"
+        assert invalid_batch.value.code == "BUSINESS_VALIDATION_ERROR"
+        assert result.expired[0].status.value == "EXPIRED"
+        assert len(store.expired) == 1
 
     asyncio.run(scenario())

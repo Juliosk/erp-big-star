@@ -183,6 +183,22 @@ class ReleaseInventoryReservation:
 
 
 @dataclass(frozen=True, slots=True)
+class ExpireInventoryReservations:
+    company_id: UUID
+    now: datetime
+    batch_size: int
+    idempotency_key: str
+    metadata: CommandMetadata
+
+    def payload(self) -> dict[str, object]:
+        return {
+            "company_id": str(self.company_id),
+            "now": self.now.isoformat(),
+            "batch_size": self.batch_size,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class InventoryAdjustmentResult:
     transaction_id: UUID
     balances: tuple[InventoryBalance, ...]
@@ -251,11 +267,15 @@ class InventoryAdjustmentResult:
 @dataclass(frozen=True, slots=True)
 class InventoryReservationResult:
     reservation: InventoryReservation
+    event_id: UUID | None = None
+    audit_event_id: UUID | None = None
     idempotency_replayed: bool = False
 
     def to_dict(self) -> dict[str, object]:
         return {
             "reservation": _reservation_payload(self.reservation),
+            "event_id": str(self.event_id) if self.event_id is not None else None,
+            "audit_event_id": str(self.audit_event_id) if self.audit_event_id is not None else None,
             "idempotency_replayed": self.idempotency_replayed,
         }
 
@@ -304,6 +324,54 @@ class InventoryReservationResult:
                     if isinstance(item, dict)
                 ),
             ),
+            event_id=UUID(str(body["event_id"])) if body["event_id"] is not None else None,
+            audit_event_id=UUID(str(body["audit_event_id"]))
+            if body["audit_event_id"] is not None
+            else None,
+            idempotency_replayed=True,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class InventoryReservationExpirationResult:
+    expired: tuple[InventoryReservation, ...]
+    event_ids: tuple[UUID, ...] = ()
+    audit_event_ids: tuple[UUID, ...] = ()
+    idempotency_replayed: bool = False
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "expired": [_reservation_payload(reservation) for reservation in self.expired],
+            "event_ids": [str(event_id) for event_id in self.event_ids],
+            "audit_event_ids": [str(audit_id) for audit_id in self.audit_event_ids],
+            "idempotency_replayed": self.idempotency_replayed,
+        }
+
+    @classmethod
+    def replay(cls, body: dict[str, object]) -> InventoryReservationExpirationResult:
+        raw_expired = body.get("expired")
+        raw_event_ids = body.get("event_ids")
+        raw_audit_event_ids = body.get("audit_event_ids")
+        if not isinstance(raw_expired, list):
+            raw_expired = []
+        if not isinstance(raw_event_ids, list):
+            raw_event_ids = []
+        if not isinstance(raw_audit_event_ids, list):
+            raw_audit_event_ids = []
+        return cls(
+            expired=tuple(
+                InventoryReservationResult.replay(
+                    {
+                        "reservation": item,
+                        "event_id": None,
+                        "audit_event_id": None,
+                    }
+                ).reservation
+                for item in raw_expired
+                if isinstance(item, dict)
+            ),
+            event_ids=tuple(UUID(str(event_id)) for event_id in raw_event_ids),
+            audit_event_ids=tuple(UUID(str(audit_id)) for audit_id in raw_audit_event_ids),
             idempotency_replayed=True,
         )
 
@@ -360,10 +428,12 @@ __all__ = [
     "CreateInventoryReservation",
     "CreateLocation",
     "CreateWarehouse",
+    "ExpireInventoryReservations",
     "InventoryAdjustmentLine",
     "InventoryAdjustmentResult",
     "InventoryAdjustmentType",
     "InventoryCatalogStore",
+    "InventoryReservationExpirationResult",
     "InventoryReservationLine",
     "InventoryReservationResult",
     "ReleaseInventoryReservation",

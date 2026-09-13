@@ -6,6 +6,8 @@ from uuid import UUID
 from erp.modules.admin.contracts import SecurityContext
 from erp.modules.inventory.application.commands import (
     CreateInventoryReservation,
+    ExpireInventoryReservations,
+    InventoryReservationExpirationResult,
     InventoryReservationResult,
     ReleaseInventoryReservation,
 )
@@ -35,6 +37,10 @@ class InventoryReservationStore(Protocol):
     async def release(
         self, command: ReleaseInventoryReservation, actor_id: UUID
     ) -> InventoryReservationResult: ...
+
+    async def expire_due(
+        self, command: ExpireInventoryReservations, actor_id: UUID
+    ) -> InventoryReservationExpirationResult: ...
 
     async def get(
         self, company_id: UUID, reservation_id: UUID
@@ -183,6 +189,15 @@ class InventoryReservationService:
             raise _validation("expected_version must be a positive integer.")
         return await self._store.release(command, context.principal.user_id)
 
+    async def expire_due(
+        self, context: SecurityContext, command: ExpireInventoryReservations
+    ) -> InventoryReservationExpirationResult:
+        await self._authorization.require(
+            context, command.company_id, INVENTORY_RESERVATION_MANAGE, write=True
+        )
+        _validate_expiration(command)
+        return await self._store.expire_due(command, context.principal.user_id)
+
 
 def _validate_page(page: int, page_size: int) -> None:
     if type(page) is not int or not 1 <= page <= 100_000:
@@ -205,6 +220,13 @@ def _validate_reserve(command: CreateInventoryReservation) -> None:
             InventoryState(line.state)
         except ValueError as error:
             raise _validation("state must be an official inventory state.") from error
+
+
+def _validate_expiration(command: ExpireInventoryReservations) -> None:
+    if command.now.tzinfo is None:
+        raise _validation("now must be timezone-aware.")
+    if type(command.batch_size) is not int or not 1 <= command.batch_size <= 1_000:
+        raise _validation("batch_size must be between 1 and 1000.")
 
 
 def _validation(message: str) -> ApplicationError:

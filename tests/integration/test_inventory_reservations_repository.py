@@ -19,6 +19,7 @@ from erp.modules.inventory.application import (
 from erp.modules.inventory.application.commands import (
     CommandMetadata,
     CreateInventoryReservation,
+    ExpireInventoryReservations,
     InventoryReservationLine,
 )
 from erp.modules.inventory.application.permissions import (
@@ -88,6 +89,7 @@ def _reserve_command(
     warehouse_id: UUID,
     lot_id: UUID,
     quantity: str,
+    expires_at: datetime | None = None,
 ) -> CreateInventoryReservation:
     return CreateInventoryReservation(
         company_id=api.data.company_id,
@@ -108,6 +110,7 @@ def _reserve_command(
             correlation_id=uuid4(),
             request_id=uuid4(),
         ),
+        expires_at=expires_at,
     )
 
 
@@ -277,6 +280,92 @@ def test_hard_reservation_concurrency_prevents_over_reservation() -> None:
 
         assert api.client.portal is not None
         assert api.client.portal.call(reserve_competing) == (1, 1, Decimal("4.000000"))
+
+
+def test_expiration_marks_due_reservations_and_restores_availability() -> None:
+    with inventory_api() as api:
+        _allow_adjustment(api)
+        product_id, warehouse_id, lot_id = _seed_lot_dimensions(api)
+        body = _adjustment_body(
+            api, product_id=product_id, warehouse_id=warehouse_id, quantity="10"
+        )
+        body["lines"][0]["lot_id"] = lot_id
+        adjustment = api.client.post(
+            "/api/v1/inventory/adjustments",
+            json=body,
+            headers={**api.headers, "Idempotency-Key": str(uuid4())},
+        )
+        assert adjustment.status_code == 201
+        repository = PostgresInventoryReservations(api.data.database)
+        expires_at = datetime.now(UTC) + timedelta(minutes=5)
+
+        async def expire() -> tuple[str, Decimal, Decimal, int, bool]:
+            reserved = await repository.reserve(
+                _reserve_command(
+                    api,
+                    product_id=UUID(product_id),
+                    warehouse_id=UUID(warehouse_id),
+                    lot_id=UUID(lot_id),
+                    quantity="6",
+                    expires_at=expires_at,
+                ),
+                api.data.actor_id,
+            )
+            before = await repository.list_availability(
+                api.data.company_id,
+                product_id=UUID(product_id),
+                warehouse_id=UUID(warehouse_id),
+                lot_id=UUID(lot_id),
+                state=InventoryState.AVAILABLE,
+                page=1,
+                page_size=50,
+            )
+            expiration_key = str(uuid4())
+            expiration = await repository.expire_due(
+                ExpireInventoryReservations(
+                    company_id=api.data.company_id,
+                    now=expires_at + timedelta(minutes=1),
+                    batch_size=100,
+                    idempotency_key=expiration_key,
+                    metadata=CommandMetadata(uuid4(), uuid4()),
+                ),
+                api.data.actor_id,
+            )
+            replay = await repository.expire_due(
+                ExpireInventoryReservations(
+                    company_id=api.data.company_id,
+                    now=expires_at + timedelta(minutes=1),
+                    batch_size=100,
+                    idempotency_key=expiration_key,
+                    metadata=CommandMetadata(uuid4(), uuid4()),
+                ),
+                api.data.actor_id,
+            )
+            after = await repository.list_availability(
+                api.data.company_id,
+                product_id=UUID(product_id),
+                warehouse_id=UUID(warehouse_id),
+                lot_id=UUID(lot_id),
+                state=InventoryState.AVAILABLE,
+                page=1,
+                page_size=50,
+            )
+            return (
+                expiration.expired[0].status.value,
+                before.items[0].available.value,
+                after.items[0].available.value,
+                reserved.reservation.version,
+                replay.idempotency_replayed,
+            )
+
+        assert api.client.portal is not None
+        assert api.client.portal.call(expire) == (
+            "EXPIRED",
+            Decimal("4.000000"),
+            Decimal("10.000000"),
+            1,
+            True,
+        )
 
 
 def test_reservation_repository_filters_status_and_kind() -> None:
