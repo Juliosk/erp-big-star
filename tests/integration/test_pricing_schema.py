@@ -15,6 +15,7 @@ from erp.modules.pricing.infrastructure import (
     PriceListModel,
     PriceListVersionModel,
     PricingSnapshotModel,
+    StandardCostSeedModel,
 )
 from erp.modules.product.infrastructure import ProductModel
 from erp.platform.config import get_settings
@@ -37,6 +38,7 @@ def test_pricing_foundation_migration_matches_orm_and_tenant_fks() -> None:
         assert PriceListVersionModel.__table__.schema == "pricing"
         assert PriceListItemModel.__table__.schema == "pricing"
         assert MinimumMarginPolicyModel.__table__.schema == "pricing"
+        assert StandardCostSeedModel.__table__.schema == "pricing"
         assert PricingSnapshotModel.__table__.schema == "pricing"
         inspector = inspect(connection)
         assert set(inspector.get_table_names(schema="pricing")) >= {
@@ -44,6 +46,7 @@ def test_pricing_foundation_migration_matches_orm_and_tenant_fks() -> None:
             "price_list_version",
             "price_list_item",
             "minimum_margin_policy",
+            "standard_cost_seed",
             "pricing_snapshot",
         }
         for table, model in (
@@ -51,6 +54,7 @@ def test_pricing_foundation_migration_matches_orm_and_tenant_fks() -> None:
             ("price_list_version", PriceListVersionModel),
             ("price_list_item", PriceListItemModel),
             ("minimum_margin_policy", MinimumMarginPolicyModel),
+            ("standard_cost_seed", StandardCostSeedModel),
             ("pricing_snapshot", PricingSnapshotModel),
         ):
             columns = {
@@ -74,6 +78,16 @@ def test_pricing_foundation_migration_matches_orm_and_tenant_fks() -> None:
             for foreign_key in item_foreign_keys
         } == {
             ("company_id", "price_list_version_id"): "pricing",
+            ("company_id", "product_id"): "product",
+        }
+        standard_cost_foreign_keys = inspector.get_foreign_keys(
+            "standard_cost_seed", "pricing"
+        )
+        assert {
+            tuple(foreign_key["constrained_columns"]): foreign_key["referred_schema"]
+            for foreign_key in standard_cost_foreign_keys
+        } == {
+            ("company_id",): "admin",
             ("company_id", "product_id"): "product",
         }
         context = MigrationContext.configure(

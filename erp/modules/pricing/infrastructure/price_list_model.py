@@ -218,6 +218,45 @@ class MinimumMarginPolicyModel(OptimisticLockMixin, Base):
     updated_by: Mapped[UUID] = mapped_column(nullable=False)
 
 
+class StandardCostSeedModel(OptimisticLockMixin, Base):
+    """Transient LEGACY_OPENING product cost until M8 Costing is available."""
+
+    __tablename__ = "standard_cost_seed"
+    __table_args__ = (
+        UniqueConstraint("company_id", "id", name="uq_standard_cost_seed_company_id"),
+        UniqueConstraint("company_id", "product_id", name="uq_standard_cost_seed_product"),
+        CheckConstraint("cost_amount >= 0", name="cost_non_negative"),
+        CheckConstraint("currency = 'BRL'", name="currency_brl"),
+        CheckConstraint("source = 'LEGACY_OPENING'", name="source_legacy_opening"),
+        CheckConstraint("version >= 1", name="version_positive"),
+        ForeignKeyConstraint(
+            ["company_id", "product_id"],
+            ["product.product.company_id", "product.product.id"],
+            name="fk_standard_cost_seed_product",
+            ondelete="RESTRICT",
+        ),
+        Index("ix_standard_cost_seed_product", "company_id", "product_id"),
+        {"schema": "pricing"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    company_id: Mapped[UUID] = mapped_column(
+        ForeignKey("admin.company.id", ondelete="RESTRICT"), nullable=False
+    )
+    product_id: Mapped[UUID] = mapped_column(nullable=False)
+    cost_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    created_by: Mapped[UUID] = mapped_column(nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_by: Mapped[UUID] = mapped_column(nullable=False)
+
+
 class PricingSnapshotModel(Base):
     """Immutable snapshot of one pricing decision."""
 
@@ -267,4 +306,5 @@ __all__ = [
     "PriceListModel",
     "PriceListVersionModel",
     "PricingSnapshotModel",
+    "StandardCostSeedModel",
 ]

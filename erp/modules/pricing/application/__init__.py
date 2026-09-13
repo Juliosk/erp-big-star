@@ -20,6 +20,12 @@ from erp.modules.pricing.application.permissions import (
     PricingAuthorization,
     pricing_permission_registry,
 )
+from erp.modules.pricing.application.policies import (
+    CreateMinimumMarginPolicy,
+    PricingPolicyService,
+    PricingPolicyStore,
+    UpsertStandardCostSeed,
+)
 
 __all__ = [
     "PRICING_EXCEPTION_REQUEST",
@@ -29,6 +35,7 @@ __all__ = [
     "PRICING_SIMULATE",
     "ActivatePriceListVersion",
     "CommandMetadata",
+    "CreateMinimumMarginPolicy",
     "CreatePriceList",
     "CreatePriceListItem",
     "CreatePriceListVersion",
@@ -37,5 +44,8 @@ __all__ = [
     "PricingCatalogue",
     "PricingCommandResult",
     "PricingPage",
+    "PricingPolicyService",
+    "PricingPolicyStore",
+    "UpsertStandardCostSeed",
     "pricing_permission_registry",
 ]

@@ -93,3 +93,16 @@ itens e retorna `VERSION_CONFLICT` quando a versão esperada está obsoleta.
 O comando grava Audit com snapshots antes/depois e publica
 `PriceListVersionActivated` via Outbox na mesma transação de negócio. Replays
 idempotentes reutilizam a resposta pública original e não duplicam efeitos.
+
+## Entrega do Commit 085
+
+Como M8 Costing ainda não está ativo, M9 recebeu o seed transitório
+`pricing.standard_cost_seed`, restrito à origem `LEGACY_OPENING` e vinculado ao
+produto por `(company_id, product_id)`. O serviço `PricingPolicyService`
+mantém esse custo provisório e as políticas ativas de margem mínima sem expor
+custos a perfis sem autorização de precificação.
+
+A validação de rentabilidade calcula a margem a partir de preço e custo padrão
+provisório, aplicando a política ativa de `minimum_margin_policy`. Preços abaixo
+do piso retornam `MINIMUM_MARGIN_VIOLATION`, e produtos sem seed retornam
+`STANDARD_COST_NOT_FOUND`.

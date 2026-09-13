@@ -2,6 +2,7 @@
 
 import asyncio
 from datetime import date
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
@@ -17,24 +18,30 @@ from erp.modules.admin.domain import (
 )
 from erp.modules.admin.infrastructure import PostgresCorporateDirectory
 from erp.modules.pricing.application import (
+    CreateMinimumMarginPolicy,
     CreatePriceList,
     CreatePriceListVersion,
     PricingAuthorization,
     PricingCatalogService,
+    PricingPolicyService,
+    UpsertStandardCostSeed,
 )
 from erp.modules.pricing.application.permissions import (
     PRICING_PRICE_CREATE,
     PRICING_SIMULATE,
 )
-from erp.modules.pricing.domain import PriceListStatus, PriceListVersionStatus, PriceType
+from erp.modules.pricing.domain import Money, PriceListStatus, PriceListVersionStatus, PriceType
 from erp.modules.pricing.infrastructure import (
     MinimumMarginPolicyModel,
     PostgresPricingCatalogue,
+    PostgresPricingPolicies,
     PriceListItemModel,
     PriceListModel,
     PriceListVersionModel,
     PricingSnapshotModel,
+    StandardCostSeedModel,
 )
+from erp.modules.product.infrastructure import ProductRepository
 from erp.platform.errors import ApplicationError
 from tests.integration.test_product_persistence import Fixture, fixture
 
@@ -62,6 +69,9 @@ async def _cleanup_pricing(data: Fixture) -> None:
     async with data.database.session() as session, session.begin():
         await session.execute(
             delete(PricingSnapshotModel).where(PricingSnapshotModel.company_id.in_(company_ids))
+        )
+        await session.execute(
+            delete(StandardCostSeedModel).where(StandardCostSeedModel.company_id.in_(company_ids))
         )
         await session.execute(
             delete(MinimumMarginPolicyModel).where(
@@ -147,6 +157,72 @@ def test_pricing_catalogue_creates_lists_and_draft_versions_company_scoped() -> 
                         page_size=20,
                     )
                 ).items == ()
+            finally:
+                await _cleanup_pricing(data)
+
+    asyncio.run(scenario())
+
+
+def test_pricing_policies_validate_legacy_cost_and_minimum_margin() -> None:
+    async def scenario() -> None:
+        async with fixture() as data:
+            try:
+                product = data.product(code="POLICY")
+                async with data.database.session() as session, session.begin():
+                    await ProductRepository(session, company_id=data.company_id).add(
+                        product, actor_id=data.actor_id
+                    )
+                service = PricingPolicyService(
+                    PostgresPricingPolicies(data.database),
+                    PricingAuthorization(
+                        CompanyAccessService(PostgresCorporateDirectory(data.database))
+                    ),
+                )
+                context = _security_context(data)
+                seed = await service.upsert_standard_cost_seed(
+                    context,
+                    UpsertStandardCostSeed(
+                        company_id=data.company_id,
+                        product_id=product.id,
+                        cost_amount=Decimal("60.00"),
+                    ),
+                )
+                updated = await service.upsert_standard_cost_seed(
+                    context,
+                    UpsertStandardCostSeed(
+                        company_id=data.company_id,
+                        product_id=product.id,
+                        cost_amount=Decimal("70.00"),
+                    ),
+                )
+                policy = await service.create_minimum_margin_policy(
+                    context,
+                    CreateMinimumMarginPolicy(
+                        company_id=data.company_id,
+                        code="default",
+                        name="Default Margin",
+                        minimum_margin=Decimal("0.3000"),
+                    ),
+                )
+                actual = await service.validate_profitability(
+                    context,
+                    company_id=data.company_id,
+                    product_id=product.id,
+                    price=Money.brl("100.00"),
+                )
+                with pytest.raises(ApplicationError) as low_margin:
+                    await service.validate_profitability(
+                        context,
+                        company_id=data.company_id,
+                        product_id=product.id,
+                        price=Money.brl("90.00"),
+                    )
+
+                assert seed.source == "LEGACY_OPENING"
+                assert updated.version == seed.version + 1
+                assert policy.minimum_margin.value == Decimal("0.3000")
+                assert actual.value == Decimal("0.3000")
+                assert low_margin.value.code == "MINIMUM_MARGIN_VIOLATION"
             finally:
                 await _cleanup_pricing(data)
 
