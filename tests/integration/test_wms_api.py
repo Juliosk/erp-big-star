@@ -14,8 +14,10 @@ from erp.apps.api.app import create_app
 from erp.modules.admin.application import SecurityContext
 from erp.modules.admin.domain import AuthenticatedPrincipal, AuthenticationLevel, Scope, ScopeType
 from erp.modules.product.infrastructure import ProductRepository
+from erp.modules.product.infrastructure.barcode_model import ProductBarcodeModel
 from erp.modules.wms.application.permissions import WMS_PICK_EXECUTE
 from erp.modules.wms.infrastructure import (
+    PICKING_TASK_SCANNED,
     PICKING_WAVE_RELEASED,
     PackageItemModel,
     PackageModel,
@@ -24,6 +26,7 @@ from erp.modules.wms.infrastructure import (
     ShipmentModel,
 )
 from erp.platform.audit import AuditEventModel
+from erp.platform.idempotency.models import IdempotencyRecordModel
 from erp.platform.messaging import MessageEnvelope
 from erp.platform.outbox import OutboxEventModel
 from tests.integration.test_product_persistence import Fixture, fixture
@@ -83,6 +86,11 @@ def wms_api() -> Iterator[WmsApiFixture]:
                         )
                     )
                     await session.execute(
+                        delete(IdempotencyRecordModel).where(
+                            IdempotencyRecordModel.scope.like("wms:%")
+                        )
+                    )
+                    await session.execute(
                         delete(PackageItemModel).where(
                             PackageItemModel.company_id.in_(company_ids)
                         )
@@ -125,6 +133,30 @@ def _seed_products(api: WmsApiFixture) -> tuple[str, str, str]:
 
     assert api.client.portal is not None
     return cast(tuple[str, str, str], api.client.portal.call(seed))
+
+
+def _seed_product_with_barcode(api: WmsApiFixture, *, barcode: str = "EAN001") -> str:
+    async def seed() -> str:
+        product = api.data.product(code="WMSBAR")
+        async with api.data.database.session() as session, session.begin():
+            await ProductRepository(session, company_id=api.data.company_id).add(
+                product, actor_id=api.data.actor_id
+            )
+            session.add(
+                ProductBarcodeModel(
+                    id=uuid4(),
+                    company_id=api.data.company_id,
+                    product_id=product.id,
+                    barcode_type="EAN",
+                    barcode=barcode,
+                    created_by=api.data.actor_id,
+                    updated_by=api.data.actor_id,
+                )
+            )
+        return str(product.id)
+
+    assert api.client.portal is not None
+    return str(api.client.portal.call(seed))
 
 
 def test_wms_api_creates_lists_and_reads_picking_waves_by_company_scope() -> None:
@@ -249,6 +281,102 @@ def test_wms_api_releases_wave_with_etag_audit_and_outbox() -> None:
 
         assert api.client.portal is not None
         api.client.portal.call(verify_effects)
+
+
+def test_wms_api_scans_picking_task_idempotently_and_blocks_over_pick() -> None:
+    with wms_api() as api:
+        product_id = _seed_product_with_barcode(api, barcode="EAN001")
+        created = api.client.post(
+            "/api/v1/wms/picking-waves",
+            json={
+                "company_id": str(api.data.company_id),
+                "code": "SCAN-WAVE",
+                "items": [{"product_id": product_id, "quantity": "1.000000"}],
+            },
+            headers=api.headers,
+        )
+        assert created.status_code == 201
+        wave_id = created.json()["wave"]["id"]
+        task_id = created.json()["tasks"][0]["id"]
+        assert (
+            api.client.post(
+                f"/api/v1/wms/picking-waves/{wave_id}/release"
+                f"?company_id={api.data.company_id}",
+                headers={**api.headers, "If-Match": '"1"'},
+            ).status_code
+            == 200
+        )
+
+        idempotency_key = str(uuid4())
+        headers = {**api.headers, "Idempotency-Key": idempotency_key}
+        first = api.client.post(
+            f"/api/v1/wms/picking-tasks/{task_id}/scan?company_id={api.data.company_id}",
+            json={"barcode": "ean001", "quantity": "0.500000"},
+            headers=headers,
+        )
+        replay = api.client.post(
+            f"/api/v1/wms/picking-tasks/{task_id}/scan?company_id={api.data.company_id}",
+            json={"barcode": "ean001", "quantity": "0.500000"},
+            headers=headers,
+        )
+        completed = api.client.post(
+            f"/api/v1/wms/picking-tasks/{task_id}/scan?company_id={api.data.company_id}",
+            json={"barcode": "EAN001", "quantity": "0.500000"},
+            headers={**api.headers, "Idempotency-Key": str(uuid4())},
+        )
+        over_pick = api.client.post(
+            f"/api/v1/wms/picking-tasks/{task_id}/scan?company_id={api.data.company_id}",
+            json={"barcode": "EAN001", "quantity": "0.000001"},
+            headers={**api.headers, "Idempotency-Key": str(uuid4())},
+        )
+        mismatch = api.client.post(
+            f"/api/v1/wms/picking-tasks/{task_id}/scan?company_id={api.data.company_id}",
+            json={"barcode": "MISSING", "quantity": "0.000001"},
+            headers={**api.headers, "Idempotency-Key": str(uuid4())},
+        )
+
+        assert first.status_code == replay.status_code == 200
+        assert first.headers["etag"] == '"2"'
+        assert first.headers["idempotency-replayed"] == "false"
+        assert replay.headers["idempotency-replayed"] == "true"
+        assert first.json()["task"]["picked_quantity"] == "0.500000"
+        assert first.json()["task"]["status"] == "IN_PROGRESS"
+        assert first.json()["event_id"] == replay.json()["event_id"]
+        assert first.json()["audit_event_id"] == replay.json()["audit_event_id"]
+        assert completed.status_code == 200
+        assert completed.headers["etag"] == '"3"'
+        assert completed.json()["task"]["picked_quantity"] == "1.000000"
+        assert completed.json()["task"]["status"] == "COMPLETED"
+        assert over_pick.status_code == 409
+        assert over_pick.json()["error"]["code"] == "WMS_PICKING_TASK_OVER_PICK"
+        assert mismatch.status_code == 409
+        assert mismatch.json()["error"]["code"] == "WMS_BARCODE_MISMATCH"
+
+        async def verify_scan_effects() -> None:
+            async with api.data.database.session() as session:
+                outbox = await session.scalar(
+                    select(OutboxEventModel).where(
+                        OutboxEventModel.event_id == UUID(first.json()["event_id"])
+                    )
+                )
+                audit = await session.get(AuditEventModel, UUID(first.json()["audit_event_id"]))
+                assert outbox is not None
+                assert audit is not None
+                envelope = MessageEnvelope.model_validate(outbox.payload)
+                assert outbox.source_module == "wms"
+                assert outbox.event_type == PICKING_TASK_SCANNED
+                assert envelope.message_type == PICKING_TASK_SCANNED
+                assert envelope.aggregate_type == "picking_task"
+                assert envelope.aggregate_version == 2
+                assert envelope.payload["barcode"] == "EAN001"
+                assert audit.operation == PICKING_TASK_SCANNED
+                assert audit.before_snapshot is not None
+                assert audit.before_snapshot["picked_quantity"] == "0.000000"
+                assert audit.after_snapshot is not None
+                assert audit.after_snapshot["picked_quantity"] == "0.500000"
+
+        assert api.client.portal is not None
+        api.client.portal.call(verify_scan_effects)
 
 
 def test_wms_api_enforces_rbac_scope_and_error_contracts() -> None:

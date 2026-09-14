@@ -4,17 +4,21 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from erp.modules.wms.application.picking import PickingTaskCommandResult
 from erp.modules.wms.application.waves import (
     CommandMetadata,
     PickingWaveDetail,
     WmsCommandResult,
+    picking_task_snapshot,
     picking_wave_detail_snapshot,
 )
+from erp.modules.wms.domain.picking import PickingTask
 from erp.platform.audit import AuditEvent, AuditService
 from erp.platform.messaging import MessageEnvelope, MessageKind
 from erp.platform.outbox import OutboxService
 
 PICKING_WAVE_RELEASED = "PickingWaveReleased"
+PICKING_TASK_SCANNED = "PickingTaskScanned"
 
 
 class WmsEffects:
@@ -83,5 +87,54 @@ class WmsEffects:
         await OutboxService().enqueue(session, envelope)
         return WmsCommandResult(detail, envelope.message_id, audit_id)
 
+    async def record_task_scan(
+        self,
+        session: AsyncSession,
+        task: PickingTask,
+        *,
+        actor_id: UUID,
+        metadata: CommandMetadata,
+        before: PickingTask,
+        barcode: str,
+    ) -> PickingTaskCommandResult:
+        before_snapshot = picking_task_snapshot(before)
+        after_snapshot = picking_task_snapshot(task)
+        after_snapshot["barcode"] = barcode.strip().upper()
+        audit_id = await AuditService().record(
+            session,
+            AuditEvent(
+                actor_user_id=actor_id,
+                company_id=task.company_id,
+                branch_id=None,
+                module="wms",
+                entity_type="picking_task",
+                entity_id=task.id,
+                operation=PICKING_TASK_SCANNED,
+                request_id=metadata.request_id,
+                correlation_id=metadata.correlation_id,
+                source_ip=metadata.source_ip,
+                before_snapshot=before_snapshot,
+                after_snapshot=after_snapshot,
+            ),
+        )
+        envelope = MessageEnvelope.new(
+            message_kind=MessageKind.DOMAIN_EVENT,
+            message_type=PICKING_TASK_SCANNED,
+            event_version=1,
+            producer_module="wms",
+            producer_domain="wms",
+            aggregate_type="picking_task",
+            aggregate_id=task.id,
+            aggregate_version=task.version,
+            company_id=task.company_id,
+            branch_id=None,
+            correlation_id=metadata.correlation_id,
+            request_id=metadata.request_id,
+            causation_id=None,
+            payload=after_snapshot,
+        )
+        await OutboxService().enqueue(session, envelope)
+        return PickingTaskCommandResult(task, envelope.message_id, audit_id)
 
-__all__ = ["PICKING_WAVE_RELEASED", "WmsEffects"]
+
+__all__ = ["PICKING_TASK_SCANNED", "PICKING_WAVE_RELEASED", "WmsEffects"]

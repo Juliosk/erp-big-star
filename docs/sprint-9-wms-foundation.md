@@ -125,3 +125,15 @@ O `WmsEffects` grava Audit e evento `PickingWaveReleased` via Outbox na mesma
 transação da mutação. O evento carrega `company_id`, aggregate version, operador
 de liberação e contagem de tarefas; o Audit preserva snapshots antes/depois do
 detalhe da onda.
+
+## Entrega do Commit 097
+
+O endpoint `POST /api/v1/wms/picking-tasks/{task_id}/scan` executa bipagem
+idempotente com `Idempotency-Key`, escopo por `company_id` e RBAC
+`wms.pick.execute`. O comando só é aceito para tarefas de ondas já liberadas e
+valida se o barcode pertence ao produto da tarefa dentro da empresa.
+
+A atualização da tarefa usa lock transacional, incrementa versão/ETag e delega
+ao domínio a trava contra over-picking. Cada scan concluído gera Audit e evento
+`PickingTaskScanned` no Outbox; replays retornam a resposta original sem repetir
+mutação ou efeitos.

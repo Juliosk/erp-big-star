@@ -9,6 +9,12 @@ from erp.modules.wms.application.permissions import (
     WmsAuthorization,
     wms_permission_registry,
 )
+from erp.modules.wms.application.picking import (
+    PickingTaskCommandResult,
+    PickingTaskScanService,
+    ScanPickingTask,
+    WmsPickingTaskStore,
+)
 from erp.modules.wms.application.waves import (
     CommandMetadata,
     CreatePickingWave,
@@ -30,12 +36,16 @@ __all__ = [
     "CommandMetadata",
     "CreatePickingWave",
     "PickingTaskBatchItem",
+    "PickingTaskCommandResult",
+    "PickingTaskScanService",
     "PickingWaveDetail",
     "PickingWaveService",
     "ReleasePickingWave",
+    "ScanPickingTask",
     "WmsAuthorization",
     "WmsCommandResult",
     "WmsPage",
+    "WmsPickingTaskStore",
     "WmsWaveStore",
     "wms_permission_registry",
 ]

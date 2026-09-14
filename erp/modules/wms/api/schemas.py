@@ -56,6 +56,13 @@ class PickingWaveCommandResponse(BaseModel):
     idempotency_replayed: bool = False
 
 
+class PickingTaskCommandResponse(BaseModel):
+    task: PickingTaskResponse
+    event_id: UUID | None = None
+    audit_event_id: UUID | None = None
+    idempotency_replayed: bool = False
+
+
 class PickingWaveListResponse(BaseModel):
     data: list[PickingWaveResponse]
     meta: PageMetadata
@@ -81,13 +88,21 @@ class CreatePickingWaveRequest(BaseModel):
     items: list[CreatePickingTaskRequest] = Field(min_length=1, max_length=100)
 
 
+class ScanPickingTaskRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    barcode: str = Field(min_length=1, max_length=64)
+    quantity: Decimal = Field(gt=0, max_digits=18, decimal_places=6)
+
+
 __all__ = [
     "CreatePickingTaskRequest",
     "CreatePickingWaveRequest",
     "PageMetadata",
+    "PickingTaskCommandResponse",
     "PickingTaskResponse",
     "PickingWaveCommandResponse",
     "PickingWaveDetailResponse",
     "PickingWaveListResponse",
     "PickingWaveResponse",
+    "ScanPickingTaskRequest",
 ]

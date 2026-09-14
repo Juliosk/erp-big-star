@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from erp.modules.inventory.infrastructure.lot_model import InventoryLotModel
 from erp.modules.inventory.infrastructure.pool_model import InventoryPoolModel
 from erp.modules.inventory.infrastructure.warehouse_model import WarehouseModel
+from erp.modules.product.infrastructure.barcode_model import ProductBarcodeModel
 from erp.modules.product.infrastructure.product_model import ProductModel
 from erp.modules.wms.domain.package import Package, PackageStatus, PackageType
 from erp.modules.wms.domain.picking import (
@@ -195,6 +196,60 @@ class WmsRepository:
             )
         )
         await self._flush_unique(resource="PICKING_TASK")
+
+    async def get_task_for_update(self, task_id: UUID) -> PickingTask | None:
+        result = await self._session.scalars(
+            select(PickingTaskModel)
+            .where(
+                PickingTaskModel.company_id == self._company_id,
+                PickingTaskModel.id == task_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        model = result.one_or_none()
+        return None if model is None else _task(model)
+
+    async def scan_task(
+        self,
+        task: PickingTask,
+        *,
+        actor_id: UUID,
+        barcode: str,
+        quantity: str,
+    ) -> PickingTask:
+        _require_actor(actor_id)
+        self._validate_scope(task.company_id, "picking task")
+        await self._ensure_barcode_matches_product(barcode, product_id=task.product_id)
+        try:
+            scanned = task.scan(quantity)
+        except ValueError as error:
+            raise ApplicationError(
+                code="WMS_PICKING_TASK_OVER_PICK",
+                message="Picking task scan exceeds requested quantity.",
+                status_code=409,
+            ) from error
+        result = await self._session.scalars(
+            update(PickingTaskModel)
+            .where(
+                PickingTaskModel.company_id == self._company_id,
+                PickingTaskModel.id == task.id,
+                PickingTaskModel.version == task.version,
+            )
+            .values(
+                picked_quantity=scanned.picked_quantity,
+                status=scanned.status,
+                updated_by=actor_id,
+                version=PickingTaskModel.version + 1,
+            )
+            .returning(PickingTaskModel)
+            .execution_options(synchronize_session=False, populate_existing=True)
+        )
+        model = result.one_or_none()
+        if model is None:
+            raise OptimisticLockError(expected_version=task.version)
+        await self._session.flush()
+        return _task(model)
 
     async def add_shipment(self, shipment: Shipment, *, actor_id: UUID) -> None:
         _require_actor(actor_id)
@@ -389,6 +444,27 @@ class WmsRepository:
     async def _ensure_product(self, product_id: UUID) -> None:
         if not await self._exists(ProductModel, product_id):
             raise _not_found("Product")
+
+    async def _ensure_barcode_matches_product(self, barcode: str, *, product_id: UUID) -> None:
+        normalized = barcode.strip().upper()
+        if not normalized:
+            raise ApplicationError(
+                code="BUSINESS_VALIDATION_ERROR",
+                message="Invalid picking scan data.",
+                status_code=422,
+            )
+        row = await self._session.scalar(
+            select(ProductBarcodeModel).where(
+                ProductBarcodeModel.company_id == self._company_id,
+                ProductBarcodeModel.barcode == normalized,
+            )
+        )
+        if row is None or row.product_id != product_id:
+            raise ApplicationError(
+                code="WMS_BARCODE_MISMATCH",
+                message="Scanned barcode does not match the picking task product.",
+                status_code=409,
+            )
 
     async def _ensure_warehouse(self, warehouse_id: UUID | None) -> None:
         if warehouse_id is not None and not await self._exists(WarehouseModel, warehouse_id):
