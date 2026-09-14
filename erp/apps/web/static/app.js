@@ -2,6 +2,7 @@ import { mountImports } from "./imports.js";
 import { mountCustomers } from "./customers.js";
 import { mountInventory } from "./inventory.js";
 import { mountPricing } from "./pricing.js";
+import { mountWms } from "./wms.js";
 const $ = (id) => document.getElementById(id);
 const labels = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -42,6 +43,23 @@ const errors = {
     "Simulação de pricing indisponível nesta inicialização.",
   PRICING_SNAPSHOTS_UNAVAILABLE:
     "Consulta de snapshots indisponível nesta inicialização.",
+  WMS_BARCODE_MISMATCH:
+    "Código de barras não corresponde ao produto da tarefa.",
+  WMS_PACKAGE_EMPTY:
+    "Adicione ao menos um item antes de verificar o pacote.",
+  WMS_PACKAGE_ITEM_MISMATCH:
+    "O item do pacote não corresponde à tarefa de separação.",
+  WMS_PACKAGE_OVER_PACK:
+    "A quantidade embalada excede a quantidade já bipada.",
+  WMS_PACKAGE_STATUS_CONFLICT:
+    "O pacote não está em uma situação compatível com esta ação.",
+  WMS_PICKING_TASK_NOT_PICKED:
+    "Bipe a tarefa antes de adicionar o item ao pacote.",
+  WMS_PICKING_TASK_OVER_PICK:
+    "A bipagem excede a quantidade solicitada na tarefa.",
+  WMS_PICKING_WAVE_STATUS_CONFLICT:
+    "A onda não está em uma situação compatível com esta ação.",
+  WMS_PACKING_UNAVAILABLE: "Packing WMS indisponível nesta inicialização.",
   PERMISSION_FORBIDDEN: "Sua identidade não tem permissão para esta ação.",
   RESOURCE_NOT_FOUND: "Cadastro não encontrado na empresa selecionada.",
   INVALID_LIFECYCLE_TRANSITION:
@@ -64,7 +82,7 @@ let token = "",
   area = "products";
 let lastCreation = { body: "", key: "" };
 const can = (action) => permissions.has(`product.product.${action}`);
-let customers, inventory, pricing;
+let customers, inventory, pricing, wms;
 const imports = mountImports({
   api,
   context: () => ({ company, permissions }),
@@ -76,6 +94,7 @@ const imports = mountImports({
     $("customers-nav").removeAttribute("aria-current");
     $("inventory-nav").removeAttribute("aria-current");
     $("pricing-nav").removeAttribute("aria-current");
+    $("wms-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent =
       "Governança / Importações";
     generation++;
@@ -85,6 +104,7 @@ const imports = mountImports({
     customers?.hide();
     inventory?.hide();
     pricing?.hide();
+    wms?.hide();
   },
 });
 customers = mountCustomers({
@@ -98,12 +118,14 @@ customers = mountCustomers({
     $("imports-nav").removeAttribute("aria-current");
     $("inventory-nav").removeAttribute("aria-current");
     $("pricing-nav").removeAttribute("aria-current");
+    $("wms-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent = "Cadastros / Clientes";
     generation++;
     current = null;
     imports.reset();
     inventory?.hide();
     pricing?.hide();
+    wms?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -119,6 +141,7 @@ inventory = mountInventory({
     $("imports-nav").removeAttribute("aria-current");
     $("customers-nav").removeAttribute("aria-current");
     $("pricing-nav").removeAttribute("aria-current");
+    $("wms-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent =
       "Operações / Inventário";
     generation++;
@@ -126,6 +149,7 @@ inventory = mountInventory({
     imports.reset();
     customers.hide();
     pricing?.hide();
+    wms?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -141,6 +165,7 @@ pricing = mountPricing({
     $("imports-nav").removeAttribute("aria-current");
     $("customers-nav").removeAttribute("aria-current");
     $("inventory-nav").removeAttribute("aria-current");
+    $("wms-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent =
       "Comercial / Pricing";
     generation++;
@@ -148,6 +173,30 @@ pricing = mountPricing({
     imports.reset();
     customers.hide();
     inventory.hide();
+    $("catalog").hidden = true;
+    $("detail").hidden = true;
+  },
+});
+wms = mountWms({
+  api,
+  context: () => ({ company, permissions }),
+  notice,
+  enter: () => {
+    area = "wms";
+    $("wms-nav").setAttribute("aria-current", "page");
+    $("products-nav").removeAttribute("aria-current");
+    $("imports-nav").removeAttribute("aria-current");
+    $("customers-nav").removeAttribute("aria-current");
+    $("inventory-nav").removeAttribute("aria-current");
+    $("pricing-nav").removeAttribute("aria-current");
+    document.querySelector(".topbar > span").textContent =
+      "Operações / Expedição";
+    generation++;
+    current = null;
+    imports.reset();
+    customers.hide();
+    inventory.hide();
+    pricing.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -161,10 +210,12 @@ function reset() {
   customers.reset();
   inventory.reset();
   pricing.reset();
+  wms.reset();
   $("imports-nav").hidden = true;
   $("customers-nav").hidden = true;
   $("inventory-nav").hidden = true;
   $("pricing-nav").hidden = true;
+  $("wms-nav").hidden = true;
   token = "";
   permissions.clear();
   current = null;
@@ -279,6 +330,8 @@ async function connect() {
     !permissions.has("pricing.price.create") &&
     !permissions.has("pricing.price.activate") &&
     !permissions.has("pricing.margin.view");
+  $("wms-nav").hidden =
+    !permissions.has("wms.pick.execute") && !permissions.has("wms.pack.execute");
   if (!company) {
     notice(
       "Nenhuma empresa ativa autorizada. Configure os escopos da identidade.",
@@ -296,11 +349,13 @@ async function loadList() {
   $("customers-nav").removeAttribute("aria-current");
   $("inventory-nav").removeAttribute("aria-current");
   $("pricing-nav").removeAttribute("aria-current");
+  $("wms-nav").removeAttribute("aria-current");
   document.querySelector(".topbar > span").textContent = "Cadastros / Produtos";
   imports.reset();
   customers.hide();
   inventory.hide();
   pricing.hide();
+  wms.hide();
   const epoch = ++generation;
   current = null;
   $("detail").hidden = true;
@@ -458,6 +513,7 @@ bind(
     if (area === "customers") return customers.show();
     if (area === "inventory") return inventory.show();
     if (area === "pricing") return pricing.show();
+    if (area === "wms") return wms.show();
     await loadList();
   },
   "change",
@@ -480,6 +536,9 @@ bind("inventory-nav", () => {
 });
 bind("pricing-nav", () => {
   if (company) return pricing.show();
+});
+bind("wms-nav", () => {
+  if (company) return wms.show();
 });
 bind("products-nav", () => {
   if (company) return loadList();

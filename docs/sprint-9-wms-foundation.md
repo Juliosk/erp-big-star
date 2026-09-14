@@ -150,3 +150,16 @@ pacotes só recebem itens em `DRAFT`, itens precisam corresponder à tarefa de
 picking da mesma empresa e a soma embalada não pode exceder a quantidade já
 bipada. `verify` exige pacote com itens e `finalize` exige pacote verificado,
 com versionamento otimista via `If-Match`.
+
+## Entrega do Commit 099
+
+O Cockpit de Expedição foi integrado à interface `/ui/` como módulo M10
+isolado. A navegação aparece apenas para identidades com `wms.pick.execute` ou
+`wms.pack.execute` e permite executar o fluxo operacional inicial: criar onda,
+liberar, bipar tarefa, criar pacote, adicionar item, verificar e finalizar.
+
+O runbook operacional oficial foi consolidado em `docs/wms-runbook.md`, com
+permissões, contratos HTTP, efeitos transacionais, fluxo Web e comandos de
+validação local. A Sprint 9 fica pronta para homologação com E2E Chromium,
+escopo por empresa, segurança estática da UI e fronteiras arquiteturais
+preservadas.

@@ -624,6 +624,64 @@ form button[type="submit"] {
   margin-top: 6px;
   font-size: 18px;
 }
+.wms-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 22px;
+}
+.wms-wide {
+  grid-column: 1 / -1;
+}
+.wms-form,
+.wms-package-grid {
+  display: grid;
+  gap: 14px;
+  margin: 18px 0 24px;
+}
+.wms-form {
+  grid-template-columns: 1fr 1.4fr 0.7fr auto;
+  align-items: end;
+}
+.wms-package-grid {
+  grid-template-columns: 1.2fr 0.8fr 0.8fr auto;
+  align-items: end;
+}
+.wms-selected,
+.wms-package-card {
+  padding: 18px;
+  border: 1px solid var(--sky);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, #ffffff 0 78%, transparent),
+    repeating-linear-gradient(
+      135deg,
+      #eef5ff 0,
+      #eef5ff 8px,
+      #ffffff 8px,
+      #ffffff 16px
+    );
+}
+.wms-selected h2 {
+  margin: 6px 0;
+}
+.wms-package-card strong {
+  display: block;
+  font:
+    700 16px "Cascadia Mono",
+    monospace;
+}
+#wms h3 {
+  margin: 18px 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+}
+#wms td:nth-child(1),
+#wms td:nth-child(3) {
+  font-family: "Cascadia Mono", monospace;
+  font-size: 13px;
+}
 .transition-actions {
   margin-top: 25px;
   padding-top: 20px;
@@ -714,10 +772,17 @@ dialog::backdrop {
   }
   .pricing-grid,
   .pricing-form,
-  .pricing-simulator-grid {
+  .pricing-simulator-grid,
+  .wms-grid,
+  .wms-form,
+  .wms-package-grid {
     grid-template-columns: 1fr;
   }
   #pricing table {
+    table-layout: fixed;
+    white-space: normal;
+  }
+  #wms table {
     table-layout: fixed;
     white-space: normal;
   }

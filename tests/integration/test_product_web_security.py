@@ -20,6 +20,7 @@ def test_shell_contains_no_tokens_and_has_strict_same_origin_policy() -> None:
         assert client.get("/ui/customers.js").status_code == 200
         assert client.get("/ui/inventory.js").status_code == 200
         assert client.get("/ui/pricing.js").status_code == 200
+        assert client.get("/ui/wms.js").status_code == 200
         assert client.get("/ui/styles.css").status_code == 200
         assert client.get("/api/v1/admin/session-context").status_code == 401
         result = client.get(

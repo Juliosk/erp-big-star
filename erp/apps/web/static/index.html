@@ -30,6 +30,7 @@
         <a id="pricing-nav" href="#pricing" hidden
           >Pricing <span>M9</span></a
         >
+        <a id="wms-nav" href="#wms" hidden>Expedição <span>M10</span></a>
       </nav>
       <div class="company-context">
         <label for="company">Empresa de trabalho</label
@@ -661,6 +662,159 @@
                 </thead>
                 <tbody id="inventory-trace-rows"></tbody>
               </table>
+            </div>
+          </section>
+        </div>
+      </section>
+      <section id="wms" hidden aria-labelledby="wms-title">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">WMS / M10</p>
+            <h1 id="wms-title">Cockpit de expedição</h1>
+            <p>
+              Ondas de separação, bipagem e embalagem em um fluxo operacional
+              com escopo por empresa.
+            </p>
+          </div>
+          <button id="wms-refresh" class="secondary">Atualizar expedição</button>
+        </div>
+        <div class="wms-grid">
+          <section class="panel">
+            <h2>Nova onda de separação</h2>
+            <form id="wms-wave-form" class="wms-form">
+              <div>
+                <label for="wms-wave-code">Código da onda</label
+                ><input id="wms-wave-code" required maxlength="64" placeholder="WAVE-001" />
+              </div>
+              <div>
+                <label for="wms-product-id">Produto ID</label
+                ><input id="wms-product-id" required autocomplete="off" spellcheck="false" />
+              </div>
+              <div>
+                <label for="wms-wave-quantity">Quantidade</label
+                ><input
+                  id="wms-wave-quantity"
+                  type="number"
+                  min="0.000001"
+                  step="0.000001"
+                  required
+                  value="1"
+                />
+              </div>
+              <button type="submit">Criar onda</button>
+            </form>
+            <div class="table-wrap compact-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Onda</th>
+                    <th>Status</th>
+                    <th>Versão</th>
+                    <th><span class="sr-only">Ação</span></th>
+                  </tr>
+                </thead>
+                <tbody id="wms-wave-rows"></tbody>
+              </table>
+              <div id="wms-empty" class="empty" hidden>
+                <span aria-hidden="true">◇</span>
+                <h2>Nenhuma onda nesta empresa</h2>
+                <p>Crie uma onda para iniciar a separação.</p>
+              </div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="wms-selected">
+              <p class="eyebrow">ONDA SELECIONADA</p>
+              <h2 id="wms-selected-title">Nenhuma onda selecionada</h2>
+              <p id="wms-selected-meta" class="hint">
+                Selecione uma onda para liberar, bipar e embalar.
+              </p>
+            </div>
+            <h3>Tarefas</h3>
+            <div class="table-wrap compact-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Seq.</th>
+                    <th>Produto</th>
+                    <th>Separado</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="wms-task-rows"></tbody>
+              </table>
+            </div>
+            <form id="wms-scan-form" class="wms-form">
+              <div>
+                <label for="wms-scan-task-id">Tarefa ID</label
+                ><input id="wms-scan-task-id" required autocomplete="off" spellcheck="false" />
+              </div>
+              <div>
+                <label for="wms-scan-barcode">Barcode de separação</label
+                ><input id="wms-scan-barcode" required maxlength="64" />
+              </div>
+              <div>
+                <label for="wms-scan-quantity">Quantidade</label
+                ><input
+                  id="wms-scan-quantity"
+                  type="number"
+                  min="0.000001"
+                  step="0.000001"
+                  required
+                  value="1"
+                />
+              </div>
+              <button type="submit">Bipar tarefa</button>
+            </form>
+          </section>
+          <section class="panel wms-wide">
+            <h2>Embalagem</h2>
+            <form id="wms-package-form" class="wms-package-grid">
+              <div>
+                <label for="wms-package-code">Código do pacote</label
+                ><input id="wms-package-code" required maxlength="64" placeholder="PKG-001" />
+              </div>
+              <div>
+                <label for="wms-package-type">Tipo</label
+                ><select id="wms-package-type">
+                  <option value="CARTON">Caixa</option>
+                  <option value="BAG">Saco</option>
+                  <option value="PALLET">Pallet</option>
+                  <option value="OTHER">Outro</option>
+                </select>
+              </div>
+              <div>
+                <label for="wms-package-weight">Peso em gramas</label
+                ><input id="wms-package-weight" type="number" min="1" step="1" />
+              </div>
+              <button type="submit">Criar pacote</button>
+            </form>
+            <div id="wms-package-card" class="wms-package-card" hidden></div>
+            <form id="wms-package-item-form" class="wms-package-grid">
+              <div>
+                <label for="wms-package-task-id">Tarefa ID</label
+                ><input id="wms-package-task-id" required autocomplete="off" spellcheck="false" />
+              </div>
+              <div>
+                <label for="wms-package-product-id">Produto ID</label
+                ><input id="wms-package-product-id" required autocomplete="off" spellcheck="false" />
+              </div>
+              <div>
+                <label for="wms-package-quantity">Quantidade</label
+                ><input
+                  id="wms-package-quantity"
+                  type="number"
+                  min="0.000001"
+                  step="0.000001"
+                  required
+                  value="1"
+                />
+              </div>
+              <button type="submit">Adicionar item</button>
+            </form>
+            <div class="transition-actions">
+              <button id="wms-package-verify" class="secondary">Verificar pacote</button>
+              <button id="wms-package-finalize">Finalizar pacote</button>
             </div>
           </section>
         </div>
