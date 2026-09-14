@@ -76,3 +76,14 @@ O planejamento da Sprint 9 foi documentado neste arquivo e o Dev Auth local/test
 passou a incluir as permissões oficiais de M10. Isso permite que as próximas
 rotas e telas sejam validadas sem bloqueio por identidade simulada, mantendo o
 adapter restrito a ambientes `local` e `test`.
+
+## Entrega do Commit 093
+
+Os repositórios PostgreSQL do M10 foram implementados em
+`erp.modules.wms.infrastructure`, com escopo obrigatório por `company_id` para
+`PickingWave`, `PickingTask`, `Package` e `Shipment`.
+
+O adapter valida referências a M2 Product e M5 Inventory usando FKs compostas e
+retorna contratos estáveis (`RESOURCE_NOT_FOUND`, `SCOPE_FORBIDDEN` e conflitos
+WMS) antes de expor os casos de uso oficiais. A suíte cobre round-trip,
+isolamento entre empresas, duplicidade transacional e referências ausentes.

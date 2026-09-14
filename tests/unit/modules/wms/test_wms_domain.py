@@ -26,6 +26,7 @@ def test_picking_task_scans_without_over_picking() -> None:
     task = PickingTask.create(
         company_id=uuid4(),
         wave_id=uuid4(),
+        sequence=1,
         product_id=uuid4(),
         requested_quantity="3.000000",
     )

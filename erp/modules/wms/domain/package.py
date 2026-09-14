@@ -29,6 +29,8 @@ class Package:
     package_type: PackageType
     status: PackageStatus
     wave_id: UUID | None
+    shipment_id: UUID | None
+    weight_grams: int | None
     version: int
 
     @classmethod
@@ -39,7 +41,11 @@ class Package:
         package_code: str,
         package_type: PackageType = PackageType.CARTON,
         wave_id: UUID | None = None,
+        shipment_id: UUID | None = None,
+        weight_grams: int | None = None,
     ) -> Package:
+        if weight_grams is not None and (type(weight_grams) is not int or weight_grams <= 0):
+            raise ValueError("weight_grams must be a positive integer.")
         return cls(
             id=uuid4(),
             company_id=_require_uuid(company_id, "company_id"),
@@ -47,6 +53,10 @@ class Package:
             package_type=package_type,
             status=PackageStatus.DRAFT,
             wave_id=None if wave_id is None else _require_uuid(wave_id, "wave_id"),
+            shipment_id=None
+            if shipment_id is None
+            else _require_uuid(shipment_id, "shipment_id"),
+            weight_grams=weight_grams,
             version=1,
         )
 
@@ -60,6 +70,8 @@ class Package:
             package_type=self.package_type,
             status=PackageStatus.VERIFIED,
             wave_id=self.wave_id,
+            shipment_id=self.shipment_id,
+            weight_grams=self.weight_grams,
             version=self.version + 1,
         )
 
@@ -73,9 +85,10 @@ class Package:
             package_type=self.package_type,
             status=PackageStatus.FINALIZED,
             wave_id=self.wave_id,
+            shipment_id=self.shipment_id,
+            weight_grams=self.weight_grams,
             version=self.version + 1,
         )
 
 
 __all__ = ["Package", "PackageStatus", "PackageType"]
-

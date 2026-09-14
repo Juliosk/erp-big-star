@@ -33,7 +33,8 @@ def _normalize_code(value: str, field: str, *, max_length: int = 64) -> str:
     code = value.strip().upper()
     if not code or len(code) > max_length:
         raise ValueError(f"{field} must be 1-{max_length} characters.")
-    if not code[0].isalnum() or any(char not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-" for char in code):
+    allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
+    if not code[0].isalnum() or any(char not in allowed for char in code):
         raise ValueError(f"{field} must use uppercase alphanumeric code format.")
     return code
 
@@ -124,7 +125,11 @@ class PickingTask:
     id: UUID
     company_id: UUID
     wave_id: UUID
+    sequence: int
     product_id: UUID
+    warehouse_id: UUID | None
+    lot_id: UUID | None
+    pool_id: UUID | None
     requested_quantity: Decimal
     picked_quantity: Decimal
     status: PickingTaskStatus
@@ -136,14 +141,26 @@ class PickingTask:
         *,
         company_id: UUID,
         wave_id: UUID,
+        sequence: int,
         product_id: UUID,
         requested_quantity: Decimal | str,
+        warehouse_id: UUID | None = None,
+        lot_id: UUID | None = None,
+        pool_id: UUID | None = None,
     ) -> PickingTask:
+        if type(sequence) is not int or sequence < 1:
+            raise ValueError("sequence must be a positive integer.")
         return cls(
             id=uuid4(),
             company_id=_require_uuid(company_id, "company_id"),
             wave_id=_require_uuid(wave_id, "wave_id"),
+            sequence=sequence,
             product_id=_require_uuid(product_id, "product_id"),
+            warehouse_id=None
+            if warehouse_id is None
+            else _require_uuid(warehouse_id, "warehouse_id"),
+            lot_id=None if lot_id is None else _require_uuid(lot_id, "lot_id"),
+            pool_id=None if pool_id is None else _require_uuid(pool_id, "pool_id"),
             requested_quantity=_quantity(requested_quantity),
             picked_quantity=Decimal("0.000000"),
             status=PickingTaskStatus.OPEN,
@@ -159,7 +176,11 @@ class PickingTask:
             id=self.id,
             company_id=self.company_id,
             wave_id=self.wave_id,
+            sequence=self.sequence,
             product_id=self.product_id,
+            warehouse_id=self.warehouse_id,
+            lot_id=self.lot_id,
+            pool_id=self.pool_id,
             requested_quantity=self.requested_quantity,
             picked_quantity=new_total,
             status=(
@@ -177,4 +198,3 @@ __all__ = [
     "PickingWave",
     "PickingWaveStatus",
 ]
-
