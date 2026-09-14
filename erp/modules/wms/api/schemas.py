@@ -49,6 +49,13 @@ class PickingWaveDetailResponse(BaseModel):
     tasks: list[PickingTaskResponse]
 
 
+class PickingWaveCommandResponse(BaseModel):
+    detail: PickingWaveDetailResponse
+    event_id: UUID | None = None
+    audit_event_id: UUID | None = None
+    idempotency_replayed: bool = False
+
+
 class PickingWaveListResponse(BaseModel):
     data: list[PickingWaveResponse]
     meta: PageMetadata
@@ -79,6 +86,7 @@ __all__ = [
     "CreatePickingWaveRequest",
     "PageMetadata",
     "PickingTaskResponse",
+    "PickingWaveCommandResponse",
     "PickingWaveDetailResponse",
     "PickingWaveListResponse",
     "PickingWaveResponse",

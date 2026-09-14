@@ -2,10 +2,18 @@
 
 from uuid import UUID
 
-from erp.modules.wms.application.waves import PickingWaveDetail, WmsPage, WmsWaveStore
+from erp.modules.wms.application.waves import (
+    PickingWaveDetail,
+    ReleasePickingWave,
+    WmsCommandResult,
+    WmsPage,
+    WmsWaveStore,
+)
 from erp.modules.wms.domain.picking import PickingTask, PickingWave, PickingWaveStatus
+from erp.modules.wms.infrastructure.effects import WmsEffects
 from erp.modules.wms.infrastructure.repository import WmsRepository
 from erp.platform.database import Database
+from erp.platform.errors import ApplicationError
 
 
 class PostgresPickingWaveStore(WmsWaveStore):
@@ -47,6 +55,33 @@ class PostgresPickingWaveStore(WmsWaveStore):
                 return None
             tasks = await repository.list_tasks(wave_id=wave_id)
         return PickingWaveDetail(wave=wave, tasks=tasks)
+
+    async def release_wave(
+        self, command: ReleasePickingWave, actor_id: UUID
+    ) -> WmsCommandResult:
+        async with self._database.session() as session, session.begin():
+            repository = WmsRepository(session, company_id=command.company_id)
+            before_wave = await repository.get_wave_for_update(command.wave_id)
+            if before_wave is None:
+                raise ApplicationError(
+                    code="RESOURCE_NOT_FOUND",
+                    message="Picking wave not found.",
+                    status_code=404,
+                )
+            before_tasks = await repository.list_tasks(wave_id=before_wave.id)
+            released = await repository.release_wave(
+                before_wave,
+                actor_id=actor_id,
+                expected_version=command.expected_version,
+            )
+            tasks = await repository.list_tasks(wave_id=released.id)
+            return await WmsEffects().record_wave_release(
+                session,
+                PickingWaveDetail(released, tasks),
+                actor_id=actor_id,
+                metadata=command.metadata,
+                before=PickingWaveDetail(before_wave, before_tasks),
+            )
 
 
 __all__ = ["PostgresPickingWaveStore"]

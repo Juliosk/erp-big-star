@@ -1,13 +1,19 @@
 """Application service for M10 picking-wave orchestration."""
 
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import UUID
 
 from erp.modules.admin.contracts import PermissionCode, SecurityContext
 from erp.modules.wms.application.permissions import WMS_PICK_EXECUTE, WmsAuthorization
-from erp.modules.wms.domain.picking import PickingTask, PickingWave, PickingWaveStatus
+from erp.modules.wms.domain.picking import (
+    PickingTask,
+    PickingTaskStatus,
+    PickingWave,
+    PickingWaveStatus,
+)
 from erp.platform.errors import ApplicationError, ErrorDetail
 
 
@@ -40,9 +46,63 @@ class CreatePickingWave:
 
 
 @dataclass(frozen=True, slots=True)
+class CommandMetadata:
+    request_id: UUID
+    correlation_id: UUID
+    source_ip: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ReleasePickingWave:
+    company_id: UUID
+    wave_id: UUID
+    expected_version: int
+    metadata: CommandMetadata
+
+    def payload(self) -> dict[str, object]:
+        return {
+            "company_id": str(self.company_id),
+            "wave_id": str(self.wave_id),
+            "expected_version": self.expected_version,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class PickingWaveDetail:
     wave: PickingWave
     tasks: tuple[PickingTask, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class WmsCommandResult:
+    detail: PickingWaveDetail
+    event_id: UUID | None
+    audit_event_id: UUID | None
+    idempotency_replayed: bool = False
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "detail": picking_wave_detail_snapshot(self.detail),
+            "event_id": str(self.event_id) if self.event_id is not None else None,
+            "audit_event_id": str(self.audit_event_id)
+            if self.audit_event_id is not None
+            else None,
+            "idempotency_replayed": self.idempotency_replayed,
+        }
+
+    @classmethod
+    def replay(cls, body: dict[str, Any]) -> WmsCommandResult:
+        detail = body["detail"]
+        if not isinstance(detail, dict):
+            raise ValueError("Stored WMS replay has invalid body.")
+        return cls(
+            detail=picking_wave_detail_from_snapshot(detail),
+            event_id=UUID(str(body["event_id"])) if body["event_id"] is not None else None,
+            audit_event_id=UUID(str(body["audit_event_id"]))
+            if body["audit_event_id"] is not None
+            else None,
+            idempotency_replayed=True,
+        )
 
 
 class WmsAuthorizer(Protocol):
@@ -71,6 +131,10 @@ class WmsWaveStore(Protocol):
     ) -> WmsPage[PickingWave]: ...
 
     async def get_wave(self, company_id: UUID, wave_id: UUID) -> PickingWaveDetail | None: ...
+
+    async def release_wave(
+        self, command: ReleasePickingWave, actor_id: UUID
+    ) -> WmsCommandResult: ...
 
 
 class PickingWaveService:
@@ -143,6 +207,102 @@ class PickingWaveService:
             )
         return detail
 
+    async def release_wave(
+        self, context: SecurityContext, command: ReleasePickingWave
+    ) -> WmsCommandResult:
+        await self._authorization.require(
+            context, command.company_id, WMS_PICK_EXECUTE, write=True
+        )
+        return await self._store.release_wave(command, context.principal.user_id)
+
+
+def picking_wave_snapshot(wave: PickingWave) -> dict[str, object]:
+    return {
+        "id": str(wave.id),
+        "company_id": str(wave.company_id),
+        "code": wave.code,
+        "status": wave.status,
+        "source_type": wave.source_type,
+        "source_id": str(wave.source_id) if wave.source_id is not None else None,
+        "warehouse_id": str(wave.warehouse_id) if wave.warehouse_id is not None else None,
+        "released_at": wave.released_at.isoformat() if wave.released_at is not None else None,
+        "released_by": str(wave.released_by) if wave.released_by is not None else None,
+        "version": wave.version,
+    }
+
+
+def picking_task_snapshot(task: PickingTask) -> dict[str, object]:
+    return {
+        "id": str(task.id),
+        "company_id": str(task.company_id),
+        "wave_id": str(task.wave_id),
+        "sequence": task.sequence,
+        "product_id": str(task.product_id),
+        "warehouse_id": str(task.warehouse_id) if task.warehouse_id is not None else None,
+        "lot_id": str(task.lot_id) if task.lot_id is not None else None,
+        "pool_id": str(task.pool_id) if task.pool_id is not None else None,
+        "requested_quantity": f"{task.requested_quantity:.6f}",
+        "picked_quantity": f"{task.picked_quantity:.6f}",
+        "status": task.status,
+        "version": task.version,
+    }
+
+
+def picking_wave_detail_snapshot(detail: PickingWaveDetail) -> dict[str, object]:
+    return {
+        "wave": picking_wave_snapshot(detail.wave),
+        "tasks": [picking_task_snapshot(task) for task in detail.tasks],
+    }
+
+
+def picking_wave_detail_from_snapshot(snapshot: dict[str, object]) -> PickingWaveDetail:
+    wave = snapshot["wave"]
+    tasks = snapshot["tasks"]
+    if not isinstance(wave, dict) or not isinstance(tasks, list):
+        raise ValueError("Stored WMS detail replay has invalid snapshots.")
+    return PickingWaveDetail(
+        wave=PickingWave(
+            id=UUID(str(wave["id"])),
+            company_id=UUID(str(wave["company_id"])),
+            code=str(wave["code"]),
+            status=PickingWaveStatus(str(wave["status"])),
+            source_type=str(wave["source_type"]),
+            source_id=UUID(str(wave["source_id"])) if wave["source_id"] is not None else None,
+            warehouse_id=(
+                UUID(str(wave["warehouse_id"])) if wave["warehouse_id"] is not None else None
+            ),
+            released_at=(
+                datetime.fromisoformat(str(wave["released_at"]))
+                if wave["released_at"] is not None
+                else None
+            ),
+            released_by=(
+                UUID(str(wave["released_by"])) if wave["released_by"] is not None else None
+            ),
+            version=int(str(wave["version"])),
+        ),
+        tasks=tuple(_task_from_snapshot(item) for item in tasks if isinstance(item, dict)),
+    )
+
+
+def _task_from_snapshot(snapshot: dict[str, object]) -> PickingTask:
+    return PickingTask(
+        id=UUID(str(snapshot["id"])),
+        company_id=UUID(str(snapshot["company_id"])),
+        wave_id=UUID(str(snapshot["wave_id"])),
+        sequence=int(str(snapshot["sequence"])),
+        product_id=UUID(str(snapshot["product_id"])),
+        warehouse_id=(
+            UUID(str(snapshot["warehouse_id"])) if snapshot["warehouse_id"] is not None else None
+        ),
+        lot_id=UUID(str(snapshot["lot_id"])) if snapshot["lot_id"] is not None else None,
+        pool_id=UUID(str(snapshot["pool_id"])) if snapshot["pool_id"] is not None else None,
+        requested_quantity=Decimal(str(snapshot["requested_quantity"])),
+        picked_quantity=Decimal(str(snapshot["picked_quantity"])),
+        status=PickingTaskStatus(str(snapshot["status"])),
+        version=int(str(snapshot["version"])),
+    )
+
 
 def _items_by_zone(items: tuple[PickingTaskBatchItem, ...]) -> tuple[PickingTaskBatchItem, ...]:
     indexed = tuple((index, _normalize_zone(item.zone_code), item) for index, item in enumerate(items))
@@ -176,10 +336,17 @@ def _validation(message: str) -> ApplicationError:
 
 
 __all__ = [
+    "CommandMetadata",
     "CreatePickingWave",
     "PickingTaskBatchItem",
     "PickingWaveDetail",
     "PickingWaveService",
+    "ReleasePickingWave",
+    "WmsCommandResult",
     "WmsPage",
     "WmsWaveStore",
+    "picking_task_snapshot",
+    "picking_wave_detail_from_snapshot",
+    "picking_wave_detail_snapshot",
+    "picking_wave_snapshot",
 ]

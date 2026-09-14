@@ -112,3 +112,16 @@ Os schemas Pydantic do WMS são próprios do módulo e a composição FastAPI pa
 montar o `PostgresPickingWaveStore` somente no application factory. A suíte de
 integração cobre criação, consulta paginada, detalhe, isolamento entre empresas,
 RBAC, scope e Error Contract para validação e referência ausente.
+
+## Entrega do Commit 096
+
+A liberação oficial da onda foi implementada em
+`POST /api/v1/wms/picking-waves/{wave_id}/release`, exigindo `If-Match` e
+propagando `ETag` atualizado. O repositório executa lock pessimista na onda,
+compara a versão esperada, restringe a transição `DRAFT -> RELEASED` e retorna
+`VERSION_CONFLICT` para versões obsoletas.
+
+O `WmsEffects` grava Audit e evento `PickingWaveReleased` via Outbox na mesma
+transação da mutação. O evento carrega `company_id`, aggregate version, operador
+de liberação e contagem de tarefas; o Audit preserva snapshots antes/depois do
+detalhe da onda.

@@ -11,15 +11,19 @@ from erp.modules.wms.api.schemas import (
     CreatePickingWaveRequest,
     PageMetadata,
     PickingTaskResponse,
+    PickingWaveCommandResponse,
     PickingWaveDetailResponse,
     PickingWaveListResponse,
     PickingWaveResponse,
 )
+from erp.modules.wms.api.versioning import require_version
 from erp.modules.wms.application import (
+    CommandMetadata,
     CreatePickingWave,
     PickingTaskBatchItem,
     PickingWaveDetail,
     PickingWaveService,
+    ReleasePickingWave,
 )
 from erp.modules.wms.domain.picking import PickingTask, PickingWave, PickingWaveStatus
 from erp.platform.errors import ApplicationError
@@ -36,6 +40,14 @@ def get_picking_waves(request: Request) -> PickingWaveService:
             status_code=503,
         )
     return service
+
+
+def metadata(request: Request) -> CommandMetadata:
+    return CommandMetadata(
+        UUID(request.state.request_id),
+        UUID(request.state.correlation_id),
+        request.client.host if request.client is not None else None,
+    )
 
 
 @router.get("/picking-waves", response_model=PickingWaveListResponse)
@@ -108,6 +120,38 @@ async def get_picking_wave(
     return _detail_response(result)
 
 
+@router.post(
+    "/picking-waves/{wave_id}/release",
+    response_model=PickingWaveCommandResponse,
+)
+async def release_picking_wave(
+    wave_id: UUID,
+    company_id: UUID,
+    request: Request,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[PickingWaveService, Depends(get_picking_waves)],
+    expected_version: Annotated[int, Depends(require_version)],
+) -> PickingWaveCommandResponse:
+    result = await service.release_wave(
+        context,
+        ReleasePickingWave(
+            company_id=company_id,
+            wave_id=wave_id,
+            expected_version=expected_version,
+            metadata=metadata(request),
+        ),
+    )
+    response.headers["ETag"] = f'"{result.detail.wave.version}"'
+    response.headers["Cache-Control"] = "no-store"
+    return PickingWaveCommandResponse(
+        detail=_detail_response(result.detail),
+        event_id=result.event_id,
+        audit_event_id=result.audit_event_id,
+        idempotency_replayed=result.idempotency_replayed,
+    )
+
+
 def _detail_response(detail: PickingWaveDetail) -> PickingWaveDetailResponse:
     return PickingWaveDetailResponse(
         wave=_wave_response(detail.wave),
@@ -147,4 +191,4 @@ def _task_response(task: PickingTask) -> PickingTaskResponse:
     )
 
 
-__all__ = ["get_picking_waves", "router"]
+__all__ = ["get_picking_waves", "metadata", "router"]

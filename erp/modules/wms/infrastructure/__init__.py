@@ -1,5 +1,6 @@
 """Internal M10 persistence adapters, wired only at the composition boundary."""
 
+from erp.modules.wms.infrastructure.effects import PICKING_WAVE_RELEASED, WmsEffects
 from erp.modules.wms.infrastructure.repository import WmsRepository
 from erp.modules.wms.infrastructure.waves import PostgresPickingWaveStore
 from erp.modules.wms.infrastructure.wms_model import (
@@ -11,11 +12,13 @@ from erp.modules.wms.infrastructure.wms_model import (
 )
 
 __all__ = [
+    "PICKING_WAVE_RELEASED",
     "PackageItemModel",
     "PackageModel",
     "PickingTaskModel",
     "PickingWaveModel",
     "PostgresPickingWaveStore",
     "ShipmentModel",
+    "WmsEffects",
     "WmsRepository",
 ]

@@ -4,11 +4,11 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from typing import cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from erp.apps.api.app import create_app
 from erp.modules.admin.application import SecurityContext
@@ -16,12 +16,16 @@ from erp.modules.admin.domain import AuthenticatedPrincipal, AuthenticationLevel
 from erp.modules.product.infrastructure import ProductRepository
 from erp.modules.wms.application.permissions import WMS_PICK_EXECUTE
 from erp.modules.wms.infrastructure import (
+    PICKING_WAVE_RELEASED,
     PackageItemModel,
     PackageModel,
     PickingTaskModel,
     PickingWaveModel,
     ShipmentModel,
 )
+from erp.platform.audit import AuditEventModel
+from erp.platform.messaging import MessageEnvelope
+from erp.platform.outbox import OutboxEventModel
 from tests.integration.test_product_persistence import Fixture, fixture
 
 pytestmark = pytest.mark.integration
@@ -69,6 +73,15 @@ def wms_api() -> Iterator[WmsApiFixture]:
             async def cleanup_wms() -> None:
                 company_ids = (data.company_id, data.other_company_id)
                 async with data.database.session() as session, session.begin():
+                    await session.execute(
+                        delete(OutboxEventModel).where(OutboxEventModel.source_module == "wms")
+                    )
+                    await session.execute(
+                        delete(AuditEventModel).where(
+                            AuditEventModel.module == "wms",
+                            AuditEventModel.company_id.in_(company_ids),
+                        )
+                    )
                     await session.execute(
                         delete(PackageItemModel).where(
                             PackageItemModel.company_id.in_(company_ids)
@@ -159,6 +172,83 @@ def test_wms_api_creates_lists_and_reads_picking_waves_by_company_scope() -> Non
         assert detail.headers["etag"] == '"1"'
         assert detail.json()["tasks"][0]["requested_quantity"] == "1.000000"
         assert foreign.json()["data"] == []
+
+
+def test_wms_api_releases_wave_with_etag_audit_and_outbox() -> None:
+    with wms_api() as api:
+        product_a, _, _ = _seed_products(api)
+        created = api.client.post(
+            "/api/v1/wms/picking-waves",
+            json={
+                "company_id": str(api.data.company_id),
+                "code": "RELEASE-ME",
+                "items": [{"product_id": product_a, "quantity": "1.000000"}],
+            },
+            headers=api.headers,
+        )
+        assert created.status_code == 201
+        wave_id = created.json()["wave"]["id"]
+
+        missing_precondition = api.client.post(
+            f"/api/v1/wms/picking-waves/{wave_id}/release"
+            f"?company_id={api.data.company_id}",
+            headers=api.headers,
+        )
+        assert missing_precondition.status_code == 428
+        assert missing_precondition.json()["error"]["code"] == "PRECONDITION_REQUIRED"
+
+        released = api.client.post(
+            f"/api/v1/wms/picking-waves/{wave_id}/release"
+            f"?company_id={api.data.company_id}",
+            headers={**api.headers, "If-Match": '"1"'},
+        )
+        stale = api.client.post(
+            f"/api/v1/wms/picking-waves/{wave_id}/release"
+            f"?company_id={api.data.company_id}",
+            headers={**api.headers, "If-Match": '"1"'},
+        )
+        detail = api.client.get(
+            f"/api/v1/wms/picking-waves/{wave_id}?company_id={api.data.company_id}",
+            headers=api.headers,
+        )
+
+        assert released.status_code == 200
+        assert released.headers["etag"] == '"2"'
+        assert released.json()["detail"]["wave"]["status"] == "RELEASED"
+        assert released.json()["event_id"] is not None
+        assert released.json()["audit_event_id"] is not None
+        assert stale.status_code == 409
+        assert stale.json()["error"]["code"] == "VERSION_CONFLICT"
+        assert detail.headers["etag"] == '"2"'
+        assert detail.json()["wave"]["status"] == "RELEASED"
+
+        async def verify_effects() -> None:
+            async with api.data.database.session() as session:
+                outbox = await session.scalar(
+                    select(OutboxEventModel).where(
+                        OutboxEventModel.event_id == UUID(released.json()["event_id"])
+                    )
+                )
+                audit = await session.get(AuditEventModel, UUID(released.json()["audit_event_id"]))
+                assert outbox is not None
+                assert audit is not None
+                envelope = MessageEnvelope.model_validate(outbox.payload)
+                assert outbox.source_module == "wms"
+                assert outbox.event_type == PICKING_WAVE_RELEASED
+                assert envelope.message_type == PICKING_WAVE_RELEASED
+                assert envelope.aggregate_type == "picking_wave"
+                assert envelope.aggregate_version == 2
+                assert envelope.company_id == api.data.company_id
+                assert envelope.payload["tasks_count"] == 1
+                assert audit.module == "wms"
+                assert audit.operation == PICKING_WAVE_RELEASED
+                assert audit.before_snapshot is not None
+                assert audit.before_snapshot["wave"]["status"] == "DRAFT"
+                assert audit.after_snapshot is not None
+                assert audit.after_snapshot["wave"]["status"] == "RELEASED"
+
+        assert api.client.portal is not None
+        api.client.portal.call(verify_effects)
 
 
 def test_wms_api_enforces_rbac_scope_and_error_contracts() -> None:

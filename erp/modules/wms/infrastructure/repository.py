@@ -3,7 +3,7 @@
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +25,7 @@ from erp.modules.wms.infrastructure.wms_model import (
     PickingWaveModel,
     ShipmentModel,
 )
+from erp.platform.concurrency import OptimisticLockError
 from erp.platform.errors import ApplicationError
 
 
@@ -252,6 +253,62 @@ class WmsRepository:
         )
         model = result.one_or_none()
         return None if model is None else _wave(model)
+
+    async def get_wave_for_update(self, wave_id: UUID) -> PickingWave | None:
+        result = await self._session.scalars(
+            select(PickingWaveModel)
+            .where(
+                PickingWaveModel.company_id == self._company_id,
+                PickingWaveModel.id == wave_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        model = result.one_or_none()
+        return None if model is None else _wave(model)
+
+    async def release_wave(
+        self,
+        wave: PickingWave,
+        *,
+        actor_id: UUID,
+        expected_version: int,
+    ) -> PickingWave:
+        _require_actor(actor_id)
+        self._validate_scope(wave.company_id, "picking wave")
+        if wave.version != expected_version:
+            raise OptimisticLockError(expected_version=expected_version)
+        try:
+            released = wave.release(actor_id=actor_id)
+        except ValueError as error:
+            raise ApplicationError(
+                code="WMS_PICKING_WAVE_STATUS_CONFLICT",
+                message="Picking wave cannot be released.",
+                status_code=409,
+            ) from error
+        result = await self._session.scalars(
+            update(PickingWaveModel)
+            .where(
+                PickingWaveModel.company_id == self._company_id,
+                PickingWaveModel.id == wave.id,
+                PickingWaveModel.version == expected_version,
+                PickingWaveModel.status == PickingWaveStatus.DRAFT,
+            )
+            .values(
+                status=released.status,
+                released_at=released.released_at,
+                released_by=released.released_by,
+                updated_by=actor_id,
+                version=PickingWaveModel.version + 1,
+            )
+            .returning(PickingWaveModel)
+            .execution_options(synchronize_session=False, populate_existing=True)
+        )
+        model = result.one_or_none()
+        if model is None:
+            raise OptimisticLockError(expected_version=expected_version)
+        await self._session.flush()
+        return _wave(model)
 
     async def list_waves(
         self,
