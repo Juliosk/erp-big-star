@@ -1,5 +1,6 @@
 """Internal M22 persistence adapters, wired only at the composition boundary."""
 
+from erp.modules.workflow.infrastructure.repository import WorkflowRepository
 from erp.modules.workflow.infrastructure.workflow_model import (
     ApprovalDecisionModel,
     WorkflowDefinitionModel,
@@ -12,6 +13,7 @@ __all__ = [
     "ApprovalDecisionModel",
     "WorkflowDefinitionModel",
     "WorkflowInstanceModel",
+    "WorkflowRepository",
     "WorkflowStepDefinitionModel",
     "WorkflowStepInstanceModel",
 ]
