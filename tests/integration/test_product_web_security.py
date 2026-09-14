@@ -31,6 +31,8 @@ def test_shell_contains_no_tokens_and_has_strict_same_origin_policy() -> None:
         assert "product.product.discontinue" in result.json()["permissions"]
         assert "crm.customer.merge" in result.json()["permissions"]
         assert "inventory.adjustment.create" in result.json()["permissions"]
+        assert "wms.pick.execute" in result.json()["permissions"]
+        assert "wms.label.reprint" in result.json()["permissions"]
         assert result.json()["actor_id"] == str(settings.dev_auth_actor_id)
         assert settings.dev_auth_token.get_secret_value() not in result.text
         assert (

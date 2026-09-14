@@ -76,6 +76,11 @@ class Settings(BaseSettings):
         "pricing.price.activate",
         "pricing.margin.view",
         "pricing.exception.request",
+        "wms.pick.execute",
+        "wms.pack.execute",
+        "wms.dispatch.execute",
+        "wms.label.reprint",
+        "wms.shortage.override",
     )
 
     @model_validator(mode="after")
