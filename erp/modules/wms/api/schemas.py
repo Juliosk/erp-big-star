@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from erp.modules.wms.domain.package import PackageStatus, PackageType
 from erp.modules.wms.domain.picking import PickingTaskStatus, PickingWaveStatus
 
 
@@ -63,6 +64,35 @@ class PickingTaskCommandResponse(BaseModel):
     idempotency_replayed: bool = False
 
 
+class PackageItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    company_id: UUID
+    package_id: UUID
+    task_id: UUID | None
+    product_id: UUID
+    lot_id: UUID | None
+    quantity: str
+
+
+class PackageResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    company_id: UUID
+    package_code: str
+    package_type: PackageType
+    status: PackageStatus
+    wave_id: UUID | None
+    shipment_id: UUID | None
+    weight_grams: int | None
+    version: int
+
+
+class PackageDetailResponse(BaseModel):
+    package: PackageResponse
+    items: list[PackageItemResponse]
+
+
 class PickingWaveListResponse(BaseModel):
     data: list[PickingWaveResponse]
     meta: PageMetadata
@@ -94,9 +124,32 @@ class ScanPickingTaskRequest(BaseModel):
     quantity: Decimal = Field(gt=0, max_digits=18, decimal_places=6)
 
 
+class CreatePackageRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    company_id: UUID
+    package_code: str = Field(min_length=1, max_length=64)
+    package_type: PackageType = PackageType.CARTON
+    wave_id: UUID | None = None
+    shipment_id: UUID | None = None
+    weight_grams: int | None = Field(default=None, gt=0)
+
+
+class AddPackageItemRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    task_id: UUID
+    product_id: UUID
+    lot_id: UUID | None = None
+    quantity: Decimal = Field(gt=0, max_digits=18, decimal_places=6)
+
+
 __all__ = [
+    "AddPackageItemRequest",
+    "CreatePackageRequest",
     "CreatePickingTaskRequest",
     "CreatePickingWaveRequest",
+    "PackageDetailResponse",
+    "PackageItemResponse",
+    "PackageResponse",
     "PageMetadata",
     "PickingTaskCommandResponse",
     "PickingTaskResponse",

@@ -15,7 +15,7 @@ from erp.modules.admin.application import SecurityContext
 from erp.modules.admin.domain import AuthenticatedPrincipal, AuthenticationLevel, Scope, ScopeType
 from erp.modules.product.infrastructure import ProductRepository
 from erp.modules.product.infrastructure.barcode_model import ProductBarcodeModel
-from erp.modules.wms.application.permissions import WMS_PICK_EXECUTE
+from erp.modules.wms.application.permissions import WMS_PACK_EXECUTE, WMS_PICK_EXECUTE
 from erp.modules.wms.infrastructure import (
     PICKING_TASK_SCANNED,
     PICKING_WAVE_RELEASED,
@@ -61,7 +61,7 @@ def wms_api() -> Iterator[WmsApiFixture]:
         data = client.portal.call(manager.__aenter__)
         resolver.context = SecurityContext(
             principal=AuthenticatedPrincipal(data.actor_id, uuid4(), AuthenticationLevel.LEVEL_1),
-            permissions=frozenset({WMS_PICK_EXECUTE}),
+            permissions=frozenset({WMS_PACK_EXECUTE, WMS_PICK_EXECUTE}),
             scopes=frozenset(
                 {
                     Scope(ScopeType.COMPANY, data.company_id),
@@ -377,6 +377,111 @@ def test_wms_api_scans_picking_task_idempotently_and_blocks_over_pick() -> None:
 
         assert api.client.portal is not None
         api.client.portal.call(verify_scan_effects)
+
+
+def test_wms_api_packs_items_and_finalizes_package_with_etags() -> None:
+    with wms_api() as api:
+        product_id = _seed_product_with_barcode(api, barcode="PACK001")
+        created_wave = api.client.post(
+            "/api/v1/wms/picking-waves",
+            json={
+                "company_id": str(api.data.company_id),
+                "code": "PACK-WAVE",
+                "items": [{"product_id": product_id, "quantity": "1.000000"}],
+            },
+            headers=api.headers,
+        )
+        assert created_wave.status_code == 201
+        wave_id = created_wave.json()["wave"]["id"]
+        task_id = created_wave.json()["tasks"][0]["id"]
+        assert (
+            api.client.post(
+                f"/api/v1/wms/picking-waves/{wave_id}/release"
+                f"?company_id={api.data.company_id}",
+                headers={**api.headers, "If-Match": '"1"'},
+            ).status_code
+            == 200
+        )
+        scanned = api.client.post(
+            f"/api/v1/wms/picking-tasks/{task_id}/scan?company_id={api.data.company_id}",
+            json={"barcode": "PACK001", "quantity": "1.000000"},
+            headers={**api.headers, "Idempotency-Key": str(uuid4())},
+        )
+        assert scanned.status_code == 200
+
+        created_package = api.client.post(
+            "/api/v1/wms/packages",
+            json={
+                "company_id": str(api.data.company_id),
+                "package_code": " pkg-001 ",
+                "package_type": "CARTON",
+                "wave_id": wave_id,
+                "weight_grams": 250,
+            },
+            headers=api.headers,
+        )
+        assert created_package.status_code == 201
+        assert created_package.headers["etag"] == '"1"'
+        package_id = created_package.json()["package"]["id"]
+        assert created_package.json()["package"]["package_code"] == "PKG-001"
+
+        empty_verify = api.client.post(
+            f"/api/v1/wms/packages/{package_id}/verify?company_id={api.data.company_id}",
+            headers={**api.headers, "If-Match": '"1"'},
+        )
+        packed = api.client.post(
+            f"/api/v1/wms/packages/{package_id}/items?company_id={api.data.company_id}",
+            json={
+                "task_id": task_id,
+                "product_id": product_id,
+                "quantity": "1.000000",
+            },
+            headers=api.headers,
+        )
+        over_pack = api.client.post(
+            f"/api/v1/wms/packages/{package_id}/items?company_id={api.data.company_id}",
+            json={
+                "task_id": task_id,
+                "product_id": product_id,
+                "quantity": "0.000001",
+            },
+            headers=api.headers,
+        )
+        verified = api.client.post(
+            f"/api/v1/wms/packages/{package_id}/verify?company_id={api.data.company_id}",
+            headers={**api.headers, "If-Match": '"1"'},
+        )
+        stale_verify = api.client.post(
+            f"/api/v1/wms/packages/{package_id}/verify?company_id={api.data.company_id}",
+            headers={**api.headers, "If-Match": '"1"'},
+        )
+        finalized = api.client.post(
+            f"/api/v1/wms/packages/{package_id}/finalize?company_id={api.data.company_id}",
+            headers={**api.headers, "If-Match": '"2"'},
+        )
+        detail = api.client.get(
+            f"/api/v1/wms/packages/{package_id}?company_id={api.data.company_id}",
+            headers=api.headers,
+        )
+
+        assert empty_verify.status_code == 409
+        assert empty_verify.json()["error"]["code"] == "WMS_PACKAGE_EMPTY"
+        assert packed.status_code == 200
+        assert packed.headers["etag"] == '"1"'
+        assert packed.json()["items"][0]["quantity"] == "1.000000"
+        assert over_pack.status_code == 409
+        assert over_pack.json()["error"]["code"] == "WMS_PACKAGE_OVER_PACK"
+        assert verified.status_code == 200
+        assert verified.headers["etag"] == '"2"'
+        assert verified.json()["package"]["status"] == "VERIFIED"
+        assert stale_verify.status_code == 409
+        assert stale_verify.json()["error"]["code"] == "VERSION_CONFLICT"
+        assert finalized.status_code == 200
+        assert finalized.headers["etag"] == '"3"'
+        assert finalized.json()["package"]["status"] == "FINALIZED"
+        assert detail.status_code == 200
+        assert detail.headers["etag"] == '"3"'
+        assert detail.json()["package"]["status"] == "FINALIZED"
 
 
 def test_wms_api_enforces_rbac_scope_and_error_contracts() -> None:

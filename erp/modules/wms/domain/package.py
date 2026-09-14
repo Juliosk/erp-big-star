@@ -1,6 +1,7 @@
 """Packing package primitives owned by M10 WMS."""
 
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 from uuid import UUID, uuid4
 
@@ -91,4 +92,46 @@ class Package:
         )
 
 
-__all__ = ["Package", "PackageStatus", "PackageType"]
+@dataclass(frozen=True, slots=True)
+class PackageItem:
+    id: UUID
+    company_id: UUID
+    package_id: UUID
+    task_id: UUID | None
+    product_id: UUID
+    lot_id: UUID | None
+    quantity: Decimal
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        company_id: UUID,
+        package_id: UUID,
+        product_id: UUID,
+        quantity: Decimal | str,
+        task_id: UUID | None = None,
+        lot_id: UUID | None = None,
+    ) -> PackageItem:
+        normalized_quantity = _normalize_quantity(quantity)
+        if normalized_quantity <= 0:
+            raise ValueError("quantity must be positive.")
+        return cls(
+            id=uuid4(),
+            company_id=_require_uuid(company_id, "company_id"),
+            package_id=_require_uuid(package_id, "package_id"),
+            task_id=None if task_id is None else _require_uuid(task_id, "task_id"),
+            product_id=_require_uuid(product_id, "product_id"),
+            lot_id=None if lot_id is None else _require_uuid(lot_id, "lot_id"),
+            quantity=normalized_quantity,
+        )
+
+
+def _normalize_quantity(value: Decimal | str) -> Decimal:
+    try:
+        return Decimal(str(value)).quantize(Decimal("0.000001"))
+    except (InvalidOperation, ValueError) as error:
+        raise ValueError("quantity must be a decimal value.") from error
+
+
+__all__ = ["Package", "PackageItem", "PackageStatus", "PackageType"]

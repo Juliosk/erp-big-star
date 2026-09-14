@@ -10,8 +10,8 @@ import pytest
 from sqlalchemy import delete
 
 from erp.modules.product.infrastructure import ProductRepository
-from erp.modules.wms.domain.package import Package, PackageType
-from erp.modules.wms.domain.picking import PickingTask, PickingWave
+from erp.modules.wms.domain.package import Package, PackageItem, PackageType
+from erp.modules.wms.domain.picking import PickingTask, PickingWave, PickingWaveStatus
 from erp.modules.wms.domain.shipment import Shipment
 from erp.modules.wms.infrastructure import (
     PackageItemModel,
@@ -88,12 +88,21 @@ def test_wms_repository_persists_wave_task_package_and_shipment() -> None:
                     weight_grams=350,
                 )
                 await repository.add_package(package, actor_id=data.actor_id)
+                item = PackageItem.create(
+                    company_id=data.company_id,
+                    package_id=package.id,
+                    task_id=task.id,
+                    product_id=product.id,
+                    quantity="1.000000",
+                )
+                await repository.add_package_item(item, actor_id=data.actor_id)
 
                 assert await repository.get_wave(wave.id) == wave
                 assert await repository.list_waves() == (wave,)
                 assert await repository.list_tasks(wave_id=wave.id) == (task,)
                 assert await repository.get_shipment(shipment.id) == shipment
                 assert await repository.get_package(package.id) == package
+                assert await repository.list_package_items(package_id=package.id) == (item,)
 
     asyncio.run(scenario())
 
@@ -153,5 +162,64 @@ def test_wms_repository_rejects_duplicates_and_missing_references() -> None:
                 with pytest.raises(ApplicationError) as missing_wave:
                     await repository.add_task(missing_wave_task, actor_id=data.actor_id)
                 assert missing_wave.value.code == "RESOURCE_NOT_FOUND"
+
+    asyncio.run(scenario())
+
+
+def test_wms_repository_verifies_and_finalizes_package_with_optimistic_lock() -> None:
+    async def scenario() -> None:
+        async with wms_fixture() as data:
+            product = data.product(code="PACK-PROD")
+            async with data.database.session() as session, session.begin():
+                await ProductRepository(session, company_id=data.company_id).add(
+                    product, actor_id=data.actor_id
+                )
+                repository = WmsRepository(session, company_id=data.company_id)
+                wave = PickingWave.create(company_id=data.company_id, code="PACK-WAVE")
+                await repository.add_wave(wave, actor_id=data.actor_id)
+                released = await repository.release_wave(
+                    wave,
+                    actor_id=data.actor_id,
+                    expected_version=wave.version,
+                )
+                assert released.status is PickingWaveStatus.RELEASED
+                task = PickingTask.create(
+                    company_id=data.company_id,
+                    wave_id=wave.id,
+                    sequence=1,
+                    product_id=product.id,
+                    requested_quantity="2.000000",
+                )
+                await repository.add_task(task, actor_id=data.actor_id)
+                package = Package.create(
+                    company_id=data.company_id,
+                    package_code="PACK-001",
+                    wave_id=wave.id,
+                )
+                await repository.add_package(package, actor_id=data.actor_id)
+                item = PackageItem.create(
+                    company_id=data.company_id,
+                    package_id=package.id,
+                    task_id=task.id,
+                    product_id=product.id,
+                    quantity="1.000000",
+                )
+                await repository.add_package_item(item, actor_id=data.actor_id)
+
+                verified = await repository.verify_package(
+                    package,
+                    actor_id=data.actor_id,
+                    expected_version=package.version,
+                )
+                finalized = await repository.finalize_package(
+                    verified,
+                    actor_id=data.actor_id,
+                    expected_version=verified.version,
+                )
+
+                assert verified.status == "VERIFIED"
+                assert verified.version == 2
+                assert finalized.status == "FINALIZED"
+                assert finalized.version == 3
 
     asyncio.run(scenario())

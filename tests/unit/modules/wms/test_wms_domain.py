@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from erp.modules.wms.domain import Package, PickingTask, PickingWave, Shipment
+from erp.modules.wms.domain import Package, PackageItem, PickingTask, PickingWave, Shipment
 
 
 def test_picking_wave_release_is_versioned_and_restricted_to_draft() -> None:
@@ -48,6 +48,25 @@ def test_package_requires_verify_before_finalize() -> None:
     with pytest.raises(ValueError, match="verified"):
         package.finalize()
     assert package.verify().finalize().status == "FINALIZED"
+
+
+def test_package_item_requires_positive_quantity() -> None:
+    item = PackageItem.create(
+        company_id=uuid4(),
+        package_id=uuid4(),
+        task_id=uuid4(),
+        product_id=uuid4(),
+        quantity="1.250000",
+    )
+
+    assert item.quantity == Decimal("1.250000")
+    with pytest.raises(ValueError, match="positive"):
+        PackageItem.create(
+            company_id=uuid4(),
+            package_id=uuid4(),
+            product_id=uuid4(),
+            quantity="0",
+        )
 
 
 def test_shipment_dispatch_requires_ready_state() -> None:

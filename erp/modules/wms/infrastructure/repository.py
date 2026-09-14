@@ -1,9 +1,10 @@
 """Company-scoped PostgreSQL repositories for M10 WMS aggregates."""
 
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +13,7 @@ from erp.modules.inventory.infrastructure.pool_model import InventoryPoolModel
 from erp.modules.inventory.infrastructure.warehouse_model import WarehouseModel
 from erp.modules.product.infrastructure.barcode_model import ProductBarcodeModel
 from erp.modules.product.infrastructure.product_model import ProductModel
-from erp.modules.wms.domain.package import Package, PackageStatus, PackageType
+from erp.modules.wms.domain.package import Package, PackageItem, PackageStatus, PackageType
 from erp.modules.wms.domain.picking import (
     PickingTask,
     PickingTaskStatus,
@@ -21,6 +22,7 @@ from erp.modules.wms.domain.picking import (
 )
 from erp.modules.wms.domain.shipment import Shipment, ShipmentStatus
 from erp.modules.wms.infrastructure.wms_model import (
+    PackageItemModel,
     PackageModel,
     PickingTaskModel,
     PickingWaveModel,
@@ -116,6 +118,18 @@ def _package(model: PackageModel) -> Package:
         shipment_id=model.shipment_id,
         weight_grams=model.weight_grams,
         version=model.version,
+    )
+
+
+def _package_item(model: PackageItemModel) -> PackageItem:
+    return PackageItem(
+        id=model.id,
+        company_id=model.company_id,
+        package_id=model.package_id,
+        task_id=model.task_id,
+        product_id=model.product_id,
+        lot_id=model.lot_id,
+        quantity=model.quantity,
     )
 
 
@@ -299,6 +313,26 @@ class WmsRepository:
         )
         await self._flush_unique(resource="PACKAGE")
 
+    async def add_package_item(self, item: PackageItem, *, actor_id: UUID) -> None:
+        _require_actor(actor_id)
+        self._validate_scope(item.company_id, "package item")
+        await self._ensure_package(item.package_id)
+        await self._ensure_product(item.product_id)
+        await self._ensure_lot(item.lot_id, product_id=item.product_id)
+        self._session.add(
+            PackageItemModel(
+                id=item.id,
+                company_id=self._company_id,
+                package_id=item.package_id,
+                task_id=item.task_id,
+                product_id=item.product_id,
+                lot_id=item.lot_id,
+                quantity=item.quantity,
+                created_by=actor_id,
+            )
+        )
+        await self._flush_unique(resource="PACKAGE_ITEM")
+
     async def get_wave(self, wave_id: UUID) -> PickingWave | None:
         result = await self._session.scalars(
             select(PickingWaveModel).where(
@@ -416,6 +450,122 @@ class WmsRepository:
         model = result.one_or_none()
         return None if model is None else _package(model)
 
+    async def get_package_for_update(self, package_id: UUID) -> Package | None:
+        result = await self._session.scalars(
+            select(PackageModel)
+            .where(
+                PackageModel.company_id == self._company_id,
+                PackageModel.id == package_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        model = result.one_or_none()
+        return None if model is None else _package(model)
+
+    async def list_package_items(self, *, package_id: UUID) -> tuple[PackageItem, ...]:
+        result = await self._session.scalars(
+            select(PackageItemModel)
+            .where(
+                PackageItemModel.company_id == self._company_id,
+                PackageItemModel.package_id == package_id,
+            )
+            .order_by(PackageItemModel.created_at, PackageItemModel.id)
+            .execution_options(populate_existing=True)
+        )
+        return tuple(_package_item(model) for model in result)
+
+    async def packed_quantity_for_task(self, task_id: UUID) -> Decimal:
+        total = await self._session.scalar(
+            select(func.coalesce(func.sum(PackageItemModel.quantity), 0)).where(
+                PackageItemModel.company_id == self._company_id,
+                PackageItemModel.task_id == task_id,
+            )
+        )
+        return Decimal(str(total))
+
+    async def verify_package(
+        self,
+        package: Package,
+        *,
+        actor_id: UUID,
+        expected_version: int,
+    ) -> Package:
+        _require_actor(actor_id)
+        self._validate_scope(package.company_id, "package")
+        if package.version != expected_version:
+            raise OptimisticLockError(expected_version=expected_version)
+        try:
+            verified = package.verify()
+        except ValueError as error:
+            raise ApplicationError(
+                code="WMS_PACKAGE_STATUS_CONFLICT",
+                message="Package cannot be verified.",
+                status_code=409,
+            ) from error
+        return await self._update_package_status(
+            verified,
+            actor_id=actor_id,
+            expected_version=expected_version,
+            required_status=PackageStatus.DRAFT,
+        )
+
+    async def finalize_package(
+        self,
+        package: Package,
+        *,
+        actor_id: UUID,
+        expected_version: int,
+    ) -> Package:
+        _require_actor(actor_id)
+        self._validate_scope(package.company_id, "package")
+        if package.version != expected_version:
+            raise OptimisticLockError(expected_version=expected_version)
+        try:
+            finalized = package.finalize()
+        except ValueError as error:
+            raise ApplicationError(
+                code="WMS_PACKAGE_STATUS_CONFLICT",
+                message="Package cannot be finalized.",
+                status_code=409,
+            ) from error
+        return await self._update_package_status(
+            finalized,
+            actor_id=actor_id,
+            expected_version=expected_version,
+            required_status=PackageStatus.VERIFIED,
+        )
+
+    async def _update_package_status(
+        self,
+        package: Package,
+        *,
+        actor_id: UUID,
+        expected_version: int,
+        required_status: PackageStatus,
+    ) -> Package:
+        result = await self._session.scalars(
+            update(PackageModel)
+            .where(
+                PackageModel.company_id == self._company_id,
+                PackageModel.id == package.id,
+                PackageModel.version == expected_version,
+                PackageModel.status == required_status,
+            )
+            .values(
+                status=package.status,
+                updated_by=actor_id,
+                version=PackageModel.version + 1,
+            )
+            .returning(PackageModel)
+            .execution_options(synchronize_session=False, populate_existing=True)
+        )
+        model = result.one_or_none()
+        if model is None:
+            raise OptimisticLockError(expected_version=expected_version)
+        await self._session.flush()
+        return _package(model)
+
     async def _flush_unique(self, *, resource: str) -> None:
         try:
             await self._session.flush()
@@ -497,9 +647,14 @@ class WmsRepository:
         if not await self._exists(ShipmentModel, shipment_id):
             raise _not_found("Shipment")
 
+    async def _ensure_package(self, package_id: UUID) -> None:
+        if not await self._exists(PackageModel, package_id):
+            raise _not_found("Package")
+
 __all__ = [
     "WmsRepository",
     "_package",
+    "_package_item",
     "_shipment",
     "_task",
     "_wave",

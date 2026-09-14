@@ -137,3 +137,16 @@ A atualização da tarefa usa lock transacional, incrementa versão/ETag e deleg
 ao domínio a trava contra over-picking. Cada scan concluído gera Audit e evento
 `PickingTaskScanned` no Outbox; replays retornam a resposta original sem repetir
 mutação ou efeitos.
+
+## Entrega do Commit 098
+
+O skeleton de packing foi exposto em `/api/v1/wms/packages`, com criação,
+consulta, adição de itens, verificação e finalização de pacote. As rotas usam o
+`PackingService`, exigem `wms.pack.execute`, respeitam `company_id` e retornam
+`ETag`/`Cache-Control` nos contratos oficiais.
+
+O adapter `PostgresPackingStore` mantém as operações em transações curtas:
+pacotes só recebem itens em `DRAFT`, itens precisam corresponder à tarefa de
+picking da mesma empresa e a soma embalada não pode exceder a quantidade já
+bipada. `verify` exige pacote com itens e `finalize` exige pacote verificado,
+com versionamento otimista via `If-Match`.
