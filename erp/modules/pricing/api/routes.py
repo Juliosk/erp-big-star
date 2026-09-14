@@ -18,6 +18,8 @@ from erp.modules.pricing.api.schemas import (
     PriceListVersionListResponse,
     PriceListVersionResponse,
     PricingResolutionResponse,
+    PricingSnapshotListResponse,
+    PricingSnapshotResponse,
     ResolvePricingRequest,
     SimulatePricingRequest,
 )
@@ -32,6 +34,8 @@ from erp.modules.pricing.application import (
     PricingResolutionService,
     PricingSimulation,
     PricingSimulationService,
+    PricingSnapshotQueryService,
+    PricingSnapshotView,
 )
 from erp.modules.pricing.contracts import PricingResolution, PricingResolutionRequest
 from erp.modules.pricing.domain import (
@@ -73,6 +77,17 @@ def get_simulation(request: Request) -> PricingSimulationService:
         raise ApplicationError(
             code="PRICING_SIMULATION_UNAVAILABLE",
             message="Pricing simulation unavailable.",
+            status_code=503,
+        )
+    return service
+
+
+def get_snapshots(request: Request) -> PricingSnapshotQueryService:
+    service = getattr(request.app.state, "pricing_snapshots", None)
+    if not isinstance(service, PricingSnapshotQueryService):
+        raise ApplicationError(
+            code="PRICING_SNAPSHOTS_UNAVAILABLE",
+            message="Pricing snapshots unavailable.",
             status_code=503,
         )
     return service
@@ -304,6 +319,30 @@ async def simulate_pricing(
     return _pricing_simulation_response(result)
 
 
+@router.get("/snapshots", response_model=PricingSnapshotListResponse)
+async def list_pricing_snapshots(
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[PricingSnapshotQueryService, Depends(get_snapshots)],
+    company_id: UUID,
+    product_id: UUID | None = None,
+    page: Annotated[int, Query(ge=1, le=100_000)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> PricingSnapshotListResponse:
+    result = await service.list_snapshots(
+        context,
+        company_id,
+        page=page,
+        page_size=page_size,
+        product_id=product_id,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return PricingSnapshotListResponse(
+        data=[_snapshot_response(item) for item in result.items],
+        meta=PageMetadata(page=result.page, page_size=result.page_size, has_more=result.has_more),
+    )
+
+
 def _price_list_response(price_list: PriceList) -> PriceListResponse:
     return PriceListResponse(
         id=price_list.id,
@@ -393,4 +432,34 @@ def _pricing_simulation_response(result: PricingSimulation) -> PricingResolution
     )
 
 
-__all__ = ["get_catalogue", "get_resolution", "get_simulation", "metadata", "router"]
+def _snapshot_response(snapshot: PricingSnapshotView) -> PricingSnapshotResponse:
+    return PricingSnapshotResponse(
+        id=snapshot.id,
+        company_id=snapshot.company_id,
+        product_id=snapshot.product_id,
+        price_list_id=snapshot.price_list_id,
+        price_list_version_id=snapshot.price_list_version_id,
+        cost_source=snapshot.cost_source,
+        cost_amount=None if snapshot.cost_amount is None else f"{snapshot.cost_amount:.2f}",
+        target_margin=(
+            None if snapshot.target_margin is None else f"{snapshot.target_margin:.4f}"
+        ),
+        minimum_margin=(
+            None if snapshot.minimum_margin is None else f"{snapshot.minimum_margin:.4f}"
+        ),
+        calculated_price=f"{snapshot.calculated_price:.2f}",
+        rounded_price=f"{snapshot.rounded_price:.2f}",
+        currency=snapshot.currency,
+        source=snapshot.source,
+        created_at=snapshot.created_at,
+    )
+
+
+__all__ = [
+    "get_catalogue",
+    "get_resolution",
+    "get_simulation",
+    "get_snapshots",
+    "metadata",
+    "router",
+]

@@ -550,6 +550,80 @@ form button[type="submit"] {
   border: 1px solid var(--sky);
   border-radius: 8px;
 }
+.compact-heading {
+  margin-top: 0;
+}
+.pricing-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 22px;
+}
+#pricing {
+  min-width: 0;
+}
+#pricing .panel,
+#pricing .table-wrap,
+#pricing input,
+#pricing select,
+#pricing button {
+  min-width: 0;
+  max-width: 100%;
+}
+#pricing td,
+#pricing th {
+  overflow-wrap: anywhere;
+}
+.pricing-wide {
+  grid-column: 1 / -1;
+}
+.pricing-form,
+.pricing-simulator-grid {
+  display: grid;
+  gap: 14px;
+  margin: 18px 0 24px;
+}
+.pricing-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.pricing-form button {
+  align-self: end;
+}
+.pricing-selected {
+  padding: 18px;
+  border: 1px solid var(--sky);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #eef5ff, #fff);
+}
+.pricing-selected h2 {
+  margin: 6px 0;
+}
+.pricing-simulator-grid {
+  grid-template-columns: 1.4fr 1.4fr 0.8fr 0.8fr auto auto;
+  align-items: end;
+}
+.pricing-decision {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.pricing-decision article {
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--sky);
+  background: #fbfdff;
+}
+.pricing-decision small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.pricing-decision strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 18px;
+}
 .transition-actions {
   margin-top: 25px;
   padding-top: 20px;
@@ -638,6 +712,22 @@ dialog::backdrop {
   .detail-columns {
     grid-template-columns: 1fr;
   }
+  .pricing-grid,
+  .pricing-form,
+  .pricing-simulator-grid {
+    grid-template-columns: 1fr;
+  }
+  #pricing table {
+    table-layout: fixed;
+    white-space: normal;
+  }
+  #pricing .heading-actions input,
+  #pricing .heading-actions button {
+    width: 100%;
+  }
+  .pricing-decision {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   h1 {
     font-size: 30px;
   }
@@ -715,6 +805,9 @@ dialog::backdrop {
   }
   .panel {
     padding: 20px;
+  }
+  .pricing-decision {
+    grid-template-columns: 1fr;
   }
   .dev-banner {
     font-size: 10px;

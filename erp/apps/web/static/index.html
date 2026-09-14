@@ -27,6 +27,9 @@
         <a id="inventory-nav" href="#inventory" hidden
           >Estoque <span>M5</span></a
         >
+        <a id="pricing-nav" href="#pricing" hidden
+          >Pricing <span>M9</span></a
+        >
       </nav>
       <div class="company-context">
         <label for="company">Empresa de trabalho</label
@@ -658,6 +661,266 @@
                 </thead>
                 <tbody id="inventory-trace-rows"></tbody>
               </table>
+            </div>
+          </section>
+        </div>
+      </section>
+      <section id="pricing" hidden aria-labelledby="pricing-title">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">PRICING / M9</p>
+            <h1 id="pricing-title">Pricing Cockpit</h1>
+            <p>
+              Listas de preço, versões ativáveis, snapshots auditáveis e
+              simulação de margem em tempo real na empresa de trabalho.
+            </p>
+          </div>
+          <button id="pricing-refresh" class="secondary">Atualizar pricing</button>
+        </div>
+        <div class="pricing-grid">
+          <section class="panel">
+            <div class="page-heading compact-heading">
+              <div>
+                <h2>Listas de preço</h2>
+                <p class="hint">
+                  Cada código é único por empresa e respeita escopo de tenant.
+                </p>
+              </div>
+            </div>
+            <form id="pricing-list-form" class="pricing-form">
+              <div>
+                <label for="pricing-code">Código</label
+                ><input
+                  id="pricing-code"
+                  required
+                  maxlength="40"
+                  autocomplete="off"
+                  placeholder="ATACADO"
+                />
+              </div>
+              <div>
+                <label for="pricing-name">Nome da lista</label
+                ><input
+                  id="pricing-name"
+                  required
+                  maxlength="120"
+                  autocomplete="off"
+                  placeholder="Atacado Geral"
+                />
+              </div>
+              <div>
+                <label for="pricing-type">Tipo</label
+                ><select id="pricing-type">
+                  <option value="BASE">Base</option>
+                  <option value="CUSTOMER_GROUP">Grupo de clientes</option>
+                  <option value="PROMOTIONAL">Promocional</option>
+                </select>
+              </div>
+              <button type="submit">Criar lista</button>
+            </form>
+            <div class="table-wrap compact-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Tipo</th>
+                    <th>Status</th>
+                    <th><span class="sr-only">Ação</span></th>
+                  </tr>
+                </thead>
+                <tbody id="pricing-list-rows"></tbody>
+              </table>
+              <div id="pricing-empty" class="empty" hidden>
+                <span aria-hidden="true">◇</span>
+                <h2>Nenhuma lista nesta empresa</h2>
+                <p>Crie uma lista base para iniciar o motor de pricing.</p>
+              </div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="pricing-selected">
+              <p class="eyebrow">LISTA SELECIONADA</p>
+              <h2 id="pricing-selected-title">Nenhuma lista selecionada</h2>
+              <p id="pricing-selected-meta" class="hint">
+                Selecione uma lista para criar e ativar versões.
+              </p>
+            </div>
+            <form id="pricing-version-form" class="pricing-form">
+              <div>
+                <label for="pricing-valid-from">Válida desde</label
+                ><input id="pricing-valid-from" type="date" required />
+              </div>
+              <div>
+                <label for="pricing-version-product-id">Produto ID</label
+                ><input
+                  id="pricing-version-product-id"
+                  required
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="UUID do produto"
+                />
+              </div>
+              <div>
+                <label for="pricing-price-amount">Preço unitário</label
+                ><input
+                  id="pricing-price-amount"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  required
+                />
+              </div>
+              <div>
+                <label for="pricing-minimum-price">Preço mínimo</label
+                ><input
+                  id="pricing-minimum-price"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                />
+              </div>
+              <div>
+                <label for="pricing-target-margin">Margem alvo</label
+                ><input
+                  id="pricing-target-margin"
+                  type="number"
+                  min="0"
+                  max="0.9999"
+                  step="0.0001"
+                  placeholder="0.4000"
+                />
+              </div>
+              <div>
+                <label for="pricing-version-source">Fonte</label
+                ><input
+                  id="pricing-version-source"
+                  maxlength="60"
+                  value="COCKPIT"
+                />
+              </div>
+              <button type="submit">Criar versão</button>
+            </form>
+            <div class="table-wrap compact-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Versão</th>
+                    <th>Status</th>
+                    <th>Válida desde</th>
+                    <th>Itens</th>
+                    <th><span class="sr-only">Ação</span></th>
+                  </tr>
+                </thead>
+                <tbody id="pricing-version-rows"></tbody>
+              </table>
+              <div id="pricing-version-empty" class="empty" hidden>
+                <span aria-hidden="true">◇</span>
+                <h2>Nenhuma versão para esta lista</h2>
+                <p>Crie uma versão com item de preço antes da ativação.</p>
+              </div>
+            </div>
+          </section>
+          <section class="panel pricing-wide">
+            <div class="page-heading compact-heading">
+              <div>
+                <h2>Simulador interativo</h2>
+                <p class="hint">
+                  Simular não persiste snapshot; resolver congela a decisão para
+                  auditoria comercial.
+                </p>
+              </div>
+            </div>
+            <form id="pricing-simulation-form" class="pricing-simulator-grid">
+              <div>
+                <label for="pricing-simulation-product-id">Produto ID</label
+                ><input
+                  id="pricing-simulation-product-id"
+                  required
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="UUID do produto"
+                />
+              </div>
+              <div>
+                <label for="pricing-simulation-list-id">Lista de preço</label
+                ><input
+                  id="pricing-simulation-list-id"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="Usa a lista selecionada se vazio"
+                />
+              </div>
+              <div>
+                <label for="pricing-simulation-quantity">Quantidade</label
+                ><input
+                  id="pricing-simulation-quantity"
+                  type="number"
+                  min="0.000001"
+                  step="0.000001"
+                  required
+                  value="1"
+                />
+              </div>
+              <div>
+                <label for="pricing-proposed-price">Preço proposto</label
+                ><input
+                  id="pricing-proposed-price"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="Opcional para simulação"
+                />
+              </div>
+              <button id="pricing-simulate-run" type="submit">
+                Simular sem gravar
+              </button>
+              <button id="pricing-resolve-run" type="submit" class="secondary">
+                Resolver e congelar
+              </button>
+            </form>
+            <div id="pricing-decision" class="pricing-decision" hidden></div>
+          </section>
+          <section class="panel pricing-wide">
+            <div class="page-heading compact-heading">
+              <div>
+                <h2>Snapshots de pricing</h2>
+                <p class="hint">
+                  Histórico imutável das decisões persistidas por resolução.
+                </p>
+              </div>
+              <div class="heading-actions">
+                <input
+                  id="pricing-snapshot-product-filter"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="Filtrar Produto ID"
+                />
+                <button id="pricing-snapshot-refresh" class="secondary">
+                  Ver snapshots
+                </button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Snapshot</th>
+                    <th>Produto</th>
+                    <th>Lista</th>
+                    <th>Custo</th>
+                    <th>Preço</th>
+                    <th>Margem mínima</th>
+                    <th>Fonte</th>
+                    <th>Criado em</th>
+                  </tr>
+                </thead>
+                <tbody id="pricing-snapshot-rows"></tbody>
+              </table>
+              <div id="pricing-snapshots-empty" class="empty" hidden>
+                <span aria-hidden="true">◇</span>
+                <h2>Nenhum snapshot encontrado</h2>
+                <p>Use resolver e congelar para persistir uma decisão.</p>
+              </div>
             </div>
           </section>
         </div>

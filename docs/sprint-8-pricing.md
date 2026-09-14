@@ -17,8 +17,8 @@ contratos seguros para M15, M4 e M3 consumirem em sprints posteriores.
 | 084 | Ativação | Concorrência/ETag, Audit e Outbox `PriceListVersionActivated` |
 | 085 | Custo/margem | Fonte provisória `LEGACY_OPENING` e política de margem mínima |
 | 086 | Resolver | `PricingResolutionService` e `POST /pricing/resolve` |
-| 087 | Simulação | Simulador persistente e evento `PricingSimulationCompleted` |
-| 088 | UI | Pricing Cockpit em `/ui/` |
+| 087 | Simulação | Simulador em tempo real sem persistência de snapshot |
+| 088 | UI | Pricing Cockpit em `/ui/` com listas, versões, snapshots e simulador |
 | 089 | E2E/Docs | Chromium E2E, runbook M9 e encerramento |
 
 ## Limites de escopo
@@ -132,3 +132,16 @@ O contrato retorna `persisted=false` e um `pricing_snapshot_id` nulo
 (`00000000-0000-0000-0000-000000000000`) para deixar explícito que não houve
 congelamento contábil da decisão. A margem efetiva segue protegida por
 `pricing.margin.view`.
+
+## Entrega do Commit 088
+
+O Pricing Cockpit foi integrado à interface `/ui/` como módulo isolado do M9,
+sem acoplar lógica comercial ao catálogo M2 ou ao inventário M5. A tela permite
+criar listas de preço, selecionar uma lista da empresa de trabalho, criar
+versões draft com itens e ativá-las usando ETag/`If-Match` e
+`Idempotency-Key`.
+
+A mesma tela consome `POST /api/v1/pricing/simulate` para projeções em tempo
+real sem persistir snapshot e `POST /api/v1/pricing/resolve` para congelar uma
+decisão auditável. O histórico lê `GET /api/v1/pricing/snapshots`, com filtro
+por produto e isolamento estrito por `company_id`.

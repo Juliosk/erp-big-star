@@ -1,6 +1,7 @@
 import { mountImports } from "./imports.js";
 import { mountCustomers } from "./customers.js";
 import { mountInventory } from "./inventory.js";
+import { mountPricing } from "./pricing.js";
 const $ = (id) => document.getElementById(id);
 const labels = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -22,6 +23,25 @@ const errors = {
     "Já existe uma solicitação pendente para este par de clientes.",
   INVENTORY_NEGATIVE_BALANCE:
     "O ajuste deixaria saldo negativo. Revise quantidade, lote e depósito.",
+  MINIMUM_MARGIN_VIOLATION:
+    "A margem projetada está abaixo da política mínima da empresa.",
+  PRICE_NOT_FOUND:
+    "Nenhum preço ativo foi encontrado para o produto e lista informados.",
+  STANDARD_COST_NOT_FOUND:
+    "Cadastre um custo padrão provisório para simular ou resolver o preço.",
+  INVALID_PRICE_LIST_VERSION_STATUS:
+    "A versão da lista não está em situação compatível com esta ação.",
+  PRICING_PRICE_LIST_CONFLICT:
+    "Já existe uma lista de preços com este código na empresa selecionada.",
+  PRICING_PRICE_LIST_VERSION_CONFLICT:
+    "Outra alteração foi salva nesta versão de lista. Atualize antes de ativar.",
+  PRICING_UNAVAILABLE: "Pricing indisponível nesta inicialização.",
+  PRICING_RESOLUTION_UNAVAILABLE:
+    "Resolução de pricing indisponível nesta inicialização.",
+  PRICING_SIMULATION_UNAVAILABLE:
+    "Simulação de pricing indisponível nesta inicialização.",
+  PRICING_SNAPSHOTS_UNAVAILABLE:
+    "Consulta de snapshots indisponível nesta inicialização.",
   PERMISSION_FORBIDDEN: "Sua identidade não tem permissão para esta ação.",
   RESOURCE_NOT_FOUND: "Cadastro não encontrado na empresa selecionada.",
   INVALID_LIFECYCLE_TRANSITION:
@@ -44,7 +64,7 @@ let token = "",
   area = "products";
 let lastCreation = { body: "", key: "" };
 const can = (action) => permissions.has(`product.product.${action}`);
-let customers, inventory;
+let customers, inventory, pricing;
 const imports = mountImports({
   api,
   context: () => ({ company, permissions }),
@@ -55,6 +75,7 @@ const imports = mountImports({
     $("products-nav").removeAttribute("aria-current");
     $("customers-nav").removeAttribute("aria-current");
     $("inventory-nav").removeAttribute("aria-current");
+    $("pricing-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent =
       "Governança / Importações";
     generation++;
@@ -63,6 +84,7 @@ const imports = mountImports({
     $("detail").hidden = true;
     customers?.hide();
     inventory?.hide();
+    pricing?.hide();
   },
 });
 customers = mountCustomers({
@@ -75,11 +97,13 @@ customers = mountCustomers({
     $("products-nav").removeAttribute("aria-current");
     $("imports-nav").removeAttribute("aria-current");
     $("inventory-nav").removeAttribute("aria-current");
+    $("pricing-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent = "Cadastros / Clientes";
     generation++;
     current = null;
     imports.reset();
     inventory?.hide();
+    pricing?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -94,12 +118,36 @@ inventory = mountInventory({
     $("products-nav").removeAttribute("aria-current");
     $("imports-nav").removeAttribute("aria-current");
     $("customers-nav").removeAttribute("aria-current");
+    $("pricing-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent =
       "Operações / Inventário";
     generation++;
     current = null;
     imports.reset();
     customers.hide();
+    pricing?.hide();
+    $("catalog").hidden = true;
+    $("detail").hidden = true;
+  },
+});
+pricing = mountPricing({
+  api,
+  context: () => ({ company, permissions }),
+  notice,
+  enter: () => {
+    area = "pricing";
+    $("pricing-nav").setAttribute("aria-current", "page");
+    $("products-nav").removeAttribute("aria-current");
+    $("imports-nav").removeAttribute("aria-current");
+    $("customers-nav").removeAttribute("aria-current");
+    $("inventory-nav").removeAttribute("aria-current");
+    document.querySelector(".topbar > span").textContent =
+      "Comercial / Pricing";
+    generation++;
+    current = null;
+    imports.reset();
+    customers.hide();
+    inventory.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -112,9 +160,11 @@ function reset() {
   imports.reset();
   customers.reset();
   inventory.reset();
+  pricing.reset();
   $("imports-nav").hidden = true;
   $("customers-nav").hidden = true;
   $("inventory-nav").hidden = true;
+  $("pricing-nav").hidden = true;
   token = "";
   permissions.clear();
   current = null;
@@ -224,6 +274,11 @@ async function connect() {
     !permissions.has("inventory.warehouse.read") &&
     !permissions.has("inventory.adjustment.create") &&
     !permissions.has("inventory.reservation.manage");
+  $("pricing-nav").hidden =
+    !permissions.has("pricing.price.simulate") &&
+    !permissions.has("pricing.price.create") &&
+    !permissions.has("pricing.price.activate") &&
+    !permissions.has("pricing.margin.view");
   if (!company) {
     notice(
       "Nenhuma empresa ativa autorizada. Configure os escopos da identidade.",
@@ -240,10 +295,12 @@ async function loadList() {
   $("imports-nav").removeAttribute("aria-current");
   $("customers-nav").removeAttribute("aria-current");
   $("inventory-nav").removeAttribute("aria-current");
+  $("pricing-nav").removeAttribute("aria-current");
   document.querySelector(".topbar > span").textContent = "Cadastros / Produtos";
   imports.reset();
   customers.hide();
   inventory.hide();
+  pricing.hide();
   const epoch = ++generation;
   current = null;
   $("detail").hidden = true;
@@ -400,6 +457,7 @@ bind(
     $("create-dialog").close();
     if (area === "customers") return customers.show();
     if (area === "inventory") return inventory.show();
+    if (area === "pricing") return pricing.show();
     await loadList();
   },
   "change",
@@ -419,6 +477,9 @@ bind("customers-nav", () => {
 });
 bind("inventory-nav", () => {
   if (company) return inventory.show();
+});
+bind("pricing-nav", () => {
+  if (company) return pricing.show();
 });
 bind("products-nav", () => {
   if (company) return loadList();

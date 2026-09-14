@@ -464,6 +464,21 @@ def test_pricing_resolve_uses_active_list_cost_policy_and_snapshot() -> None:
         assert cost_reference["source"] == "LEGACY_OPENING"
         assert cost_reference["amount"] == "60.00"
 
+        snapshots = api.client.get(
+            f"/api/v1/pricing/snapshots?company_id={api.data.company_id}"
+            f"&product_id={product_id}",
+            headers=api.headers,
+        )
+        foreign_snapshots = api.client.get(
+            f"/api/v1/pricing/snapshots?company_id={api.data.other_company_id}",
+            headers=api.headers,
+        )
+        assert snapshots.status_code == 200
+        assert snapshots.json()["data"][0]["id"] == body["pricing_snapshot_id"]
+        assert snapshots.json()["data"][0]["cost_source"] == "LEGACY_OPENING"
+        assert foreign_snapshots.status_code == 200
+        assert foreign_snapshots.json()["data"] == []
+
 
 def test_pricing_resolve_masks_margin_without_sensitive_permission() -> None:
     with pricing_api() as api:

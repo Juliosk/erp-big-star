@@ -99,6 +99,28 @@ class PricingResolutionResponse(BaseModel):
     persisted: bool = True
 
 
+class PricingSnapshotResponse(BaseModel):
+    id: UUID
+    company_id: UUID
+    product_id: UUID
+    price_list_id: UUID | None
+    price_list_version_id: UUID | None
+    cost_source: str
+    cost_amount: str | None
+    target_margin: str | None
+    minimum_margin: str | None
+    calculated_price: str
+    rounded_price: str
+    currency: str
+    source: str
+    created_at: datetime
+
+
+class PricingSnapshotListResponse(BaseModel):
+    data: list[PricingSnapshotResponse]
+    meta: PageMetadata
+
+
 class CreatePriceListRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     company_id: UUID
@@ -137,6 +159,8 @@ __all__ = [
     "PriceListVersionListResponse",
     "PriceListVersionResponse",
     "PricingResolutionResponse",
+    "PricingSnapshotListResponse",
+    "PricingSnapshotResponse",
     "ResolvePricingRequest",
     "SimulatePricingRequest",
 ]
