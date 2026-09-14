@@ -81,6 +81,10 @@ class Settings(BaseSettings):
         "wms.dispatch.execute",
         "wms.label.reprint",
         "wms.shortage.override",
+        "workflow.request.read",
+        "workflow.request.create",
+        "workflow.approval.decide",
+        "workflow.definition.manage",
     )
 
     @model_validator(mode="after")
