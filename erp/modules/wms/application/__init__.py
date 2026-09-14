@@ -9,6 +9,14 @@ from erp.modules.wms.application.permissions import (
     WmsAuthorization,
     wms_permission_registry,
 )
+from erp.modules.wms.application.waves import (
+    CreatePickingWave,
+    PickingTaskBatchItem,
+    PickingWaveDetail,
+    PickingWaveService,
+    WmsPage,
+    WmsWaveStore,
+)
 
 __all__ = [
     "WMS_DISPATCH_EXECUTE",
@@ -16,7 +24,12 @@ __all__ = [
     "WMS_PACK_EXECUTE",
     "WMS_PICK_EXECUTE",
     "WMS_SHORTAGE_OVERRIDE",
+    "CreatePickingWave",
+    "PickingTaskBatchItem",
+    "PickingWaveDetail",
+    "PickingWaveService",
     "WmsAuthorization",
+    "WmsPage",
+    "WmsWaveStore",
     "wms_permission_registry",
 ]
-

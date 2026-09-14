@@ -87,3 +87,15 @@ O adapter valida referências a M2 Product e M5 Inventory usando FKs compostas e
 retorna contratos estáveis (`RESOURCE_NOT_FOUND`, `SCOPE_FORBIDDEN` e conflitos
 WMS) antes de expor os casos de uso oficiais. A suíte cobre round-trip,
 isolamento entre empresas, duplicidade transacional e referências ausentes.
+
+## Entrega do Commit 094
+
+O `PickingWaveService` foi criado na camada de aplicação para autorizar
+`wms.pick.execute`, validar o payload e construir atomicamente uma onda com
+tarefas numeradas. O loteamento inicial agrupa as tarefas por `zone_code` antes
+de gerar a sequência de execução, preservando a ordem recebida dentro de cada
+zona.
+
+O adapter `PostgresPickingWaveStore` encapsula a unidade de trabalho no banco e
+usa apenas os repositórios tenant-bound do M10. A suíte unitária cobre RBAC,
+paginação, validação de negócio e tradução para o Error Contract.
