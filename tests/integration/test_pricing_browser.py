@@ -181,6 +181,11 @@ def test_pricing_cockpit_lists_versions_simulation_snapshots_and_scope() -> None
 
             page.locator("#pricing-simulation-product-id").fill(product_id)
             page.locator("#pricing-simulation-quantity").fill("2")
+            page.locator("#pricing-proposed-price").fill("80.00")
+            page.get_by_role("button", name="Simular sem gravar", exact=True).click()
+            expect(page.locator("#notice")).to_contain_text("margem projetada")
+            expect(page.locator("#pricing-snapshots-empty")).to_be_visible()
+
             page.locator("#pricing-proposed-price").fill("130.00")
             page.get_by_role("button", name="Simular sem gravar", exact=True).click()
             expect(page.locator("#notice")).to_contain_text("sem persistir snapshot")

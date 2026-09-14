@@ -145,3 +145,16 @@ A mesma tela consome `POST /api/v1/pricing/simulate` para projeções em tempo
 real sem persistir snapshot e `POST /api/v1/pricing/resolve` para congelar uma
 decisão auditável. O histórico lê `GET /api/v1/pricing/snapshots`, com filtro
 por produto e isolamento estrito por `company_id`.
+
+## Entrega do Commit 089
+
+O fechamento da Sprint 8 consolida o slice vertical de M9 com runbook
+operacional em [pricing-runbook.md](pricing-runbook.md), cobrindo escopo,
+permissões, endpoints oficiais, jornada do Cockpit, Audit/Outbox, idempotência,
+validação local e troubleshooting.
+
+O E2E Chromium do Pricing Cockpit cobre criação de lista, criação de versão,
+ativação concorrente, erro visual de margem mínima, simulação stateless,
+resolução com snapshot, screenshots desktop/mobile e isolamento ao alternar a
+empresa de trabalho. Com isso, o M9 fica pronto para homologação da Sprint 8 e
+para consumo futuro por M15, M4 e M3 via contratos públicos.

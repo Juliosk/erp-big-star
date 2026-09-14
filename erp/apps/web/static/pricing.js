@@ -278,6 +278,8 @@ export function mountPricing({ api, context, notice, enter }) {
       $("pricing-list-form").reset();
       await loadLists();
       notice("Lista de preço criada.");
+    } catch (error) {
+      notice(error.message);
     } finally {
       button.disabled = false;
     }
@@ -314,6 +316,8 @@ export function mountPricing({ api, context, notice, enter }) {
       $("pricing-version-source").value = "COCKPIT";
       await loadVersions();
       notice("Versão de lista criada em rascunho.");
+    } catch (error) {
+      notice(error.message);
     } finally {
       button.disabled = false;
     }
@@ -340,6 +344,8 @@ export function mountPricing({ api, context, notice, enter }) {
           ? "Preço resolvido e snapshot persistido."
           : "Simulação calculada sem persistir snapshot.",
       );
+    } catch (error) {
+      notice(error.message);
     } finally {
       setDisabled(form, false);
     }
