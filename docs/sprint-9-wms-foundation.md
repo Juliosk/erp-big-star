@@ -99,3 +99,16 @@ zona.
 O adapter `PostgresPickingWaveStore` encapsula a unidade de trabalho no banco e
 usa apenas os repositórios tenant-bound do M10. A suíte unitária cobre RBAC,
 paginação, validação de negócio e tradução para o Error Contract.
+
+## Entrega do Commit 095
+
+As rotas oficiais `GET/POST /api/v1/wms/picking-waves` foram expostas no
+boundary HTTP do M10, com detalhe por ID para validação operacional. As rotas
+usam o `PickingWaveService`, exigem `wms.pick.execute`, propagam `company_id`
+para o escopo M1 e retornam `Cache-Control: no-store`, `ETag` e `Location` nos
+contratos de escrita.
+
+Os schemas Pydantic do WMS são próprios do módulo e a composição FastAPI passa a
+montar o `PostgresPickingWaveStore` somente no application factory. A suíte de
+integração cobre criação, consulta paginada, detalhe, isolamento entre empresas,
+RBAC, scope e Error Contract para validação e referência ausente.

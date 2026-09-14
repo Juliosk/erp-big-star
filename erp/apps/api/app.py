@@ -80,6 +80,9 @@ from erp.modules.product.infrastructure.product_creation import PostgresProductC
 from erp.modules.product.infrastructure.product_directory import PostgresProductDirectory
 from erp.modules.product.infrastructure.product_lifecycle import PostgresProductLifecycle
 from erp.modules.product.infrastructure.product_updates import PostgresProductUpdates
+from erp.modules.wms.api import router as wms_router
+from erp.modules.wms.application import PickingWaveService, WmsAuthorization
+from erp.modules.wms.infrastructure import PostgresPickingWaveStore
 from erp.platform.config import Settings, get_settings
 from erp.platform.database import Database, ManagedDatabase
 from erp.platform.errors import register_error_handlers
@@ -118,6 +121,7 @@ def create_app(
     pricing_resolution: PricingResolutionService | None = None,
     pricing_simulation: PricingSimulationService | None = None,
     pricing_snapshots: PricingSnapshotQueryService | None = None,
+    wms_picking_waves: PickingWaveService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -154,6 +158,7 @@ def create_app(
     resolved_pricing_resolution = pricing_resolution
     resolved_pricing_simulation = pricing_simulation
     resolved_pricing_snapshots = pricing_snapshots
+    resolved_wms_picking_waves = wms_picking_waves
     if isinstance(resolved_database, Database) and (
         resolved_inventory_queries is None
         or resolved_inventory_creation is None
@@ -223,6 +228,13 @@ def create_app(
         resolved_pricing_snapshots = PricingSnapshotQueryService(
             PostgresPricingSnapshots(resolved_database),
             PricingAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
+    if resolved_wms_picking_waves is None and isinstance(resolved_database, Database):
+        resolved_wms_picking_waves = PickingWaveService(
+            PostgresPickingWaveStore(resolved_database),
+            WmsAuthorization(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
             ),
         )
@@ -375,6 +387,7 @@ def create_app(
     application.state.pricing_resolution = resolved_pricing_resolution
     application.state.pricing_simulation = resolved_pricing_simulation
     application.state.pricing_snapshots = resolved_pricing_snapshots
+    application.state.wms_picking_waves = resolved_wms_picking_waves
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)
@@ -382,6 +395,7 @@ def create_app(
     application.include_router(customer_router)
     application.include_router(inventory_router)
     application.include_router(pricing_router)
+    application.include_router(wms_router)
     application.include_router(session_router)
     application.include_router(import_router)
     mount_web(application)
