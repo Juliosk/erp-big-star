@@ -264,6 +264,47 @@ class WorkflowRepository:
         )
         return tuple(_step_definition(model) for model in result)
 
+    async def deactivate_definition(
+        self,
+        definition: WorkflowDefinition,
+        *,
+        actor_id: UUID,
+        expected_version: int,
+    ) -> WorkflowDefinition:
+        _require_actor(actor_id)
+        self._validate_scope(definition.company_id, "workflow definition")
+        if definition.version != expected_version:
+            raise OptimisticLockError(expected_version=expected_version)
+        try:
+            definition.deactivate()
+        except ValueError as error:
+            raise ApplicationError(
+                code="WORKFLOW_DEFINITION_STATUS_CONFLICT",
+                message="Workflow definition cannot be deactivated.",
+                status_code=409,
+            ) from error
+        result = await self._session.scalars(
+            update(WorkflowDefinitionModel)
+            .where(
+                WorkflowDefinitionModel.company_id == self._company_id,
+                WorkflowDefinitionModel.id == definition.id,
+                WorkflowDefinitionModel.version == expected_version,
+                WorkflowDefinitionModel.active.is_(True),
+            )
+            .values(
+                active=False,
+                updated_by=actor_id,
+                version=WorkflowDefinitionModel.version + 1,
+            )
+            .returning(WorkflowDefinitionModel)
+            .execution_options(synchronize_session=False, populate_existing=True)
+        )
+        model = result.one_or_none()
+        if model is None:
+            raise OptimisticLockError(expected_version=expected_version)
+        await self._session.flush()
+        return _definition(model)
+
     async def add_instance(
         self,
         instance: WorkflowInstance,

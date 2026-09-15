@@ -92,6 +92,9 @@ from erp.modules.wms.infrastructure import (
     PostgresPickingTaskStore,
     PostgresPickingWaveStore,
 )
+from erp.modules.workflow.api import router as workflow_router
+from erp.modules.workflow.application import WorkflowAuthorization, WorkflowDefinitionService
+from erp.modules.workflow.infrastructure import PostgresWorkflowDefinitions
 from erp.platform.config import Settings, get_settings
 from erp.platform.database import Database, ManagedDatabase
 from erp.platform.errors import register_error_handlers
@@ -133,6 +136,7 @@ def create_app(
     wms_picking_waves: PickingWaveService | None = None,
     wms_picking_tasks: PickingTaskScanService | None = None,
     wms_packing: PackingService | None = None,
+    workflow_definitions: WorkflowDefinitionService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -172,6 +176,7 @@ def create_app(
     resolved_wms_picking_waves = wms_picking_waves
     resolved_wms_picking_tasks = wms_picking_tasks
     resolved_wms_packing = wms_packing
+    resolved_workflow_definitions = workflow_definitions
     if isinstance(resolved_database, Database) and (
         resolved_inventory_queries is None
         or resolved_inventory_creation is None
@@ -264,6 +269,13 @@ def create_app(
         resolved_wms_packing = PackingService(
             PostgresPackingStore(resolved_database),
             WmsAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
+    if resolved_workflow_definitions is None and isinstance(resolved_database, Database):
+        resolved_workflow_definitions = WorkflowDefinitionService(
+            PostgresWorkflowDefinitions(resolved_database),
+            WorkflowAuthorization(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
             ),
         )
@@ -419,6 +431,7 @@ def create_app(
     application.state.wms_picking_waves = resolved_wms_picking_waves
     application.state.wms_picking_tasks = resolved_wms_picking_tasks
     application.state.wms_packing = resolved_wms_packing
+    application.state.workflow_definitions = resolved_workflow_definitions
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)
@@ -427,6 +440,7 @@ def create_app(
     application.include_router(inventory_router)
     application.include_router(pricing_router)
     application.include_router(wms_router)
+    application.include_router(workflow_router)
     application.include_router(session_router)
     application.include_router(import_router)
     mount_web(application)
