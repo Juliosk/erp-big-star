@@ -1,5 +1,10 @@
 """Application services and policies for M22 Workflow."""
 
+from erp.modules.workflow.application.approvals import (
+    PendingApproval,
+    WorkflowApprovalQueryService,
+    WorkflowApprovalStore,
+)
 from erp.modules.workflow.application.definitions import (
     CreateWorkflowDefinition,
     CreateWorkflowStepDefinition,
@@ -33,6 +38,9 @@ __all__ = [
     "CreateWorkflowStepDefinition",
     "DeactivateWorkflowDefinition",
     "OpenWorkflowInstance",
+    "PendingApproval",
+    "WorkflowApprovalQueryService",
+    "WorkflowApprovalStore",
     "WorkflowAuthorization",
     "WorkflowDefinitionDetail",
     "WorkflowDefinitionService",

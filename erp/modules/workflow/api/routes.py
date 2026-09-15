@@ -11,6 +11,8 @@ from erp.modules.workflow.api.schemas import (
     CreateWorkflowDefinitionRequest,
     CreateWorkflowInstanceRequest,
     PageMetadata,
+    PendingApprovalListResponse,
+    PendingApprovalResponse,
     WorkflowDefinitionDetailResponse,
     WorkflowDefinitionListResponse,
     WorkflowDefinitionResponse,
@@ -25,6 +27,8 @@ from erp.modules.workflow.application import (
     CreateWorkflowStepDefinition,
     DeactivateWorkflowDefinition,
     OpenWorkflowInstance,
+    PendingApproval,
+    WorkflowApprovalQueryService,
     WorkflowDefinitionDetail,
     WorkflowDefinitionService,
     WorkflowInstanceDetail,
@@ -58,6 +62,17 @@ def get_workflow_instances(request: Request) -> WorkflowInstanceService:
         raise ApplicationError(
             code="WORKFLOW_INSTANCE_UNAVAILABLE",
             message="Workflow instance service unavailable.",
+            status_code=503,
+        )
+    return service
+
+
+def get_workflow_approvals(request: Request) -> WorkflowApprovalQueryService:
+    service = getattr(request.app.state, "workflow_approvals", None)
+    if not isinstance(service, WorkflowApprovalQueryService):
+        raise ApplicationError(
+            code="WORKFLOW_APPROVAL_UNAVAILABLE",
+            message="Workflow approval query service unavailable.",
             status_code=503,
         )
     return service
@@ -199,6 +214,32 @@ async def get_workflow_instance(
     return _instance_detail_response(result)
 
 
+@router.get("/approvals/pending", response_model=PendingApprovalListResponse)
+async def list_pending_approvals(
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[WorkflowApprovalQueryService, Depends(get_workflow_approvals)],
+    company_id: UUID,
+    page: Annotated[int, Query(ge=1, le=100_000)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 50,
+    source_module: str | None = None,
+    source_type: str | None = None,
+) -> PendingApprovalListResponse:
+    result = await service.list_pending(
+        context,
+        company_id,
+        source_module=source_module,
+        source_type=source_type,
+        page=page,
+        page_size=page_size,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return PendingApprovalListResponse(
+        data=[_pending_approval_response(item) for item in result.items],
+        meta=PageMetadata(page=result.page, page_size=result.page_size, has_more=result.has_more),
+    )
+
+
 def _definition_detail_response(
     detail: WorkflowDefinitionDetail,
 ) -> WorkflowDefinitionDetailResponse:
@@ -278,4 +319,16 @@ def _step_instance_response(step: WorkflowStepInstance) -> WorkflowStepInstanceR
     )
 
 
-__all__ = ["get_workflow_definitions", "get_workflow_instances", "router"]
+def _pending_approval_response(item: PendingApproval) -> PendingApprovalResponse:
+    return PendingApprovalResponse(
+        step=_step_instance_response(item.step),
+        instance=_instance_response(item.instance),
+    )
+
+
+__all__ = [
+    "get_workflow_approvals",
+    "get_workflow_definitions",
+    "get_workflow_instances",
+    "router",
+]

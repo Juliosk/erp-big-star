@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import and_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -444,6 +444,52 @@ class WorkflowRepository:
             .execution_options(populate_existing=True)
         )
         return tuple(_step_instance(model) for model in result)
+
+    async def list_pending_approvals(
+        self,
+        *,
+        permissions: frozenset[str],
+        source_module: str | None = None,
+        source_type: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[tuple[WorkflowStepInstance, WorkflowInstance], ...]:
+        _validate_page(limit, offset)
+        if not permissions:
+            return ()
+        statement = (
+            select(WorkflowStepInstanceModel, WorkflowInstanceModel)
+            .join(
+                WorkflowInstanceModel,
+                and_(
+                    WorkflowInstanceModel.company_id == WorkflowStepInstanceModel.company_id,
+                    WorkflowInstanceModel.id == WorkflowStepInstanceModel.workflow_instance_id,
+                ),
+            )
+            .where(
+                WorkflowStepInstanceModel.company_id == self._company_id,
+                WorkflowStepInstanceModel.status == WorkflowStepStatus.ACTIVE,
+                WorkflowStepInstanceModel.required_permission.in_(permissions),
+                WorkflowInstanceModel.status == WorkflowInstanceStatus.PENDING,
+            )
+        )
+        if source_module is not None:
+            statement = statement.where(WorkflowInstanceModel.source_module == source_module)
+        if source_type is not None:
+            statement = statement.where(WorkflowInstanceModel.source_type == source_type)
+        result = await self._session.execute(
+            statement.order_by(
+                WorkflowStepInstanceModel.activated_at,
+                WorkflowStepInstanceModel.id,
+            )
+            .limit(limit)
+            .offset(offset)
+            .execution_options(populate_existing=True)
+        )
+        return tuple(
+            (_step_instance(step_model), _instance(instance_model))
+            for step_model, instance_model in result
+        )
 
     async def update_instance(
         self,

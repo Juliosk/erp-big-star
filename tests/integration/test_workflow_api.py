@@ -13,6 +13,7 @@ from erp.apps.api.app import create_app
 from erp.modules.admin.application import SecurityContext
 from erp.modules.admin.domain import AuthenticatedPrincipal, AuthenticationLevel, Scope, ScopeType
 from erp.modules.workflow.application.permissions import (
+    WORKFLOW_APPROVAL_DECIDE,
     WORKFLOW_DEFINITION_MANAGE,
     WORKFLOW_REQUEST_CREATE,
     WORKFLOW_REQUEST_READ,
@@ -132,6 +133,7 @@ def _grant_all_workflow(api: WorkflowApiFixture) -> None:
         permissions=frozenset(
             {
                 WORKFLOW_DEFINITION_MANAGE,
+                WORKFLOW_APPROVAL_DECIDE,
                 WORKFLOW_REQUEST_CREATE,
                 WORKFLOW_REQUEST_READ,
             }
@@ -328,3 +330,72 @@ def test_workflow_instance_api_requires_create_permission_and_active_definition(
         )
         assert missing_definition.status_code == 404
         assert missing_definition.json()["error"]["code"] == "RESOURCE_NOT_FOUND"
+
+
+def test_pending_approvals_api_filters_by_actor_permissions_and_source_type() -> None:
+    with workflow_api() as api:
+        _grant_all_workflow(api)
+        api.client.post(
+            "/api/v1/workflow/definitions",
+            json=_definition_payload(str(api.data.company_id), code="WF-PENDING"),
+            headers=api.headers,
+        )
+        opened = api.client.post(
+            "/api/v1/workflow/instances",
+            json={
+                "company_id": str(api.data.company_id),
+                "source_module": "SALES",
+                "source_type": "QUOTE",
+                "source_id": str(uuid4()),
+                "source_fingerprint": "quote:pending:v1",
+            },
+            headers=api.headers,
+        )
+        assert opened.status_code == 201
+        instance_id = opened.json()["instance"]["id"]
+
+        pending = api.client.get(
+            (
+                f"/api/v1/workflow/approvals/pending?company_id={api.data.company_id}"
+                "&source_module=sales&source_type=quote"
+            ),
+            headers=api.headers,
+        )
+        assert pending.status_code == 200
+        assert pending.json()["meta"] == {"page": 1, "page_size": 50, "has_more": False}
+        assert [item["instance"]["id"] for item in pending.json()["data"]] == [instance_id]
+        assert pending.json()["data"][0]["step"]["required_permission"] == (
+            "workflow.approval.decide"
+        )
+
+        filtered_out = api.client.get(
+            (
+                f"/api/v1/workflow/approvals/pending?company_id={api.data.company_id}"
+                "&source_module=sales&source_type=order"
+            ),
+            headers=api.headers,
+        )
+        assert filtered_out.status_code == 200
+        assert filtered_out.json()["data"] == []
+
+        assert api.resolver.context is not None
+        api.resolver.context = replace(
+            api.resolver.context,
+            permissions=frozenset({WORKFLOW_REQUEST_READ}),
+        )
+        no_step_permission = api.client.get(
+            f"/api/v1/workflow/approvals/pending?company_id={api.data.company_id}",
+            headers=api.headers,
+        )
+        assert no_step_permission.status_code == 200
+        assert no_step_permission.json()["data"] == []
+
+
+def test_pending_approvals_api_requires_read_permission() -> None:
+    with workflow_api() as api:
+        denied = api.client.get(
+            f"/api/v1/workflow/approvals/pending?company_id={api.data.company_id}",
+            headers=api.headers,
+        )
+        assert denied.status_code == 403
+        assert denied.json()["error"]["code"] == "PERMISSION_FORBIDDEN"
