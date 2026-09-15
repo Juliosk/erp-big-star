@@ -9,21 +9,33 @@ from erp.modules.admin.api import resolve_security_context
 from erp.modules.admin.contracts import SecurityContext
 from erp.modules.workflow.api.schemas import (
     CreateWorkflowDefinitionRequest,
+    CreateWorkflowInstanceRequest,
     PageMetadata,
     WorkflowDefinitionDetailResponse,
     WorkflowDefinitionListResponse,
     WorkflowDefinitionResponse,
+    WorkflowInstanceDetailResponse,
+    WorkflowInstanceResponse,
     WorkflowStepDefinitionResponse,
+    WorkflowStepInstanceResponse,
 )
 from erp.modules.workflow.api.versioning import require_version
 from erp.modules.workflow.application import (
     CreateWorkflowDefinition,
     CreateWorkflowStepDefinition,
     DeactivateWorkflowDefinition,
+    OpenWorkflowInstance,
     WorkflowDefinitionDetail,
     WorkflowDefinitionService,
+    WorkflowInstanceDetail,
+    WorkflowInstanceService,
 )
-from erp.modules.workflow.domain import WorkflowDefinition, WorkflowStepDefinition
+from erp.modules.workflow.domain import (
+    WorkflowDefinition,
+    WorkflowInstance,
+    WorkflowStepDefinition,
+    WorkflowStepInstance,
+)
 from erp.platform.errors import ApplicationError
 
 router = APIRouter(prefix="/api/v1/workflow", tags=["workflow"])
@@ -35,6 +47,17 @@ def get_workflow_definitions(request: Request) -> WorkflowDefinitionService:
         raise ApplicationError(
             code="WORKFLOW_DEFINITION_UNAVAILABLE",
             message="Workflow definition service unavailable.",
+            status_code=503,
+        )
+    return service
+
+
+def get_workflow_instances(request: Request) -> WorkflowInstanceService:
+    service = getattr(request.app.state, "workflow_instances", None)
+    if not isinstance(service, WorkflowInstanceService):
+        raise ApplicationError(
+            code="WORKFLOW_INSTANCE_UNAVAILABLE",
+            message="Workflow instance service unavailable.",
             status_code=503,
         )
     return service
@@ -136,6 +159,46 @@ async def deactivate_workflow_definition(
     return _definition_detail_response(result)
 
 
+@router.post("/instances", status_code=201, response_model=WorkflowInstanceDetailResponse)
+async def open_workflow_instance(
+    body: CreateWorkflowInstanceRequest,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[WorkflowInstanceService, Depends(get_workflow_instances)],
+) -> WorkflowInstanceDetailResponse:
+    result = await service.open_instance(
+        context,
+        OpenWorkflowInstance(
+            company_id=body.company_id,
+            source_module=body.source_module,
+            source_type=body.source_type,
+            source_id=body.source_id,
+            source_fingerprint=body.source_fingerprint,
+        ),
+    )
+    response.headers["Location"] = (
+        f"/api/v1/workflow/instances/{result.instance.id}"
+        f"?company_id={result.instance.company_id}"
+    )
+    response.headers["ETag"] = f'"{result.instance.version}"'
+    response.headers["Cache-Control"] = "no-store"
+    return _instance_detail_response(result)
+
+
+@router.get("/instances/{workflow_instance_id}", response_model=WorkflowInstanceDetailResponse)
+async def get_workflow_instance(
+    workflow_instance_id: UUID,
+    company_id: UUID,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[WorkflowInstanceService, Depends(get_workflow_instances)],
+) -> WorkflowInstanceDetailResponse:
+    result = await service.get_instance(context, company_id, workflow_instance_id)
+    response.headers["ETag"] = f'"{result.instance.version}"'
+    response.headers["Cache-Control"] = "no-store"
+    return _instance_detail_response(result)
+
+
 def _definition_detail_response(
     detail: WorkflowDefinitionDetail,
 ) -> WorkflowDefinitionDetailResponse:
@@ -175,4 +238,44 @@ def _step_definition_response(
     )
 
 
-__all__ = ["get_workflow_definitions", "router"]
+def _instance_detail_response(detail: WorkflowInstanceDetail) -> WorkflowInstanceDetailResponse:
+    return WorkflowInstanceDetailResponse(
+        instance=_instance_response(detail.instance),
+        steps=[_step_instance_response(step) for step in detail.steps],
+    )
+
+
+def _instance_response(instance: WorkflowInstance) -> WorkflowInstanceResponse:
+    return WorkflowInstanceResponse(
+        id=instance.id,
+        company_id=instance.company_id,
+        definition_id=instance.definition_id,
+        source_module=instance.source_module,
+        source_type=instance.source_type,
+        source_id=instance.source_id,
+        source_fingerprint=instance.source_fingerprint,
+        status=instance.status,
+        current_step_sequence=instance.current_step_sequence,
+        requested_by=instance.requested_by,
+        version=instance.version,
+    )
+
+
+def _step_instance_response(step: WorkflowStepInstance) -> WorkflowStepInstanceResponse:
+    return WorkflowStepInstanceResponse(
+        id=step.id,
+        company_id=step.company_id,
+        workflow_instance_id=step.workflow_instance_id,
+        sequence=step.sequence,
+        code=step.code,
+        name=step.name,
+        required_permission=step.required_permission,
+        status=step.status,
+        activated_at=step.activated_at.isoformat() if step.activated_at is not None else None,
+        decided_at=step.decided_at.isoformat() if step.decided_at is not None else None,
+        decided_by=step.decided_by,
+        version=step.version,
+    )
+
+
+__all__ = ["get_workflow_definitions", "get_workflow_instances", "router"]

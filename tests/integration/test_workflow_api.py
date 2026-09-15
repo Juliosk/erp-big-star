@@ -12,7 +12,11 @@ from sqlalchemy import delete
 from erp.apps.api.app import create_app
 from erp.modules.admin.application import SecurityContext
 from erp.modules.admin.domain import AuthenticatedPrincipal, AuthenticationLevel, Scope, ScopeType
-from erp.modules.workflow.application.permissions import WORKFLOW_DEFINITION_MANAGE
+from erp.modules.workflow.application.permissions import (
+    WORKFLOW_DEFINITION_MANAGE,
+    WORKFLOW_REQUEST_CREATE,
+    WORKFLOW_REQUEST_READ,
+)
 from erp.modules.workflow.infrastructure import (
     ApprovalDecisionModel,
     WorkflowDefinitionModel,
@@ -121,6 +125,20 @@ def _definition_payload(company_id: str, *, code: str = "WF-API") -> dict[str, o
     }
 
 
+def _grant_all_workflow(api: WorkflowApiFixture) -> None:
+    assert api.resolver.context is not None
+    api.resolver.context = replace(
+        api.resolver.context,
+        permissions=frozenset(
+            {
+                WORKFLOW_DEFINITION_MANAGE,
+                WORKFLOW_REQUEST_CREATE,
+                WORKFLOW_REQUEST_READ,
+            }
+        ),
+    )
+
+
 def test_workflow_definition_api_create_list_get_and_deactivate() -> None:
     with workflow_api() as api:
         created = api.client.post(
@@ -222,3 +240,91 @@ def test_workflow_definition_api_enforces_rbac_scope_if_match_and_conflicts() ->
         )
         assert conflict.status_code == 409
         assert conflict.json()["error"]["code"] == "VERSION_CONFLICT"
+
+
+def test_workflow_instance_api_opens_request_from_active_definition() -> None:
+    with workflow_api() as api:
+        _grant_all_workflow(api)
+        definition = api.client.post(
+            "/api/v1/workflow/definitions",
+            json=_definition_payload(str(api.data.company_id), code="WF-INSTANCE"),
+            headers=api.headers,
+        ).json()["definition"]
+        source_id = uuid4()
+
+        opened = api.client.post(
+            "/api/v1/workflow/instances",
+            json={
+                "company_id": str(api.data.company_id),
+                "source_module": "sales",
+                "source_type": "quote",
+                "source_id": str(source_id),
+                "source_fingerprint": "quote:instance:v1",
+            },
+            headers=api.headers,
+        )
+        assert opened.status_code == 201
+        assert opened.headers["etag"] == '"1"'
+        body = opened.json()
+        instance = body["instance"]
+        assert instance["company_id"] == str(api.data.company_id)
+        assert instance["definition_id"] == definition["id"]
+        assert instance["source_module"] == "SALES"
+        assert instance["source_type"] == "QUOTE"
+        assert instance["status"] == "PENDING"
+        assert body["steps"][0]["status"] == "ACTIVE"
+
+        detail = api.client.get(
+            f"/api/v1/workflow/instances/{instance['id']}?company_id={api.data.company_id}",
+            headers=api.headers,
+        )
+        assert detail.status_code == 200
+        assert detail.headers["etag"] == '"1"'
+        assert detail.json() == body
+
+        duplicate = api.client.post(
+            "/api/v1/workflow/instances",
+            json={
+                "company_id": str(api.data.company_id),
+                "source_module": "SALES",
+                "source_type": "QUOTE",
+                "source_id": str(source_id),
+                "source_fingerprint": "quote:instance:v1",
+            },
+            headers=api.headers,
+        )
+        assert duplicate.status_code == 409
+        assert duplicate.json()["error"]["code"] == "WORKFLOW_INSTANCE_CONFLICT"
+
+
+def test_workflow_instance_api_requires_create_permission_and_active_definition() -> None:
+    with workflow_api() as api:
+        source_id = uuid4()
+        denied = api.client.post(
+            "/api/v1/workflow/instances",
+            json={
+                "company_id": str(api.data.company_id),
+                "source_module": "SALES",
+                "source_type": "QUOTE",
+                "source_id": str(source_id),
+                "source_fingerprint": "quote:no-permission",
+            },
+            headers=api.headers,
+        )
+        assert denied.status_code == 403
+        assert denied.json()["error"]["code"] == "PERMISSION_FORBIDDEN"
+
+        _grant_all_workflow(api)
+        missing_definition = api.client.post(
+            "/api/v1/workflow/instances",
+            json={
+                "company_id": str(api.data.company_id),
+                "source_module": "SALES",
+                "source_type": "ORDER",
+                "source_id": str(source_id),
+                "source_fingerprint": "order:no-definition",
+            },
+            headers=api.headers,
+        )
+        assert missing_definition.status_code == 404
+        assert missing_definition.json()["error"]["code"] == "RESOURCE_NOT_FOUND"
