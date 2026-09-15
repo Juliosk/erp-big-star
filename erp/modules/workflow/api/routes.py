@@ -8,11 +8,14 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 from erp.modules.admin.api import resolve_security_context
 from erp.modules.admin.contracts import SecurityContext
 from erp.modules.workflow.api.schemas import (
+    ApprovalDecisionResponse,
     CreateWorkflowDefinitionRequest,
     CreateWorkflowInstanceRequest,
+    DecideWorkflowInstanceRequest,
     PageMetadata,
     PendingApprovalListResponse,
     PendingApprovalResponse,
+    WorkflowDecisionResponse,
     WorkflowDefinitionDetailResponse,
     WorkflowDefinitionListResponse,
     WorkflowDefinitionResponse,
@@ -23,12 +26,16 @@ from erp.modules.workflow.api.schemas import (
 )
 from erp.modules.workflow.api.versioning import require_version
 from erp.modules.workflow.application import (
+    CommandMetadata,
     CreateWorkflowDefinition,
     CreateWorkflowStepDefinition,
     DeactivateWorkflowDefinition,
+    DecideWorkflowInstance,
     OpenWorkflowInstance,
     PendingApproval,
     WorkflowApprovalQueryService,
+    WorkflowDecisionResult,
+    WorkflowDecisionService,
     WorkflowDefinitionDetail,
     WorkflowDefinitionService,
     WorkflowInstanceDetail,
@@ -76,6 +83,25 @@ def get_workflow_approvals(request: Request) -> WorkflowApprovalQueryService:
             status_code=503,
         )
     return service
+
+
+def get_workflow_decisions(request: Request) -> WorkflowDecisionService:
+    service = getattr(request.app.state, "workflow_decisions", None)
+    if not isinstance(service, WorkflowDecisionService):
+        raise ApplicationError(
+            code="WORKFLOW_DECISION_UNAVAILABLE",
+            message="Workflow decision service unavailable.",
+            status_code=503,
+        )
+    return service
+
+
+def metadata(request: Request) -> CommandMetadata:
+    return CommandMetadata(
+        UUID(request.state.request_id),
+        UUID(request.state.correlation_id),
+        request.client.host if request.client is not None else None,
+    )
 
 
 @router.get("/definitions", response_model=WorkflowDefinitionListResponse)
@@ -214,6 +240,34 @@ async def get_workflow_instance(
     return _instance_detail_response(result)
 
 
+@router.post("/instances/{workflow_instance_id}/decide", response_model=WorkflowDecisionResponse)
+async def decide_workflow_instance(
+    workflow_instance_id: UUID,
+    body: DecideWorkflowInstanceRequest,
+    request: Request,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[WorkflowDecisionService, Depends(get_workflow_decisions)],
+    expected_version: Annotated[int, Depends(require_version)],
+) -> WorkflowDecisionResponse:
+    result = await service.decide(
+        context,
+        DecideWorkflowInstance(
+            company_id=body.company_id,
+            workflow_instance_id=workflow_instance_id,
+            step_instance_id=body.step_instance_id,
+            expected_version=expected_version,
+            decision=body.decision,
+            reason_code=body.reason_code,
+            comment=body.comment,
+            metadata=metadata(request),
+        ),
+    )
+    response.headers["ETag"] = f'"{result.detail.instance.version}"'
+    response.headers["Cache-Control"] = "no-store"
+    return _decision_response(result)
+
+
 @router.get("/approvals/pending", response_model=PendingApprovalListResponse)
 async def list_pending_approvals(
     response: Response,
@@ -326,9 +380,30 @@ def _pending_approval_response(item: PendingApproval) -> PendingApprovalResponse
     )
 
 
+def _decision_response(result: WorkflowDecisionResult) -> WorkflowDecisionResponse:
+    return WorkflowDecisionResponse(
+        detail=_instance_detail_response(result.detail),
+        decision=ApprovalDecisionResponse(
+            id=result.decision.id,
+            company_id=result.decision.company_id,
+            workflow_instance_id=result.decision.workflow_instance_id,
+            step_instance_id=result.decision.step_instance_id,
+            decision=result.decision.decision,
+            decided_by=result.decision.decided_by,
+            decided_at=result.decision.decided_at.isoformat(),
+            reason_code=result.decision.reason_code,
+            comment=result.decision.comment,
+        ),
+        event_id=result.event_id,
+        audit_event_id=result.audit_event_id,
+    )
+
+
 __all__ = [
     "get_workflow_approvals",
+    "get_workflow_decisions",
     "get_workflow_definitions",
     "get_workflow_instances",
+    "metadata",
     "router",
 ]

@@ -106,22 +106,30 @@ def workflow_api() -> Iterator[WorkflowApiFixture]:
                 client.portal.call(manager.__aexit__, None, None, None)
 
 
-def _definition_payload(company_id: str, *, code: str = "WF-API") -> dict[str, object]:
+def _definition_payload(
+    company_id: str,
+    *,
+    code: str = "WF-API",
+    approval_mode: str = "SEQUENTIAL",
+    steps_count: int = 1,
+    required_permission: str = "workflow.approval.decide",
+) -> dict[str, object]:
     return {
         "company_id": company_id,
         "code": code,
         "name": "Aprovação de descontos",
         "source_module": "SALES",
         "source_type": "QUOTE",
-        "approval_mode": "SEQUENTIAL",
+        "approval_mode": approval_mode,
         "steps": [
             {
-                "sequence": 1,
-                "code": "MANAGER",
-                "name": "Gerência comercial",
-                "required_permission": "workflow.approval.decide",
+                "sequence": sequence,
+                "code": f"STEP-{sequence}",
+                "name": f"Aprovação {sequence}",
+                "required_permission": required_permission,
                 "threshold_amount": "100.00",
             }
+            for sequence in range(1, steps_count + 1)
         ],
     }
 
@@ -399,3 +407,214 @@ def test_pending_approvals_api_requires_read_permission() -> None:
         )
         assert denied.status_code == 403
         assert denied.json()["error"]["code"] == "PERMISSION_FORBIDDEN"
+
+
+def test_workflow_decision_api_advances_sequential_steps_and_versions() -> None:
+    with workflow_api() as api:
+        _grant_all_workflow(api)
+        api.client.post(
+            "/api/v1/workflow/definitions",
+            json=_definition_payload(
+                str(api.data.company_id), code="WF-DECIDE-SEQ", steps_count=2
+            ),
+            headers=api.headers,
+        )
+        opened = api.client.post(
+            "/api/v1/workflow/instances",
+            json={
+                "company_id": str(api.data.company_id),
+                "source_module": "SALES",
+                "source_type": "QUOTE",
+                "source_id": str(uuid4()),
+                "source_fingerprint": "quote:decision:sequential",
+            },
+            headers=api.headers,
+        ).json()
+        first_step, second_step = opened["steps"]
+
+        first_decision = api.client.post(
+            f"/api/v1/workflow/instances/{opened['instance']['id']}/decide",
+            json={
+                "company_id": str(api.data.company_id),
+                "step_instance_id": first_step["id"],
+                "decision": "APPROVED",
+                "reason_code": "OK",
+                "comment": "primeiro nível",
+            },
+            headers={**api.headers, "If-Match": '"1"'},
+        )
+        assert first_decision.status_code == 200
+        assert first_decision.headers["etag"] == '"2"'
+        first_body = first_decision.json()
+        assert first_body["event_id"] is None
+        assert first_body["audit_event_id"] is None
+        assert first_body["detail"]["instance"]["status"] == "PENDING"
+        assert first_body["detail"]["instance"]["current_step_sequence"] == 2
+        assert [step["status"] for step in first_body["detail"]["steps"]] == [
+            "APPROVED",
+            "ACTIVE",
+        ]
+
+        stale = api.client.post(
+            f"/api/v1/workflow/instances/{opened['instance']['id']}/decide",
+            json={
+                "company_id": str(api.data.company_id),
+                "step_instance_id": second_step["id"],
+                "decision": "APPROVED",
+            },
+            headers={**api.headers, "If-Match": '"1"'},
+        )
+        assert stale.status_code == 409
+        assert stale.json()["error"]["code"] == "VERSION_CONFLICT"
+
+        second_decision = api.client.post(
+            f"/api/v1/workflow/instances/{opened['instance']['id']}/decide",
+            json={
+                "company_id": str(api.data.company_id),
+                "step_instance_id": second_step["id"],
+                "decision": "APPROVED",
+            },
+            headers={**api.headers, "If-Match": '"2"'},
+        )
+        assert second_decision.status_code == 200
+        assert second_decision.headers["etag"] == '"3"'
+        assert second_decision.json()["detail"]["instance"]["status"] == "APPROVED"
+
+
+def test_workflow_decision_api_rejects_highest_level_and_finishes_cumulative() -> None:
+    with workflow_api() as api:
+        _grant_all_workflow(api)
+        api.client.post(
+            "/api/v1/workflow/definitions",
+            json=_definition_payload(
+                str(api.data.company_id),
+                code="WF-DECIDE-HIGH",
+                approval_mode="HIGHEST_LEVEL",
+                steps_count=2,
+            ),
+            headers=api.headers,
+        )
+        highest = api.client.post(
+            "/api/v1/workflow/instances",
+            json={
+                "company_id": str(api.data.company_id),
+                "source_module": "SALES",
+                "source_type": "QUOTE",
+                "source_id": str(uuid4()),
+                "source_fingerprint": "quote:decision:highest",
+            },
+            headers=api.headers,
+        ).json()
+        assert [step["status"] for step in highest["steps"]] == ["WAITING", "ACTIVE"]
+        rejected = api.client.post(
+            f"/api/v1/workflow/instances/{highest['instance']['id']}/decide",
+            json={
+                "company_id": str(api.data.company_id),
+                "step_instance_id": highest["steps"][1]["id"],
+                "decision": "REJECTED",
+                "reason_code": "DENIED",
+            },
+            headers={**api.headers, "If-Match": '"1"'},
+        )
+        assert rejected.status_code == 200
+        assert rejected.json()["detail"]["instance"]["status"] == "REJECTED"
+
+    with workflow_api() as api:
+        _grant_all_workflow(api)
+        api.client.post(
+            "/api/v1/workflow/definitions",
+            json=_definition_payload(
+                str(api.data.company_id),
+                code="WF-DECIDE-CUM",
+                approval_mode="CUMULATIVE",
+                steps_count=2,
+            ),
+            headers=api.headers,
+        )
+        cumulative = api.client.post(
+            "/api/v1/workflow/instances",
+            json={
+                "company_id": str(api.data.company_id),
+                "source_module": "SALES",
+                "source_type": "QUOTE",
+                "source_id": str(uuid4()),
+                "source_fingerprint": "quote:decision:cumulative",
+            },
+            headers=api.headers,
+        ).json()
+        assert [step["status"] for step in cumulative["steps"]] == ["ACTIVE", "ACTIVE"]
+        first = api.client.post(
+            f"/api/v1/workflow/instances/{cumulative['instance']['id']}/decide",
+            json={
+                "company_id": str(api.data.company_id),
+                "step_instance_id": cumulative["steps"][0]["id"],
+                "decision": "APPROVED",
+            },
+            headers={**api.headers, "If-Match": '"1"'},
+        )
+        assert first.status_code == 200
+        assert first.json()["detail"]["instance"]["status"] == "PENDING"
+        final = api.client.post(
+            f"/api/v1/workflow/instances/{cumulative['instance']['id']}/decide",
+            json={
+                "company_id": str(api.data.company_id),
+                "step_instance_id": cumulative["steps"][1]["id"],
+                "decision": "APPROVED",
+            },
+            headers={**api.headers, "If-Match": '"2"'},
+        )
+        assert final.status_code == 200
+        assert final.json()["detail"]["instance"]["status"] == "APPROVED"
+
+
+def test_workflow_decision_api_requires_if_match_and_step_permission() -> None:
+    with workflow_api() as api:
+        _grant_all_workflow(api)
+        api.client.post(
+            "/api/v1/workflow/definitions",
+            json=_definition_payload(
+                str(api.data.company_id),
+                code="WF-DECIDE-GUARD",
+                required_permission="sales.quote.approve",
+            ),
+            headers=api.headers,
+        )
+        opened = api.client.post(
+            "/api/v1/workflow/instances",
+            json={
+                "company_id": str(api.data.company_id),
+                "source_module": "SALES",
+                "source_type": "QUOTE",
+                "source_id": str(uuid4()),
+                "source_fingerprint": "quote:decision:guard",
+            },
+            headers=api.headers,
+        ).json()
+        missing_if_match = api.client.post(
+            f"/api/v1/workflow/instances/{opened['instance']['id']}/decide",
+            json={
+                "company_id": str(api.data.company_id),
+                "step_instance_id": opened["steps"][0]["id"],
+                "decision": "APPROVED",
+            },
+            headers=api.headers,
+        )
+        assert missing_if_match.status_code == 428
+        assert missing_if_match.json()["error"]["code"] == "PRECONDITION_REQUIRED"
+
+        assert api.resolver.context is not None
+        api.resolver.context = replace(
+            api.resolver.context,
+            permissions=frozenset({WORKFLOW_APPROVAL_DECIDE}),
+        )
+        step_permission_denied = api.client.post(
+            f"/api/v1/workflow/instances/{opened['instance']['id']}/decide",
+            json={
+                "company_id": str(api.data.company_id),
+                "step_instance_id": opened["steps"][0]["id"],
+                "decision": "APPROVED",
+            },
+            headers={**api.headers, "If-Match": '"1"'},
+        )
+        assert step_permission_denied.status_code == 403
+        assert step_permission_denied.json()["error"]["code"] == "PERMISSION_FORBIDDEN"

@@ -82,6 +82,15 @@ class CreateWorkflowInstanceRequest(BaseModel):
     source_fingerprint: str = Field(min_length=1, max_length=128)
 
 
+class DecideWorkflowInstanceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    company_id: UUID
+    step_instance_id: UUID
+    decision: ApprovalDecisionKind
+    reason_code: str | None = Field(default=None, min_length=1, max_length=64)
+    comment: str | None = Field(default=None, max_length=500)
+
+
 class WorkflowStepInstanceResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
@@ -140,13 +149,22 @@ class ApprovalDecisionResponse(BaseModel):
     comment: str | None
 
 
+class WorkflowDecisionResponse(BaseModel):
+    detail: WorkflowInstanceDetailResponse
+    decision: ApprovalDecisionResponse
+    event_id: UUID | None = None
+    audit_event_id: UUID | None = None
+
+
 __all__ = [
     "ApprovalDecisionResponse",
     "CreateWorkflowDefinitionRequest",
     "CreateWorkflowInstanceRequest",
+    "DecideWorkflowInstanceRequest",
     "PageMetadata",
     "PendingApprovalListResponse",
     "PendingApprovalResponse",
+    "WorkflowDecisionResponse",
     "WorkflowDefinitionDetailResponse",
     "WorkflowDefinitionListResponse",
     "WorkflowDefinitionResponse",

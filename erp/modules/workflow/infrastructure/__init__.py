@@ -1,6 +1,7 @@
 """Internal M22 persistence adapters, wired only at the composition boundary."""
 
 from erp.modules.workflow.infrastructure.approvals import PostgresWorkflowApprovals
+from erp.modules.workflow.infrastructure.decisions import PostgresWorkflowDecisions
 from erp.modules.workflow.infrastructure.definitions import PostgresWorkflowDefinitions
 from erp.modules.workflow.infrastructure.instances import PostgresWorkflowInstances
 from erp.modules.workflow.infrastructure.repository import WorkflowRepository
@@ -15,6 +16,7 @@ from erp.modules.workflow.infrastructure.workflow_model import (
 __all__ = [
     "ApprovalDecisionModel",
     "PostgresWorkflowApprovals",
+    "PostgresWorkflowDecisions",
     "PostgresWorkflowDefinitions",
     "PostgresWorkflowInstances",
     "WorkflowDefinitionModel",

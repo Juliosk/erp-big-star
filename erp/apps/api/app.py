@@ -96,11 +96,13 @@ from erp.modules.workflow.api import router as workflow_router
 from erp.modules.workflow.application import (
     WorkflowApprovalQueryService,
     WorkflowAuthorization,
+    WorkflowDecisionService,
     WorkflowDefinitionService,
     WorkflowInstanceService,
 )
 from erp.modules.workflow.infrastructure import (
     PostgresWorkflowApprovals,
+    PostgresWorkflowDecisions,
     PostgresWorkflowDefinitions,
     PostgresWorkflowInstances,
 )
@@ -148,6 +150,7 @@ def create_app(
     workflow_definitions: WorkflowDefinitionService | None = None,
     workflow_instances: WorkflowInstanceService | None = None,
     workflow_approvals: WorkflowApprovalQueryService | None = None,
+    workflow_decisions: WorkflowDecisionService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -190,6 +193,7 @@ def create_app(
     resolved_workflow_definitions = workflow_definitions
     resolved_workflow_instances = workflow_instances
     resolved_workflow_approvals = workflow_approvals
+    resolved_workflow_decisions = workflow_decisions
     if isinstance(resolved_database, Database) and (
         resolved_inventory_queries is None
         or resolved_inventory_creation is None
@@ -302,6 +306,13 @@ def create_app(
     if resolved_workflow_approvals is None and isinstance(resolved_database, Database):
         resolved_workflow_approvals = WorkflowApprovalQueryService(
             PostgresWorkflowApprovals(resolved_database),
+            WorkflowAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
+    if resolved_workflow_decisions is None and isinstance(resolved_database, Database):
+        resolved_workflow_decisions = WorkflowDecisionService(
+            PostgresWorkflowDecisions(resolved_database),
             WorkflowAuthorization(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
             ),
@@ -461,6 +472,7 @@ def create_app(
     application.state.workflow_definitions = resolved_workflow_definitions
     application.state.workflow_instances = resolved_workflow_instances
     application.state.workflow_approvals = resolved_workflow_approvals
+    application.state.workflow_decisions = resolved_workflow_decisions
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)

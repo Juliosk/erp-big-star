@@ -5,6 +5,13 @@ from erp.modules.workflow.application.approvals import (
     WorkflowApprovalQueryService,
     WorkflowApprovalStore,
 )
+from erp.modules.workflow.application.decisions import (
+    CommandMetadata,
+    DecideWorkflowInstance,
+    WorkflowDecisionResult,
+    WorkflowDecisionService,
+    WorkflowDecisionStore,
+)
 from erp.modules.workflow.application.definitions import (
     CreateWorkflowDefinition,
     CreateWorkflowStepDefinition,
@@ -34,14 +41,19 @@ __all__ = [
     "WORKFLOW_DEFINITION_MANAGE",
     "WORKFLOW_REQUEST_CREATE",
     "WORKFLOW_REQUEST_READ",
+    "CommandMetadata",
     "CreateWorkflowDefinition",
     "CreateWorkflowStepDefinition",
     "DeactivateWorkflowDefinition",
+    "DecideWorkflowInstance",
     "OpenWorkflowInstance",
     "PendingApproval",
     "WorkflowApprovalQueryService",
     "WorkflowApprovalStore",
     "WorkflowAuthorization",
+    "WorkflowDecisionResult",
+    "WorkflowDecisionService",
+    "WorkflowDecisionStore",
     "WorkflowDefinitionDetail",
     "WorkflowDefinitionService",
     "WorkflowDefinitionStore",
