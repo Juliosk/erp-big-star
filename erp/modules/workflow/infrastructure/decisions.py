@@ -16,6 +16,7 @@ from erp.modules.workflow.domain import (
     WorkflowStepInstance,
     WorkflowStepStatus,
 )
+from erp.modules.workflow.infrastructure.effects import WorkflowEffects
 from erp.modules.workflow.infrastructure.repository import WorkflowRepository
 from erp.platform.concurrency import OptimisticLockError
 from erp.platform.database import Database
@@ -25,8 +26,9 @@ from erp.platform.errors import ApplicationError
 class PostgresWorkflowDecisions(WorkflowDecisionStore):
     """Apply decisions, state progression and decision records atomically."""
 
-    def __init__(self, database: Database) -> None:
+    def __init__(self, database: Database, effects: WorkflowEffects | None = None) -> None:
         self._database = database
+        self._effects = effects or WorkflowEffects()
 
     async def decide(
         self,
@@ -46,6 +48,10 @@ class PostgresWorkflowDecisions(WorkflowDecisionStore):
                 )
             if instance.version != command.expected_version:
                 raise OptimisticLockError(expected_version=command.expected_version)
+            before_steps = await repository.list_step_instances(
+                workflow_instance_id=instance.id
+            )
+            before = WorkflowInstanceDetail(instance, before_steps)
             definition = await repository.get_definition(instance.definition_id)
             if definition is None:
                 raise ApplicationError(
@@ -53,7 +59,7 @@ class PostgresWorkflowDecisions(WorkflowDecisionStore):
                     message="Workflow definition not found.",
                     status_code=404,
                 )
-            steps = await repository.list_step_instances(workflow_instance_id=instance.id)
+            steps = before_steps
             step = _selected_active_step(command, steps, actor_permissions)
             decided_step = _decide_step(command, step, actor_id)
             updated_step = await repository.update_step_instance(
@@ -84,9 +90,16 @@ class PostgresWorkflowDecisions(WorkflowDecisionStore):
                 now=updated_step.decided_at,
             )
             await repository.add_decision(decision)
-            return WorkflowDecisionResult(
+            result = WorkflowDecisionResult(
                 detail=WorkflowInstanceDetail(advanced_instance, advanced_steps),
                 decision=decision,
+            )
+            return await self._effects.record_decision(
+                session,
+                result,
+                actor_id=actor_id,
+                command=command,
+                before=before,
             )
 
 

@@ -5,7 +5,10 @@ from typing import Protocol
 from uuid import UUID
 
 from erp.modules.admin.contracts import SecurityContext
-from erp.modules.workflow.application.instances import WorkflowInstanceDetail
+from erp.modules.workflow.application.instances import (
+    WorkflowInstanceDetail,
+    workflow_instance_detail_snapshot,
+)
 from erp.modules.workflow.application.permissions import (
     WORKFLOW_APPROVAL_DECIDE,
     WorkflowAuthorization,
@@ -40,6 +43,16 @@ class WorkflowDecisionResult:
     decision: ApprovalDecision
     event_id: UUID | None = None
     audit_event_id: UUID | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "detail": workflow_instance_detail_snapshot(self.detail),
+            "decision": approval_decision_snapshot(self.decision),
+            "event_id": str(self.event_id) if self.event_id is not None else None,
+            "audit_event_id": str(self.audit_event_id)
+            if self.audit_event_id is not None
+            else None,
+        }
 
 
 class WorkflowDecisionStore(Protocol):
@@ -94,10 +107,25 @@ def _validation(message: str) -> ApplicationError:
     )
 
 
+def approval_decision_snapshot(decision: ApprovalDecision) -> dict[str, object]:
+    return {
+        "id": str(decision.id),
+        "company_id": str(decision.company_id),
+        "workflow_instance_id": str(decision.workflow_instance_id),
+        "step_instance_id": str(decision.step_instance_id),
+        "decision": decision.decision,
+        "decided_by": str(decision.decided_by),
+        "decided_at": decision.decided_at.isoformat(),
+        "reason_code": decision.reason_code,
+        "comment": decision.comment,
+    }
+
+
 __all__ = [
     "CommandMetadata",
     "DecideWorkflowInstance",
     "WorkflowDecisionResult",
     "WorkflowDecisionService",
     "WorkflowDecisionStore",
+    "approval_decision_snapshot",
 ]

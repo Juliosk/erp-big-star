@@ -3,11 +3,11 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete
+from sqlalchemy import delete, func, select
 
 from erp.apps.api.app import create_app
 from erp.modules.admin.application import SecurityContext
@@ -19,12 +19,17 @@ from erp.modules.workflow.application.permissions import (
     WORKFLOW_REQUEST_READ,
 )
 from erp.modules.workflow.infrastructure import (
+    WORKFLOW_INSTANCE_APPROVED,
+    WORKFLOW_INSTANCE_REJECTED,
+    WORKFLOW_STEP_APPROVED,
     ApprovalDecisionModel,
     WorkflowDefinitionModel,
     WorkflowInstanceModel,
     WorkflowStepDefinitionModel,
     WorkflowStepInstanceModel,
 )
+from erp.platform.audit import AuditEventModel
+from erp.platform.outbox import OutboxEventModel
 from tests.integration.test_product_persistence import Fixture, fixture
 
 pytestmark = pytest.mark.integration
@@ -51,6 +56,15 @@ class WorkflowApiFixture:
 async def _cleanup_workflow(data: Fixture) -> None:
     company_ids = (data.company_id, data.other_company_id)
     async with data.database.session() as session, session.begin():
+        await session.execute(
+            delete(OutboxEventModel).where(OutboxEventModel.source_module == "workflow")
+        )
+        await session.execute(
+            delete(AuditEventModel).where(
+                AuditEventModel.module == "workflow",
+                AuditEventModel.company_id.in_(company_ids),
+            )
+        )
         await session.execute(
             delete(ApprovalDecisionModel).where(
                 ApprovalDecisionModel.company_id.in_(company_ids)
@@ -446,8 +460,8 @@ def test_workflow_decision_api_advances_sequential_steps_and_versions() -> None:
         assert first_decision.status_code == 200
         assert first_decision.headers["etag"] == '"2"'
         first_body = first_decision.json()
-        assert first_body["event_id"] is None
-        assert first_body["audit_event_id"] is None
+        assert first_body["event_id"] is not None
+        assert first_body["audit_event_id"] is not None
         assert first_body["detail"]["instance"]["status"] == "PENDING"
         assert first_body["detail"]["instance"]["current_step_sequence"] == 2
         assert [step["status"] for step in first_body["detail"]["steps"]] == [
@@ -479,6 +493,34 @@ def test_workflow_decision_api_advances_sequential_steps_and_versions() -> None:
         assert second_decision.status_code == 200
         assert second_decision.headers["etag"] == '"3"'
         assert second_decision.json()["detail"]["instance"]["status"] == "APPROVED"
+        assert second_decision.json()["event_id"] is not None
+
+        async def count_effects() -> tuple[int, int, int]:
+            async with api.data.database.session() as session:
+                step_events = await session.scalar(
+                    select(func.count()).select_from(OutboxEventModel).where(
+                        OutboxEventModel.source_module == "workflow",
+                        OutboxEventModel.event_type == WORKFLOW_STEP_APPROVED,
+                        OutboxEventModel.aggregate_id == UUID(opened["instance"]["id"]),
+                    )
+                )
+                approved_events = await session.scalar(
+                    select(func.count()).select_from(OutboxEventModel).where(
+                        OutboxEventModel.source_module == "workflow",
+                        OutboxEventModel.event_type == WORKFLOW_INSTANCE_APPROVED,
+                        OutboxEventModel.aggregate_id == UUID(opened["instance"]["id"]),
+                    )
+                )
+                audits = await session.scalar(
+                    select(func.count()).select_from(AuditEventModel).where(
+                        AuditEventModel.module == "workflow",
+                        AuditEventModel.entity_id == UUID(opened["instance"]["id"]),
+                    )
+                )
+                return int(step_events or 0), int(approved_events or 0), int(audits or 0)
+
+        assert api.client.portal is not None
+        assert api.client.portal.call(count_effects) == (1, 1, 2)
 
 
 def test_workflow_decision_api_rejects_highest_level_and_finishes_cumulative() -> None:
@@ -518,6 +560,22 @@ def test_workflow_decision_api_rejects_highest_level_and_finishes_cumulative() -
         )
         assert rejected.status_code == 200
         assert rejected.json()["detail"]["instance"]["status"] == "REJECTED"
+        assert rejected.json()["event_id"] is not None
+        assert rejected.json()["audit_event_id"] is not None
+
+        async def count_rejection() -> int:
+            async with api.data.database.session() as session:
+                value = await session.scalar(
+                    select(func.count()).select_from(OutboxEventModel).where(
+                        OutboxEventModel.source_module == "workflow",
+                        OutboxEventModel.event_type == WORKFLOW_INSTANCE_REJECTED,
+                        OutboxEventModel.aggregate_id == UUID(highest["instance"]["id"]),
+                    )
+                )
+                return int(value or 0)
+
+        assert api.client.portal is not None
+        assert api.client.portal.call(count_rejection) == 1
 
     with workflow_api() as api:
         _grant_all_workflow(api)

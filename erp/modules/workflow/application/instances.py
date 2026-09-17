@@ -161,9 +161,56 @@ def _validation(message: str) -> ApplicationError:
     )
 
 
+def workflow_step_instance_snapshot(step: WorkflowStepInstance) -> dict[str, object]:
+    return {
+        "id": str(step.id),
+        "company_id": str(step.company_id),
+        "workflow_instance_id": str(step.workflow_instance_id),
+        "sequence": step.sequence,
+        "code": step.code,
+        "name": step.name,
+        "required_permission": step.required_permission,
+        "status": step.status,
+        "activated_at": step.activated_at.isoformat()
+        if step.activated_at is not None
+        else None,
+        "decided_at": step.decided_at.isoformat()
+        if step.decided_at is not None
+        else None,
+        "decided_by": str(step.decided_by) if step.decided_by is not None else None,
+        "version": step.version,
+    }
+
+
+def workflow_instance_snapshot(instance: WorkflowInstance) -> dict[str, object]:
+    return {
+        "id": str(instance.id),
+        "company_id": str(instance.company_id),
+        "definition_id": str(instance.definition_id),
+        "source_module": instance.source_module,
+        "source_type": instance.source_type,
+        "source_id": str(instance.source_id),
+        "source_fingerprint": instance.source_fingerprint,
+        "status": instance.status,
+        "current_step_sequence": instance.current_step_sequence,
+        "requested_by": str(instance.requested_by),
+        "version": instance.version,
+    }
+
+
+def workflow_instance_detail_snapshot(detail: WorkflowInstanceDetail) -> dict[str, object]:
+    return {
+        "instance": workflow_instance_snapshot(detail.instance),
+        "steps": [workflow_step_instance_snapshot(step) for step in detail.steps],
+    }
+
+
 __all__ = [
     "OpenWorkflowInstance",
     "WorkflowInstanceDetail",
     "WorkflowInstanceService",
     "WorkflowInstanceStore",
+    "workflow_instance_detail_snapshot",
+    "workflow_instance_snapshot",
+    "workflow_step_instance_snapshot",
 ]
