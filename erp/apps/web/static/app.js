@@ -3,6 +3,7 @@ import { mountCustomers } from "./customers.js";
 import { mountInventory } from "./inventory.js";
 import { mountPricing } from "./pricing.js";
 import { mountWms } from "./wms.js";
+import { mountWorkflow } from "./workflow.js";
 const $ = (id) => document.getElementById(id);
 const labels = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -82,7 +83,7 @@ let token = "",
   area = "products";
 let lastCreation = { body: "", key: "" };
 const can = (action) => permissions.has(`product.product.${action}`);
-let customers, inventory, pricing, wms;
+let customers, inventory, pricing, wms, workflow;
 const imports = mountImports({
   api,
   context: () => ({ company, permissions }),
@@ -95,6 +96,7 @@ const imports = mountImports({
     $("inventory-nav").removeAttribute("aria-current");
     $("pricing-nav").removeAttribute("aria-current");
     $("wms-nav").removeAttribute("aria-current");
+    $("workflow-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent =
       "Governança / Importações";
     generation++;
@@ -105,6 +107,7 @@ const imports = mountImports({
     inventory?.hide();
     pricing?.hide();
     wms?.hide();
+    workflow?.hide();
   },
 });
 customers = mountCustomers({
@@ -119,6 +122,7 @@ customers = mountCustomers({
     $("inventory-nav").removeAttribute("aria-current");
     $("pricing-nav").removeAttribute("aria-current");
     $("wms-nav").removeAttribute("aria-current");
+    $("workflow-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent = "Cadastros / Clientes";
     generation++;
     current = null;
@@ -126,6 +130,7 @@ customers = mountCustomers({
     inventory?.hide();
     pricing?.hide();
     wms?.hide();
+    workflow?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -142,6 +147,7 @@ inventory = mountInventory({
     $("customers-nav").removeAttribute("aria-current");
     $("pricing-nav").removeAttribute("aria-current");
     $("wms-nav").removeAttribute("aria-current");
+    $("workflow-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent =
       "Operações / Inventário";
     generation++;
@@ -150,6 +156,7 @@ inventory = mountInventory({
     customers.hide();
     pricing?.hide();
     wms?.hide();
+    workflow?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -166,6 +173,7 @@ pricing = mountPricing({
     $("customers-nav").removeAttribute("aria-current");
     $("inventory-nav").removeAttribute("aria-current");
     $("wms-nav").removeAttribute("aria-current");
+    $("workflow-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent =
       "Comercial / Pricing";
     generation++;
@@ -173,6 +181,7 @@ pricing = mountPricing({
     imports.reset();
     customers.hide();
     inventory.hide();
+    workflow?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -189,6 +198,7 @@ wms = mountWms({
     $("customers-nav").removeAttribute("aria-current");
     $("inventory-nav").removeAttribute("aria-current");
     $("pricing-nav").removeAttribute("aria-current");
+    $("workflow-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent =
       "Operações / Expedição";
     generation++;
@@ -197,6 +207,33 @@ wms = mountWms({
     customers.hide();
     inventory.hide();
     pricing.hide();
+    workflow?.hide();
+    $("catalog").hidden = true;
+    $("detail").hidden = true;
+  },
+});
+workflow = mountWorkflow({
+  api,
+  context: () => ({ company, permissions }),
+  notice,
+  enter: () => {
+    area = "workflow";
+    $("workflow-nav").setAttribute("aria-current", "page");
+    $("products-nav").removeAttribute("aria-current");
+    $("imports-nav").removeAttribute("aria-current");
+    $("customers-nav").removeAttribute("aria-current");
+    $("inventory-nav").removeAttribute("aria-current");
+    $("pricing-nav").removeAttribute("aria-current");
+    $("wms-nav").removeAttribute("aria-current");
+    document.querySelector(".topbar > span").textContent =
+      "Governança / Aprovações";
+    generation++;
+    current = null;
+    imports.reset();
+    customers.hide();
+    inventory.hide();
+    pricing.hide();
+    wms.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -211,11 +248,13 @@ function reset() {
   inventory.reset();
   pricing.reset();
   wms.reset();
+  workflow.reset();
   $("imports-nav").hidden = true;
   $("customers-nav").hidden = true;
   $("inventory-nav").hidden = true;
   $("pricing-nav").hidden = true;
   $("wms-nav").hidden = true;
+  $("workflow-nav").hidden = true;
   token = "";
   permissions.clear();
   current = null;
@@ -332,6 +371,9 @@ async function connect() {
     !permissions.has("pricing.margin.view");
   $("wms-nav").hidden =
     !permissions.has("wms.pick.execute") && !permissions.has("wms.pack.execute");
+  $("workflow-nav").hidden =
+    !permissions.has("workflow.request.read") &&
+    !permissions.has("workflow.definition.manage");
   if (!company) {
     notice(
       "Nenhuma empresa ativa autorizada. Configure os escopos da identidade.",
@@ -350,12 +392,14 @@ async function loadList() {
   $("inventory-nav").removeAttribute("aria-current");
   $("pricing-nav").removeAttribute("aria-current");
   $("wms-nav").removeAttribute("aria-current");
+  $("workflow-nav").removeAttribute("aria-current");
   document.querySelector(".topbar > span").textContent = "Cadastros / Produtos";
   imports.reset();
   customers.hide();
   inventory.hide();
   pricing.hide();
   wms.hide();
+  workflow.hide();
   const epoch = ++generation;
   current = null;
   $("detail").hidden = true;
@@ -514,6 +558,7 @@ bind(
     if (area === "inventory") return inventory.show();
     if (area === "pricing") return pricing.show();
     if (area === "wms") return wms.show();
+    if (area === "workflow") return workflow.show();
     await loadList();
   },
   "change",
@@ -539,6 +584,9 @@ bind("pricing-nav", () => {
 });
 bind("wms-nav", () => {
   if (company) return wms.show();
+});
+bind("workflow-nav", () => {
+  if (company) return workflow.show();
 });
 bind("products-nav", () => {
   if (company) return loadList();

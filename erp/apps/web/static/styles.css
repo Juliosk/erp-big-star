@@ -670,6 +670,110 @@ form button[type="submit"] {
     700 16px "Cascadia Mono",
     monospace;
 }
+.workflow-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 22px;
+}
+.workflow-definitions {
+  grid-column: 1 / -1;
+}
+.workflow-section-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 20px;
+}
+.workflow-section-heading h2 {
+  margin-top: 5px;
+}
+.workflow-count {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: white;
+  background: var(--navy);
+  font: 700 16px "Cascadia Mono", monospace;
+}
+.workflow-rail {
+  list-style: none;
+  margin: 24px 0;
+  padding: 0;
+}
+.workflow-rail li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  align-items: center;
+  gap: 13px;
+  min-height: 64px;
+}
+.workflow-rail li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 45px;
+  bottom: -7px;
+  left: 20px;
+  width: 2px;
+  background: var(--sky);
+}
+.workflow-rail-marker {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  z-index: 1;
+  border: 2px solid var(--sky);
+  border-radius: 50%;
+  background: white;
+  color: var(--navy);
+  font: 700 12px "Cascadia Mono", monospace;
+}
+.workflow-rail li[data-status="ACTIVE"] .workflow-rail-marker {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 5px #e9465f1c;
+}
+.workflow-rail small,
+#workflow-definition-rows small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+#workflow-decision-form fieldset {
+  display: flex;
+  gap: 18px;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--sky);
+  border-radius: 8px;
+}
+#workflow-decision-form fieldset label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-weight: 600;
+}
+#workflow-decision-form input[type="radio"] {
+  width: auto;
+}
+#workflow-decision-form textarea {
+  resize: vertical;
+}
+.workflow-definition-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+  gap: 14px;
+  margin: 18px 0 24px;
+}
+#workflow td:first-child,
+#workflow td:nth-child(3) {
+  font-family: "Cascadia Mono", monospace;
+  font-size: 13px;
+}
 #wms h3 {
   margin: 18px 0 8px;
   font-size: 13px;
@@ -776,6 +880,10 @@ dialog::backdrop {
   .wms-grid,
   .wms-form,
   .wms-package-grid {
+    grid-template-columns: 1fr;
+  }
+  .workflow-grid,
+  .workflow-definition-form {
     grid-template-columns: 1fr;
   }
   #pricing table {

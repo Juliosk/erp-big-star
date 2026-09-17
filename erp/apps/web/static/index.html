@@ -31,6 +31,9 @@
           >Pricing <span>M9</span></a
         >
         <a id="wms-nav" href="#wms" hidden>Expedição <span>M10</span></a>
+        <a id="workflow-nav" href="#workflow" hidden
+          >Aprovações <span>M22</span></a
+        >
       </nav>
       <div class="company-context">
         <label for="company">Empresa de trabalho</label
@@ -1075,6 +1078,135 @@
                 <h2>Nenhum snapshot encontrado</h2>
                 <p>Use resolver e congelar para persistir uma decisão.</p>
               </div>
+            </div>
+          </section>
+        </div>
+      </section>
+      <section id="workflow" hidden aria-labelledby="workflow-title">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">WORKFLOW CORE / M22</p>
+            <h1 id="workflow-title">Central de aprovações</h1>
+            <p>
+              Decisões pendentes, trilha de passos e definições versionadas na
+              empresa de trabalho.
+            </p>
+          </div>
+          <button id="workflow-refresh" class="secondary">
+            Atualizar central
+          </button>
+        </div>
+        <div class="workflow-grid">
+          <section class="panel workflow-inbox">
+            <div class="workflow-section-heading">
+              <div>
+                <p class="eyebrow">MY APPROVALS</p>
+                <h2>Fila para decidir</h2>
+              </div>
+              <span id="workflow-pending-count" class="workflow-count">0</span>
+            </div>
+            <div class="table-wrap compact-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Origem</th>
+                    <th>Etapa</th>
+                    <th>Versão</th>
+                    <th><span class="sr-only">Ação</span></th>
+                  </tr>
+                </thead>
+                <tbody id="workflow-approval-rows"></tbody>
+              </table>
+              <div id="workflow-empty" class="empty" hidden>
+                <span aria-hidden="true">✓</span>
+                <h2>Fila em dia</h2>
+                <p>Nenhuma aprovação aguarda sua decisão nesta empresa.</p>
+              </div>
+            </div>
+          </section>
+          <section class="panel workflow-evidence" aria-live="polite">
+            <p class="eyebrow">EVIDÊNCIA DA SOLICITAÇÃO</p>
+            <h2 id="workflow-selected-title">Selecione uma aprovação</h2>
+            <p id="workflow-selected-meta" class="hint">
+              A trilha completa aparecerá aqui antes da decisão.
+            </p>
+            <ol id="workflow-step-history" class="workflow-rail"></ol>
+            <form id="workflow-decision-form" hidden>
+              <fieldset id="workflow-decision-kind">
+                <legend>Decisão</legend>
+                <label
+                  ><input type="radio" name="decision" value="APPROVED" checked />
+                  Aprovar</label
+                >
+                <label
+                  ><input type="radio" name="decision" value="REJECTED" />
+                  Rejeitar</label
+                >
+              </fieldset>
+              <label for="workflow-comment">Comentário da decisão</label>
+              <textarea
+                id="workflow-comment"
+                maxlength="500"
+                rows="3"
+                placeholder="Registre o fundamento da decisão"
+              ></textarea>
+              <button type="submit">Registrar decisão</button>
+            </form>
+          </section>
+          <section class="panel workflow-definitions">
+            <div class="workflow-section-heading">
+              <div>
+                <p class="eyebrow">GOVERNANÇA</p>
+                <h2>Definições de workflow</h2>
+              </div>
+            </div>
+            <form id="workflow-definition-form" class="workflow-definition-form">
+              <div>
+                <label for="workflow-definition-code">Código</label
+                ><input id="workflow-definition-code" required maxlength="64" placeholder="DESCONTO" />
+              </div>
+              <div>
+                <label for="workflow-definition-name">Nome</label
+                ><input id="workflow-definition-name" required maxlength="160" placeholder="Aprovação de desconto" />
+              </div>
+              <div>
+                <label for="workflow-source-module">Módulo de origem</label
+                ><input id="workflow-source-module" required maxlength="32" placeholder="SALES" />
+              </div>
+              <div>
+                <label for="workflow-source-type">Tipo da entidade</label
+                ><input id="workflow-source-type" required maxlength="64" placeholder="QUOTE" />
+              </div>
+              <div>
+                <label for="workflow-approval-mode">Modo</label
+                ><select id="workflow-approval-mode">
+                  <option value="SEQUENTIAL">Sequencial</option>
+                  <option value="HIGHEST_LEVEL">Maior alçada</option>
+                  <option value="CUMULATIVE">Cumulativo</option>
+                </select>
+              </div>
+              <div>
+                <label for="workflow-step-name">Primeira etapa</label
+                ><input id="workflow-step-name" required maxlength="160" placeholder="Aprovação comercial" />
+              </div>
+              <div>
+                <label for="workflow-step-permission">Permissão exigida</label
+                ><input id="workflow-step-permission" required maxlength="120" value="workflow.approval.decide" />
+              </div>
+              <button type="submit">Criar definição</button>
+            </form>
+            <div class="table-wrap compact-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Código / Nome</th>
+                    <th>Origem</th>
+                    <th>Modo</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody id="workflow-definition-rows"></tbody>
+              </table>
             </div>
           </section>
         </div>
