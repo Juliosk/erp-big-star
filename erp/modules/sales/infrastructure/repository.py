@@ -118,6 +118,19 @@ class SalesQuoteRepository:
         model = result.one_or_none()
         return None if model is None else _quote(model)
 
+    async def get_for_update(self, quote_id: UUID) -> SalesQuote | None:
+        result = await self._session.scalars(
+            select(SalesQuoteModel)
+            .where(
+                SalesQuoteModel.company_id == self._company_id,
+                SalesQuoteModel.id == quote_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        model = result.one_or_none()
+        return None if model is None else _quote(model)
+
     async def list(
         self,
         *,

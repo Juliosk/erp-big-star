@@ -1,7 +1,10 @@
 """Public M15 persistence adapters."""
 
+from erp.modules.sales.infrastructure.conversion import PostgresSalesOrderConversion
 from erp.modules.sales.infrastructure.discount_approval import PostgresDiscountApproval
 from erp.modules.sales.infrastructure.lifecycle import PostgresSalesQuoteLifecycle
+from erp.modules.sales.infrastructure.order_model import SalesOrderItemModel, SalesOrderModel
+from erp.modules.sales.infrastructure.order_repository import SalesOrderRepository
 from erp.modules.sales.infrastructure.quote_model import (
     QuoteRevisionItemModel,
     QuoteRevisionModel,
@@ -12,10 +15,14 @@ from erp.modules.sales.infrastructure.repository import SalesQuoteRepository
 
 __all__ = [
     "PostgresDiscountApproval",
+    "PostgresSalesOrderConversion",
     "PostgresSalesQuoteLifecycle",
     "PostgresSalesQuotes",
     "QuoteRevisionItemModel",
     "QuoteRevisionModel",
+    "SalesOrderItemModel",
+    "SalesOrderModel",
+    "SalesOrderRepository",
     "SalesQuoteModel",
     "SalesQuoteRepository",
 ]

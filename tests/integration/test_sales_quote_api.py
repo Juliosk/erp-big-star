@@ -24,6 +24,8 @@ from erp.modules.sales.application import (
 from erp.modules.sales.infrastructure import (
     QuoteRevisionItemModel,
     QuoteRevisionModel,
+    SalesOrderItemModel,
+    SalesOrderModel,
     SalesQuoteModel,
 )
 from erp.modules.workflow.application import (
@@ -94,6 +96,8 @@ async def _cleanup(data: Fixture) -> None:
     async with data.database.session() as session, session.begin():
         await session.execute(delete(OutboxEventModel).where(OutboxEventModel.source_module == "sales"))
         await session.execute(delete(AuditEventModel).where(AuditEventModel.module == "sales"))
+        await session.execute(delete(SalesOrderItemModel).where(SalesOrderItemModel.company_id.in_(company_ids)))
+        await session.execute(delete(SalesOrderModel).where(SalesOrderModel.company_id.in_(company_ids)))
         await session.execute(delete(QuoteRevisionItemModel).where(QuoteRevisionItemModel.company_id.in_(company_ids)))
         await session.execute(delete(QuoteRevisionModel).where(QuoteRevisionModel.company_id.in_(company_ids)))
         await session.execute(delete(SalesQuoteModel).where(SalesQuoteModel.company_id.in_(company_ids)))

@@ -1,5 +1,11 @@
 """Public M15 application surface."""
 
+from erp.modules.sales.application.conversion import (
+    ConvertQuoteToOrder,
+    SalesOrderConversionResult,
+    SalesOrderConversionService,
+    SalesOrderConversionStore,
+)
 from erp.modules.sales.application.discount_approval import (
     DiscountApprovalService,
     DiscountApprovalStore,
@@ -47,6 +53,7 @@ __all__ = [
     "SALES_QUOTE_SEND",
     "SALES_QUOTE_UPDATE",
     "CommandMetadata",
+    "ConvertQuoteToOrder",
     "CreateSalesQuote",
     "DiscountApprovalService",
     "DiscountApprovalStore",
@@ -55,6 +62,9 @@ __all__ = [
     "ReviseSalesQuote",
     "RevisionLine",
     "SalesAuthorization",
+    "SalesOrderConversionResult",
+    "SalesOrderConversionService",
+    "SalesOrderConversionStore",
     "SalesQuoteDetail",
     "SalesQuoteLifecycleService",
     "SalesQuoteLifecycleStore",
