@@ -675,6 +675,55 @@ form button[type="submit"] {
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: 22px;
 }
+.sales-flow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 22px;
+  color: var(--muted);
+  font: 700 11px "Cascadia Mono", monospace;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.sales-flow span {
+  padding: 8px 12px;
+  border: 1px solid var(--sky);
+  border-radius: 999px;
+  background: white;
+}
+.sales-flow i {
+  color: var(--accent);
+  font-style: normal;
+}
+.sales-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 22px;
+}
+.sales-grid > * { min-width: 0; }
+.sales-orders { grid-column: 1 / -1; }
+.sales-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+  margin: 18px 0 22px;
+}
+.sales-form button { align-self: end; }
+.sales-totals {
+  margin: 18px 0;
+  padding: 16px;
+  border-left: 4px solid var(--accent);
+  background: #eef5ff;
+  color: var(--navy);
+  font: 700 13px "Cascadia Mono", monospace;
+}
+#sales td:first-child,
+#sales td:nth-child(3),
+#sales td:nth-child(4) {
+  font-family: "Cascadia Mono", monospace;
+  font-size: 13px;
+}
 .workflow-grid > * {
   min-width: 0;
 }
@@ -890,7 +939,9 @@ dialog::backdrop {
     grid-template-columns: 1fr;
   }
   .workflow-grid,
-  .workflow-definition-form {
+  .workflow-definition-form,
+  .sales-grid,
+  .sales-form {
     grid-template-columns: 1fr;
   }
   #pricing table {
@@ -996,6 +1047,14 @@ dialog::backdrop {
   .workflow-rail li > .status {
     grid-column: 2;
     justify-self: start;
+  }
+  .sales-flow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .sales-flow i {
+    align-self: center;
+    transform: rotate(90deg);
   }
   .dev-banner {
     font-size: 10px;

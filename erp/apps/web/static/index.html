@@ -34,6 +34,7 @@
         <a id="workflow-nav" href="#workflow" hidden
           >Aprovações <span>M22</span></a
         >
+        <a id="sales-nav" href="#sales" hidden>Vendas <span>M15</span></a>
       </nav>
       <div class="company-context">
         <label for="company">Empresa de trabalho</label
@@ -1079,6 +1080,57 @@
                 <p>Use resolver e congelar para persistir uma decisão.</p>
               </div>
             </div>
+          </section>
+        </div>
+      </section>
+      <section id="sales" hidden aria-labelledby="sales-title">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">VENDAS B2B / M15</p>
+            <h1 id="sales-title">Cockpit comercial</h1>
+            <p>Cotações versionadas, alçadas de desconto e conversão rastreável em pedido.</p>
+          </div>
+          <button id="sales-refresh" class="secondary">Atualizar vendas</button>
+        </div>
+        <div class="sales-flow" aria-label="Fluxo comercial">
+          <span>Cotação</span><i aria-hidden="true">→</i><span>Revisão</span><i aria-hidden="true">→</i><span>Aprovação</span><i aria-hidden="true">→</i><span>Pedido</span>
+        </div>
+        <div class="sales-grid">
+          <section class="panel sales-quotes">
+            <div class="workflow-section-heading">
+              <div><p class="eyebrow">PIPELINE</p><h2>Cotações</h2></div>
+              <span id="sales-quote-count" class="workflow-count">0</span>
+            </div>
+            <form id="sales-quote-form" class="sales-form">
+              <div><label for="sales-quote-number">Número</label><input id="sales-quote-number" required maxlength="64" placeholder="COT-0001" /></div>
+              <div><label for="sales-customer-id">Cliente ID</label><input id="sales-customer-id" required autocomplete="off" /></div>
+              <button type="submit">Criar cotação</button>
+            </form>
+            <div class="table-wrap compact-table"><table><thead><tr><th>Cotação</th><th>Status</th><th>Revisão</th><th></th></tr></thead><tbody id="sales-quote-rows"></tbody></table>
+              <div id="sales-empty" class="empty" hidden><span aria-hidden="true">◇</span><h2>Nenhuma cotação</h2><p>Crie a primeira proposta para esta empresa.</p></div>
+            </div>
+          </section>
+          <section class="panel sales-detail" aria-live="polite">
+            <p class="eyebrow">COTAÇÃO SELECIONADA</p>
+            <h2 id="sales-selected-title">Selecione uma cotação</h2>
+            <p id="sales-selected-meta" class="hint">Revisões e ações comerciais aparecerão aqui.</p>
+            <form id="sales-revision-form" class="sales-form" hidden>
+              <div><label for="sales-product-id">Produto ID</label><input id="sales-product-id" required autocomplete="off" /></div>
+              <div><label for="sales-quantity">Quantidade</label><input id="sales-quantity" type="number" min="0.000001" step="0.000001" value="1" required /></div>
+              <div><label for="sales-unit-price">Preço unitário</label><input id="sales-unit-price" type="number" min="0" step="0.01" required /></div>
+              <div><label for="sales-discount">Desconto</label><input id="sales-discount" type="number" min="0" step="0.01" value="0" required /></div>
+              <button type="submit">Salvar revisão</button>
+            </form>
+            <div id="sales-totals" class="sales-totals" hidden></div>
+            <div id="sales-actions" class="transition-actions"></div>
+            <form id="sales-convert-form" class="sales-form" hidden>
+              <div><label for="sales-order-number">Número do pedido</label><input id="sales-order-number" required maxlength="64" placeholder="PED-0001" /></div>
+              <button type="submit">Converter em pedido</button>
+            </form>
+          </section>
+          <section class="panel sales-orders">
+            <div class="workflow-section-heading"><div><p class="eyebrow">PEDIDOS GERADOS</p><h2>Pedidos de venda</h2></div><span id="sales-order-count" class="workflow-count">0</span></div>
+            <div class="table-wrap compact-table"><table><thead><tr><th>Pedido</th><th>Origem</th><th>Status</th><th>Total</th></tr></thead><tbody id="sales-order-rows"></tbody></table></div>
           </section>
         </div>
       </section>
