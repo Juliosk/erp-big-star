@@ -10,11 +10,14 @@ from sqlalchemy import Connection, inspect
 
 from erp.modules.admin.infrastructure import CompanyModel
 from erp.modules.customer.infrastructure import CustomerModel
+from erp.modules.inventory.infrastructure import InventoryReservationModel
 from erp.modules.pricing.infrastructure import PricingSnapshotModel
 from erp.modules.product.infrastructure import ProductModel
 from erp.modules.sales.infrastructure import (
     QuoteRevisionItemModel,
     QuoteRevisionModel,
+    SalesOrderReservationLineModel,
+    SalesOrderReservationModel,
     SalesQuoteModel,
 )
 from erp.platform.config import get_settings
@@ -34,16 +37,21 @@ def test_sales_quote_migration_matches_orm_and_tenant_fks() -> None:
         assert CustomerModel.__table__.schema == "crm"
         assert ProductModel.__table__.schema == "product"
         assert PricingSnapshotModel.__table__.schema == "pricing"
+        assert InventoryReservationModel.__table__.schema == "inventory"
         inspector = inspect(connection)
         assert set(inspector.get_table_names(schema="sales_b2b")) >= {
             "sales_quote",
             "quote_revision",
             "quote_revision_item",
+            "sales_order_reservation",
+            "sales_order_reservation_line",
         }
         for table, model in (
             ("sales_quote", SalesQuoteModel),
             ("quote_revision", QuoteRevisionModel),
             ("quote_revision_item", QuoteRevisionItemModel),
+            ("sales_order_reservation", SalesOrderReservationModel),
+            ("sales_order_reservation_line", SalesOrderReservationLineModel),
         ):
             columns = {
                 column["name"] for column in inspector.get_columns(table, schema="sales_b2b")
