@@ -85,11 +85,15 @@ from erp.modules.sales.api import router as sales_router
 from erp.modules.sales.application import (
     DiscountApprovalService,
     SalesAuthorization,
+    SalesOrderConversionService,
+    SalesOrderService,
     SalesQuoteLifecycleService,
     SalesQuoteService,
 )
 from erp.modules.sales.infrastructure import (
     PostgresDiscountApproval,
+    PostgresSalesOrderConversion,
+    PostgresSalesOrders,
     PostgresSalesQuoteLifecycle,
     PostgresSalesQuotes,
 )
@@ -167,6 +171,8 @@ def create_app(
     sales_quotes: SalesQuoteService | None = None,
     sales_quote_lifecycle: SalesQuoteLifecycleService | None = None,
     sales_discount_approvals: DiscountApprovalService | None = None,
+    sales_order_conversion: SalesOrderConversionService | None = None,
+    sales_orders: SalesOrderService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -213,6 +219,8 @@ def create_app(
     resolved_sales_quotes = sales_quotes
     resolved_sales_quote_lifecycle = sales_quote_lifecycle
     resolved_sales_discount_approvals = sales_discount_approvals
+    resolved_sales_order_conversion = sales_order_conversion
+    resolved_sales_orders = sales_orders
     sales_authorization = SalesAuthorization(
         CompanyAccessService(PostgresCorporateDirectory(resolved_database))
     ) if isinstance(resolved_database, Database) else None
@@ -226,6 +234,19 @@ def create_app(
         assert sales_authorization is not None
         resolved_sales_quote_lifecycle = SalesQuoteLifecycleService(
             PostgresSalesQuoteLifecycle(resolved_database), sales_authorization
+        )
+    if resolved_sales_order_conversion is None and isinstance(resolved_database, Database):
+        assert sales_authorization is not None
+        resolved_sales_order_conversion = SalesOrderConversionService(
+            PostgresSalesOrderConversion(
+                resolved_database, ttl_seconds=resolved_settings.idempotency_ttl_seconds
+            ),
+            sales_authorization,
+        )
+    if resolved_sales_orders is None and isinstance(resolved_database, Database):
+        assert sales_authorization is not None
+        resolved_sales_orders = SalesOrderService(
+            PostgresSalesOrders(resolved_database), sales_authorization
         )
     if isinstance(resolved_database, Database) and (
         resolved_inventory_queries is None
@@ -518,6 +539,8 @@ def create_app(
     application.state.sales_quotes = resolved_sales_quotes
     application.state.sales_quote_lifecycle = resolved_sales_quote_lifecycle
     application.state.sales_discount_approvals = resolved_sales_discount_approvals
+    application.state.sales_order_conversion = resolved_sales_order_conversion
+    application.state.sales_orders = resolved_sales_orders
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)

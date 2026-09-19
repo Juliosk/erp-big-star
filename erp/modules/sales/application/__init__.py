@@ -21,6 +21,11 @@ from erp.modules.sales.application.lifecycle import (
     SalesQuoteMutationResult,
     TransitionSalesQuote,
 )
+from erp.modules.sales.application.orders import (
+    SalesOrderPage,
+    SalesOrderService,
+    SalesOrderStore,
+)
 from erp.modules.sales.application.permissions import (
     SALES_CUSTOMER_PORTFOLIO_READ,
     SALES_DISCOUNT_REQUEST,
@@ -65,6 +70,9 @@ __all__ = [
     "SalesOrderConversionResult",
     "SalesOrderConversionService",
     "SalesOrderConversionStore",
+    "SalesOrderPage",
+    "SalesOrderService",
+    "SalesOrderStore",
     "SalesQuoteDetail",
     "SalesQuoteLifecycleService",
     "SalesQuoteLifecycleStore",

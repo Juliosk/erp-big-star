@@ -37,6 +37,12 @@ class TransitionSalesQuoteRequest(BaseModel):
     reason_code: str | None = Field(default=None, min_length=1, max_length=64)
 
 
+class ConvertQuoteToOrderRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    company_id: UUID
+    order_number: str = Field(min_length=1, max_length=64)
+
+
 class QuoteItemResponse(BaseModel):
     id: UUID
     product_id: UUID
@@ -80,6 +86,46 @@ class SalesQuoteMutationResponse(BaseModel):
     audit_event_id: UUID
 
 
+class SalesOrderItemResponse(BaseModel):
+    id: UUID
+    quote_revision_item_id: UUID
+    product_id: UUID
+    quantity: Decimal
+    unit_price: Decimal
+    discount_amount: Decimal
+    pricing_snapshot_id: UUID | None
+
+
+class SalesOrderResponse(BaseModel):
+    id: UUID
+    company_id: UUID
+    number: str
+    source_quote_id: UUID
+    source_quote_revision_number: int
+    customer_id: UUID
+    seller_id: UUID
+    currency: str
+    status: str
+    gross_amount: Decimal
+    discount_amount: Decimal
+    net_amount: Decimal
+    version: int
+    items: list[SalesOrderItemResponse]
+
+
+class SalesOrderListResponse(BaseModel):
+    data: list[SalesOrderResponse]
+    meta: PageMetadata
+
+
+class SalesOrderConversionResponse(BaseModel):
+    order: SalesOrderResponse
+    quote_version: int
+    event_id: UUID
+    audit_event_id: UUID
+    idempotency_replayed: bool
+
+
 class PageMetadata(BaseModel):
     page: int
     page_size: int
@@ -92,12 +138,17 @@ class SalesQuoteListResponse(BaseModel):
 
 
 __all__ = [
+    "ConvertQuoteToOrderRequest",
     "CreateSalesQuoteRequest",
     "PageMetadata",
     "QuoteItemResponse",
     "QuoteRevisionResponse",
     "ReviseSalesQuoteRequest",
     "RevisionLineRequest",
+    "SalesOrderConversionResponse",
+    "SalesOrderItemResponse",
+    "SalesOrderListResponse",
+    "SalesOrderResponse",
     "SalesQuoteDetailResponse",
     "SalesQuoteListResponse",
     "SalesQuoteMutationResponse",

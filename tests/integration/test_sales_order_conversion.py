@@ -83,3 +83,91 @@ def test_conversion_freezes_quote_and_replays_same_order() -> None:
         ).json()["quote"]
         assert quote["status"] == "CONVERTED"
         assert quote["converted_order_id"] == str(first.order.id)
+
+
+def test_official_conversion_and_order_query_apis() -> None:
+    with sales_api() as api:
+        created = api.client.post(
+            "/api/v1/sales/quotes",
+            headers=api.headers,
+            json={
+                "company_id": str(api.data.company_id),
+                "number": "Q-API-CONVERT",
+                "customer_id": api.customer_id,
+            },
+        ).json()
+        quote_id = created["id"]
+        assert api.client.post(
+            f"/api/v1/sales/quotes/{quote_id}/revisions",
+            headers={**api.headers, "If-Match": '"1"'},
+            json={
+                "company_id": str(api.data.company_id),
+                "lines": [
+                    {
+                        "product_id": api.product_id,
+                        "quantity": "1.000000",
+                        "unit_price": "50.00",
+                        "discount_amount": "0.00",
+                    }
+                ],
+            },
+        ).status_code == 200
+        assert api.client.post(
+            f"/api/v1/sales/quotes/{quote_id}/send",
+            headers={**api.headers, "If-Match": '"2"'},
+            json={"company_id": str(api.data.company_id)},
+        ).status_code == 200
+        assert api.client.post(
+            f"/api/v1/sales/quotes/{quote_id}/accept",
+            headers={**api.headers, "If-Match": '"3"'},
+            json={"company_id": str(api.data.company_id)},
+        ).status_code == 200
+
+        url = f"/api/v1/sales/quotes/{quote_id}/convert-to-order"
+        headers = {
+            **api.headers,
+            "If-Match": '"4"',
+            "Idempotency-Key": "api-convert-key",
+        }
+        converted = api.client.post(
+            url,
+            headers=headers,
+            json={
+                "company_id": str(api.data.company_id),
+                "order_number": "SO-API-001",
+            },
+        )
+        assert converted.status_code == 201
+        assert converted.headers["etag"] == '"1"'
+        assert converted.headers["idempotency-replayed"] == "false"
+        order_id = converted.json()["order"]["id"]
+
+        replay = api.client.post(
+            url,
+            headers=headers,
+            json={
+                "company_id": str(api.data.company_id),
+                "order_number": "SO-API-001",
+            },
+        )
+        assert replay.status_code == 201
+        assert replay.headers["idempotency-replayed"] == "true"
+        assert replay.json()["order"]["id"] == order_id
+
+        listed = api.client.get(
+            f"/api/v1/sales/orders?company_id={api.data.company_id}", headers=api.headers
+        )
+        assert listed.status_code == 200
+        assert [item["id"] for item in listed.json()["data"]] == [order_id]
+        detail = api.client.get(
+            f"/api/v1/sales/orders/{order_id}?company_id={api.data.company_id}",
+            headers=api.headers,
+        )
+        assert detail.status_code == 200
+        assert detail.json()["source_quote_id"] == quote_id
+
+        foreign = api.client.get(
+            f"/api/v1/sales/orders?company_id={api.data.other_company_id}",
+            headers=api.headers,
+        )
+        assert foreign.status_code == 404

@@ -16,6 +16,9 @@ from erp.modules.customer.infrastructure import CustomerModel
 from erp.modules.product.infrastructure import ProductRepository
 from erp.modules.sales.application import (
     SALES_DISCOUNT_REQUEST,
+    SALES_ORDER_CREATE,
+    SALES_ORDER_READ,
+    SALES_QUOTE_CONVERT,
     SALES_QUOTE_CREATE,
     SALES_QUOTE_READ,
     SALES_QUOTE_SEND,
@@ -118,10 +121,13 @@ def sales_api() -> Iterator[SalesApiFixture]:
             permissions=frozenset(
                 {
                     SALES_DISCOUNT_REQUEST,
+                    SALES_ORDER_CREATE,
+                    SALES_ORDER_READ,
                     SALES_QUOTE_CREATE,
                     SALES_QUOTE_READ,
                     SALES_QUOTE_SEND,
                     SALES_QUOTE_UPDATE,
+                    SALES_QUOTE_CONVERT,
                     WORKFLOW_DEFINITION_MANAGE,
                     WORKFLOW_REQUEST_CREATE,
                 }
