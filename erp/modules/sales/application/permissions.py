@@ -21,6 +21,8 @@ SALES_QUOTE_SEND = PermissionCode("sales.quote.send")
 SALES_QUOTE_CONVERT = PermissionCode("sales.quote.convert")
 SALES_DISCOUNT_REQUEST = PermissionCode("sales.discount.request")
 SALES_CUSTOMER_PORTFOLIO_READ = PermissionCode("sales.customer_portfolio.read")
+SALES_ORDER_CREATE = PermissionCode("sales.order.create")
+SALES_ORDER_READ = PermissionCode("sales.order.read")
 
 
 def sales_permission_registry() -> PermissionRegistry:
@@ -36,6 +38,8 @@ def sales_permission_registry() -> PermissionRegistry:
             "Read assigned commercial customer portfolio",
             PermissionRiskLevel.MEDIUM,
         ),
+        (SALES_ORDER_CREATE, "Create sales orders", PermissionRiskLevel.HIGH),
+        (SALES_ORDER_READ, "Read sales orders", PermissionRiskLevel.MEDIUM),
     )
     return PermissionRegistry(
         Permission(
@@ -68,6 +72,8 @@ class SalesAuthorization:
 __all__ = [
     "SALES_CUSTOMER_PORTFOLIO_READ",
     "SALES_DISCOUNT_REQUEST",
+    "SALES_ORDER_CREATE",
+    "SALES_ORDER_READ",
     "SALES_QUOTE_CONVERT",
     "SALES_QUOTE_CREATE",
     "SALES_QUOTE_READ",

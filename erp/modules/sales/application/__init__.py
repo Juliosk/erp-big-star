@@ -18,6 +18,8 @@ from erp.modules.sales.application.lifecycle import (
 from erp.modules.sales.application.permissions import (
     SALES_CUSTOMER_PORTFOLIO_READ,
     SALES_DISCOUNT_REQUEST,
+    SALES_ORDER_CREATE,
+    SALES_ORDER_READ,
     SALES_QUOTE_CONVERT,
     SALES_QUOTE_CREATE,
     SALES_QUOTE_READ,
@@ -37,6 +39,8 @@ from erp.modules.sales.application.quotes import (
 __all__ = [
     "SALES_CUSTOMER_PORTFOLIO_READ",
     "SALES_DISCOUNT_REQUEST",
+    "SALES_ORDER_CREATE",
+    "SALES_ORDER_READ",
     "SALES_QUOTE_CONVERT",
     "SALES_QUOTE_CREATE",
     "SALES_QUOTE_READ",
