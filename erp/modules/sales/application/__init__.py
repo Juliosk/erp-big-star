@@ -21,6 +21,12 @@ from erp.modules.sales.application.lifecycle import (
     SalesQuoteMutationResult,
     TransitionSalesQuote,
 )
+from erp.modules.sales.application.order_reservations import (
+    ReserveSalesOrder,
+    SalesOrderReservationResult,
+    SalesOrderReservationService,
+    SalesOrderReservationStore,
+)
 from erp.modules.sales.application.orders import (
     SalesOrderPage,
     SalesOrderService,
@@ -31,6 +37,7 @@ from erp.modules.sales.application.permissions import (
     SALES_DISCOUNT_REQUEST,
     SALES_ORDER_CREATE,
     SALES_ORDER_READ,
+    SALES_ORDER_RESERVE,
     SALES_QUOTE_CONVERT,
     SALES_QUOTE_CREATE,
     SALES_QUOTE_READ,
@@ -52,6 +59,7 @@ __all__ = [
     "SALES_DISCOUNT_REQUEST",
     "SALES_ORDER_CREATE",
     "SALES_ORDER_READ",
+    "SALES_ORDER_RESERVE",
     "SALES_QUOTE_CONVERT",
     "SALES_QUOTE_CREATE",
     "SALES_QUOTE_READ",
@@ -64,6 +72,7 @@ __all__ = [
     "DiscountApprovalStore",
     "DiscountWorkflowGateway",
     "RequestDiscountApproval",
+    "ReserveSalesOrder",
     "ReviseSalesQuote",
     "RevisionLine",
     "SalesAuthorization",
@@ -71,6 +80,9 @@ __all__ = [
     "SalesOrderConversionService",
     "SalesOrderConversionStore",
     "SalesOrderPage",
+    "SalesOrderReservationResult",
+    "SalesOrderReservationService",
+    "SalesOrderReservationStore",
     "SalesOrderService",
     "SalesOrderStore",
     "SalesQuoteDetail",

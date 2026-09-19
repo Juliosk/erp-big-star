@@ -1,9 +1,12 @@
 """Explicit M5 integration surface; no persistence types are exported."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
+from typing import Protocol
 from uuid import UUID
 
 from erp.modules.inventory.application.permissions import (
@@ -23,6 +26,37 @@ class InventoryReservationStatusContract(StrEnum):
     ACTIVE = "ACTIVE"
     RELEASED = "RELEASED"
     EXPIRED = "EXPIRED"
+
+
+@dataclass(frozen=True, slots=True)
+class OrderReservationLineContract:
+    product_id: UUID
+    quantity: Decimal
+    warehouse_id: UUID
+    location_id: UUID | None = None
+    lot_id: UUID | None = None
+    pool_id: UUID | None = None
+    state: str = "AVAILABLE"
+
+
+@dataclass(frozen=True, slots=True)
+class ReserveOrderInventoryContract:
+    company_id: UUID
+    order_id: UUID
+    lines: tuple[OrderReservationLineContract, ...]
+    idempotency_key: str
+    request_id: UUID
+    correlation_id: UUID
+    reservation_kind: InventoryReservationKindContract = InventoryReservationKindContract.HARD
+    expires_at: datetime | None = None
+
+
+class OrderInventoryReservationGateway(Protocol):
+    """M5-owned anti-corruption boundary consumed by the M4 composition adapter."""
+
+    async def reserve_order(
+        self, command: ReserveOrderInventoryContract, actor_id: UUID
+    ) -> InventoryReservationReference: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,4 +157,7 @@ __all__ = [
     "InventoryReservationReference",
     "InventoryReservationReleased",
     "InventoryReservationStatusContract",
+    "OrderInventoryReservationGateway",
+    "OrderReservationLineContract",
+    "ReserveOrderInventoryContract",
 ]

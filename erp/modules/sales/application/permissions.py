@@ -23,6 +23,7 @@ SALES_DISCOUNT_REQUEST = PermissionCode("sales.discount.request")
 SALES_CUSTOMER_PORTFOLIO_READ = PermissionCode("sales.customer_portfolio.read")
 SALES_ORDER_CREATE = PermissionCode("sales.order.create")
 SALES_ORDER_READ = PermissionCode("sales.order.read")
+SALES_ORDER_RESERVE = PermissionCode("sales.order.reserve")
 
 
 def sales_permission_registry() -> PermissionRegistry:
@@ -40,6 +41,7 @@ def sales_permission_registry() -> PermissionRegistry:
         ),
         (SALES_ORDER_CREATE, "Create sales orders", PermissionRiskLevel.HIGH),
         (SALES_ORDER_READ, "Read sales orders", PermissionRiskLevel.MEDIUM),
+        (SALES_ORDER_RESERVE, "Reserve inventory for sales orders", PermissionRiskLevel.CRITICAL),
     )
     return PermissionRegistry(
         Permission(
@@ -74,6 +76,7 @@ __all__ = [
     "SALES_DISCOUNT_REQUEST",
     "SALES_ORDER_CREATE",
     "SALES_ORDER_READ",
+    "SALES_ORDER_RESERVE",
     "SALES_QUOTE_CONVERT",
     "SALES_QUOTE_CREATE",
     "SALES_QUOTE_READ",
