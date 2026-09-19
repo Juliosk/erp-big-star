@@ -47,6 +47,12 @@ humanas, mas não efetiva transações de negócio dos módulos de origem.
 | 108 | Workflow Cockpit | UI `/ui/` para pendências, detalhe e decisão |
 | 109 | E2E/Runbook | Chromium, documentação operacional e encerramento da Sprint 10 |
 
+## Encerramento
+
+Os commits 100 a 109 entregam o slice vertical do M22: domínio, schema,
+persistência, APIs, concorrência, Audit/Outbox, Cockpit e operação documentada.
+O runbook oficial está em `docs/workflow-runbook.md`.
+
 ## Entrega do Commit 100
 
 O módulo `erp.modules.workflow` foi criado com domínio puro e sem dependência de

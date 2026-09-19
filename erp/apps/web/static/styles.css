@@ -675,6 +675,9 @@ form button[type="submit"] {
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: 22px;
 }
+.workflow-grid > * {
+  min-width: 0;
+}
 .workflow-definitions {
   grid-column: 1 / -1;
 }
@@ -740,6 +743,10 @@ form button[type="submit"] {
   display: block;
   margin-top: 4px;
   color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.workflow-rail li > div {
+  min-width: 0;
 }
 #workflow-decision-form fieldset {
   display: flex;
@@ -981,6 +988,14 @@ dialog::backdrop {
   }
   .pricing-decision {
     grid-template-columns: 1fr;
+  }
+  .workflow-rail li {
+    grid-template-columns: 42px minmax(0, 1fr);
+    padding: 7px 0;
+  }
+  .workflow-rail li > .status {
+    grid-column: 2;
+    justify-self: start;
   }
   .dev-banner {
     font-size: 10px;
