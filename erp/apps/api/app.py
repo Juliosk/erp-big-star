@@ -80,6 +80,9 @@ from erp.modules.product.infrastructure.product_creation import PostgresProductC
 from erp.modules.product.infrastructure.product_directory import PostgresProductDirectory
 from erp.modules.product.infrastructure.product_lifecycle import PostgresProductLifecycle
 from erp.modules.product.infrastructure.product_updates import PostgresProductUpdates
+from erp.modules.sales.api import router as sales_router
+from erp.modules.sales.application import SalesAuthorization, SalesQuoteService
+from erp.modules.sales.infrastructure import PostgresSalesQuotes
 from erp.modules.wms.api import router as wms_router
 from erp.modules.wms.application import (
     PackingService,
@@ -151,6 +154,7 @@ def create_app(
     workflow_instances: WorkflowInstanceService | None = None,
     workflow_approvals: WorkflowApprovalQueryService | None = None,
     workflow_decisions: WorkflowDecisionService | None = None,
+    sales_quotes: SalesQuoteService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -194,6 +198,12 @@ def create_app(
     resolved_workflow_instances = workflow_instances
     resolved_workflow_approvals = workflow_approvals
     resolved_workflow_decisions = workflow_decisions
+    resolved_sales_quotes = sales_quotes
+    if resolved_sales_quotes is None and isinstance(resolved_database, Database):
+        resolved_sales_quotes = SalesQuoteService(
+            PostgresSalesQuotes(resolved_database),
+            SalesAuthorization(CompanyAccessService(PostgresCorporateDirectory(resolved_database))),
+        )
     if isinstance(resolved_database, Database) and (
         resolved_inventory_queries is None
         or resolved_inventory_creation is None
@@ -473,6 +483,7 @@ def create_app(
     application.state.workflow_instances = resolved_workflow_instances
     application.state.workflow_approvals = resolved_workflow_approvals
     application.state.workflow_decisions = resolved_workflow_decisions
+    application.state.sales_quotes = resolved_sales_quotes
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)
@@ -482,6 +493,7 @@ def create_app(
     application.include_router(pricing_router)
     application.include_router(wms_router)
     application.include_router(workflow_router)
+    application.include_router(sales_router)
     application.include_router(session_router)
     application.include_router(import_router)
     mount_web(application)

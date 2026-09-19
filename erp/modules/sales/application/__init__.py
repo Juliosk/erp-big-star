@@ -11,6 +11,13 @@ from erp.modules.sales.application.permissions import (
     SalesAuthorization,
     sales_permission_registry,
 )
+from erp.modules.sales.application.quotes import (
+    CreateSalesQuote,
+    SalesQuoteDetail,
+    SalesQuotePage,
+    SalesQuoteService,
+    SalesQuoteStore,
+)
 
 __all__ = [
     "SALES_CUSTOMER_PORTFOLIO_READ",
@@ -20,6 +27,11 @@ __all__ = [
     "SALES_QUOTE_READ",
     "SALES_QUOTE_SEND",
     "SALES_QUOTE_UPDATE",
+    "CreateSalesQuote",
     "SalesAuthorization",
+    "SalesQuoteDetail",
+    "SalesQuotePage",
+    "SalesQuoteService",
+    "SalesQuoteStore",
     "sales_permission_registry",
 ]
