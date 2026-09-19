@@ -1,5 +1,14 @@
 """Public M15 application surface."""
 
+from erp.modules.sales.application.lifecycle import (
+    CommandMetadata,
+    ReviseSalesQuote,
+    RevisionLine,
+    SalesQuoteLifecycleService,
+    SalesQuoteLifecycleStore,
+    SalesQuoteMutationResult,
+    TransitionSalesQuote,
+)
 from erp.modules.sales.application.permissions import (
     SALES_CUSTOMER_PORTFOLIO_READ,
     SALES_DISCOUNT_REQUEST,
@@ -27,11 +36,18 @@ __all__ = [
     "SALES_QUOTE_READ",
     "SALES_QUOTE_SEND",
     "SALES_QUOTE_UPDATE",
+    "CommandMetadata",
     "CreateSalesQuote",
+    "ReviseSalesQuote",
+    "RevisionLine",
     "SalesAuthorization",
     "SalesQuoteDetail",
+    "SalesQuoteLifecycleService",
+    "SalesQuoteLifecycleStore",
+    "SalesQuoteMutationResult",
     "SalesQuotePage",
     "SalesQuoteService",
     "SalesQuoteStore",
+    "TransitionSalesQuote",
     "sales_permission_registry",
 ]

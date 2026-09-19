@@ -7,18 +7,26 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete
+from sqlalchemy import delete, func, select
 
 from erp.apps.api.app import create_app
 from erp.modules.admin.application import SecurityContext
 from erp.modules.admin.domain import AuthenticatedPrincipal, AuthenticationLevel, Scope, ScopeType
 from erp.modules.customer.infrastructure import CustomerModel
-from erp.modules.sales.application import SALES_QUOTE_CREATE, SALES_QUOTE_READ
+from erp.modules.product.infrastructure import ProductRepository
+from erp.modules.sales.application import (
+    SALES_QUOTE_CREATE,
+    SALES_QUOTE_READ,
+    SALES_QUOTE_SEND,
+    SALES_QUOTE_UPDATE,
+)
 from erp.modules.sales.infrastructure import (
     QuoteRevisionItemModel,
     QuoteRevisionModel,
     SalesQuoteModel,
 )
+from erp.platform.audit import AuditEventModel
+from erp.platform.outbox import OutboxEventModel
 from tests.integration.test_product_persistence import Fixture, fixture
 
 pytestmark = pytest.mark.integration
@@ -36,6 +44,7 @@ class SalesApiFixture:
     client: TestClient
     data: Fixture
     customer_id: str
+    product_id: str
     resolver: ResolverStub
 
     @property
@@ -64,9 +73,20 @@ async def _seed_customer(data: Fixture) -> str:
     return str(customer_id)
 
 
+async def _seed_product(data: Fixture) -> str:
+    product = data.product(code="QUOTE-API-LINE")
+    async with data.database.session() as session, session.begin():
+        await ProductRepository(session, company_id=data.company_id).add(
+            product, actor_id=data.actor_id
+        )
+    return str(product.id)
+
+
 async def _cleanup(data: Fixture) -> None:
     company_ids = (data.company_id, data.other_company_id)
     async with data.database.session() as session, session.begin():
+        await session.execute(delete(OutboxEventModel).where(OutboxEventModel.source_module == "sales"))
+        await session.execute(delete(AuditEventModel).where(AuditEventModel.module == "sales"))
         await session.execute(delete(QuoteRevisionItemModel).where(QuoteRevisionItemModel.company_id.in_(company_ids)))
         await session.execute(delete(QuoteRevisionModel).where(QuoteRevisionModel.company_id.in_(company_ids)))
         await session.execute(delete(SalesQuoteModel).where(SalesQuoteModel.company_id.in_(company_ids)))
@@ -81,13 +101,16 @@ def sales_api() -> Iterator[SalesApiFixture]:
         manager = fixture()
         data = client.portal.call(manager.__aenter__)
         customer_id = client.portal.call(_seed_customer, data)
+        product_id = client.portal.call(_seed_product, data)
         resolver.context = SecurityContext(
             principal=AuthenticatedPrincipal(data.actor_id, uuid4(), AuthenticationLevel.LEVEL_1),
-            permissions=frozenset({SALES_QUOTE_CREATE, SALES_QUOTE_READ}),
+            permissions=frozenset(
+                {SALES_QUOTE_CREATE, SALES_QUOTE_READ, SALES_QUOTE_SEND, SALES_QUOTE_UPDATE}
+            ),
             scopes=frozenset({Scope(ScopeType.COMPANY, data.company_id)}),
         )
         try:
-            yield SalesApiFixture(client, data, customer_id, resolver)
+            yield SalesApiFixture(client, data, customer_id, product_id, resolver)
         finally:
             try:
                 client.portal.call(_cleanup, data)
@@ -145,3 +168,84 @@ def test_quote_api_enforces_rbac_and_error_contract() -> None:
         )
         assert denied.status_code == 403
         assert denied.json()["error"]["code"] == "PERMISSION_FORBIDDEN"
+
+
+def test_quote_lifecycle_is_versioned_and_emits_atomic_audit_outbox() -> None:
+    with sales_api() as api:
+        created = api.client.post(
+            "/api/v1/sales/quotes",
+            headers=api.headers,
+            json={
+                "company_id": str(api.data.company_id),
+                "number": "Q-LIFECYCLE",
+                "customer_id": api.customer_id,
+            },
+        ).json()
+        quote_id = created["id"]
+        revision = api.client.post(
+            f"/api/v1/sales/quotes/{quote_id}/revisions",
+            headers={**api.headers, "If-Match": '"1"'},
+            json={
+                "company_id": str(api.data.company_id),
+                "lines": [
+                    {
+                        "product_id": api.product_id,
+                        "quantity": "2.000000",
+                        "unit_price": "25.00",
+                        "discount_amount": "5.00",
+                    }
+                ],
+            },
+        )
+        assert revision.status_code == 200
+        assert revision.headers["etag"] == '"2"'
+        assert revision.json()["detail"]["quote"]["current_revision_number"] == 1
+
+        missing_match = api.client.post(
+            f"/api/v1/sales/quotes/{quote_id}/send",
+            headers=api.headers,
+            json={"company_id": str(api.data.company_id)},
+        )
+        assert missing_match.status_code == 428
+
+        sent = api.client.post(
+            f"/api/v1/sales/quotes/{quote_id}/send",
+            headers={**api.headers, "If-Match": '"2"'},
+            json={"company_id": str(api.data.company_id)},
+        )
+        assert sent.status_code == 200
+        assert sent.headers["etag"] == '"3"'
+        assert sent.json()["detail"]["quote"]["status"] == "SENT"
+
+        stale = api.client.post(
+            f"/api/v1/sales/quotes/{quote_id}/accept",
+            headers={**api.headers, "If-Match": '"2"'},
+            json={"company_id": str(api.data.company_id)},
+        )
+        assert stale.status_code == 409
+        assert stale.json()["error"]["code"] == "VERSION_CONFLICT"
+
+        accepted = api.client.post(
+            f"/api/v1/sales/quotes/{quote_id}/accept-partially",
+            headers={**api.headers, "If-Match": '"3"'},
+            json={"company_id": str(api.data.company_id)},
+        )
+        assert accepted.status_code == 200
+        assert accepted.json()["detail"]["quote"]["status"] == "PARTIALLY_ACCEPTED"
+
+        async def counts() -> tuple[int, int]:
+            async with api.data.database.session() as session:
+                audits = await session.scalar(
+                    select(func.count()).select_from(AuditEventModel).where(
+                        AuditEventModel.module == "sales"
+                    )
+                )
+                events = await session.scalar(
+                    select(func.count()).select_from(OutboxEventModel).where(
+                        OutboxEventModel.source_module == "sales"
+                    )
+                )
+                return int(audits or 0), int(events or 0)
+
+        assert api.client.portal is not None
+        assert api.client.portal.call(counts) == (3, 3)

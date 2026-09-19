@@ -81,8 +81,12 @@ from erp.modules.product.infrastructure.product_directory import PostgresProduct
 from erp.modules.product.infrastructure.product_lifecycle import PostgresProductLifecycle
 from erp.modules.product.infrastructure.product_updates import PostgresProductUpdates
 from erp.modules.sales.api import router as sales_router
-from erp.modules.sales.application import SalesAuthorization, SalesQuoteService
-from erp.modules.sales.infrastructure import PostgresSalesQuotes
+from erp.modules.sales.application import (
+    SalesAuthorization,
+    SalesQuoteLifecycleService,
+    SalesQuoteService,
+)
+from erp.modules.sales.infrastructure import PostgresSalesQuoteLifecycle, PostgresSalesQuotes
 from erp.modules.wms.api import router as wms_router
 from erp.modules.wms.application import (
     PackingService,
@@ -155,6 +159,7 @@ def create_app(
     workflow_approvals: WorkflowApprovalQueryService | None = None,
     workflow_decisions: WorkflowDecisionService | None = None,
     sales_quotes: SalesQuoteService | None = None,
+    sales_quote_lifecycle: SalesQuoteLifecycleService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -199,10 +204,20 @@ def create_app(
     resolved_workflow_approvals = workflow_approvals
     resolved_workflow_decisions = workflow_decisions
     resolved_sales_quotes = sales_quotes
+    resolved_sales_quote_lifecycle = sales_quote_lifecycle
+    sales_authorization = SalesAuthorization(
+        CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+    ) if isinstance(resolved_database, Database) else None
     if resolved_sales_quotes is None and isinstance(resolved_database, Database):
+        assert sales_authorization is not None
         resolved_sales_quotes = SalesQuoteService(
             PostgresSalesQuotes(resolved_database),
-            SalesAuthorization(CompanyAccessService(PostgresCorporateDirectory(resolved_database))),
+            sales_authorization,
+        )
+    if resolved_sales_quote_lifecycle is None and isinstance(resolved_database, Database):
+        assert sales_authorization is not None
+        resolved_sales_quote_lifecycle = SalesQuoteLifecycleService(
+            PostgresSalesQuoteLifecycle(resolved_database), sales_authorization
         )
     if isinstance(resolved_database, Database) and (
         resolved_inventory_queries is None
@@ -484,6 +499,7 @@ def create_app(
     application.state.workflow_approvals = resolved_workflow_approvals
     application.state.workflow_decisions = resolved_workflow_decisions
     application.state.sales_quotes = resolved_sales_quotes
+    application.state.sales_quote_lifecycle = resolved_sales_quote_lifecycle
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)
