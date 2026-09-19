@@ -1,5 +1,11 @@
 """Public M15 application surface."""
 
+from erp.modules.sales.application.discount_approval import (
+    DiscountApprovalService,
+    DiscountApprovalStore,
+    DiscountWorkflowGateway,
+    RequestDiscountApproval,
+)
 from erp.modules.sales.application.lifecycle import (
     CommandMetadata,
     ReviseSalesQuote,
@@ -38,6 +44,10 @@ __all__ = [
     "SALES_QUOTE_UPDATE",
     "CommandMetadata",
     "CreateSalesQuote",
+    "DiscountApprovalService",
+    "DiscountApprovalStore",
+    "DiscountWorkflowGateway",
+    "RequestDiscountApproval",
     "ReviseSalesQuote",
     "RevisionLine",
     "SalesAuthorization",

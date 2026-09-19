@@ -23,6 +23,8 @@ from erp.modules.sales.api.versioning import require_version
 from erp.modules.sales.application import (
     CommandMetadata,
     CreateSalesQuote,
+    DiscountApprovalService,
+    RequestDiscountApproval,
     ReviseSalesQuote,
     RevisionLine,
     SalesQuoteDetail,
@@ -53,6 +55,17 @@ def get_sales_quote_lifecycle(request: Request) -> SalesQuoteLifecycleService:
         raise ApplicationError(
             code="SALES_QUOTE_LIFECYCLE_UNAVAILABLE",
             message="Sales quote lifecycle service unavailable.",
+            status_code=503,
+        )
+    return service
+
+
+def get_discount_approvals(request: Request) -> DiscountApprovalService:
+    service = getattr(request.app.state, "sales_discount_approvals", None)
+    if not isinstance(service, DiscountApprovalService):
+        raise ApplicationError(
+            code="SALES_DISCOUNT_APPROVAL_UNAVAILABLE",
+            message="Sales discount approval service unavailable.",
             status_code=503,
         )
     return service
@@ -206,6 +219,28 @@ _transition_route("send", SalesQuoteStatus.SENT)
 _transition_route("accept", SalesQuoteStatus.ACCEPTED)
 _transition_route("accept-partially", SalesQuoteStatus.PARTIALLY_ACCEPTED)
 _transition_route("lost", SalesQuoteStatus.LOST)
+
+
+@router.post("/{quote_id}/discount-approval", response_model=SalesQuoteMutationResponse)
+async def request_discount_approval(
+    quote_id: UUID,
+    body: TransitionSalesQuoteRequest,
+    request: Request,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[DiscountApprovalService, Depends(get_discount_approvals)],
+    expected_version: Annotated[int, Depends(require_version)],
+) -> SalesQuoteMutationResponse:
+    result = await service.request(
+        context,
+        RequestDiscountApproval(
+            body.company_id, quote_id, expected_version, metadata(request)
+        ),
+    )
+    _headers(response, result.detail.quote)
+    return SalesQuoteMutationResponse(
+        detail=_detail(result.detail), event_id=result.event_id, audit_event_id=result.audit_event_id
+    )
 
 
 def _quote(quote: SalesQuote) -> SalesQuoteResponse:

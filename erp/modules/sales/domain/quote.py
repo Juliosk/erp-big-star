@@ -203,6 +203,19 @@ class SalesQuote:
             raise ValueError("only draft or sent quotes can be marked lost.")
         return replace(self, status=SalesQuoteStatus.LOST, version=self.version + 1)
 
+    def request_discount_approval(self, workflow_instance_id: UUID) -> SalesQuote:
+        if self.status is not SalesQuoteStatus.DRAFT:
+            raise ValueError("discount approval can be requested only for draft quotes.")
+        if self.current_revision_number < 1:
+            raise ValueError("discount approval requires a quote revision.")
+        if self.workflow_instance_id is not None:
+            raise ValueError("discount approval was already requested.")
+        return replace(
+            self,
+            workflow_instance_id=require_uuid(workflow_instance_id, "workflow_instance_id"),
+            version=self.version + 1,
+        )
+
     def convert(self, order_id: UUID) -> SalesQuote:
         if self.status not in {
             SalesQuoteStatus.ACCEPTED,

@@ -15,6 +15,7 @@ from erp.modules.admin.domain import AuthenticatedPrincipal, AuthenticationLevel
 from erp.modules.customer.infrastructure import CustomerModel
 from erp.modules.product.infrastructure import ProductRepository
 from erp.modules.sales.application import (
+    SALES_DISCOUNT_REQUEST,
     SALES_QUOTE_CREATE,
     SALES_QUOTE_READ,
     SALES_QUOTE_SEND,
@@ -25,9 +26,14 @@ from erp.modules.sales.infrastructure import (
     QuoteRevisionModel,
     SalesQuoteModel,
 )
+from erp.modules.workflow.application import (
+    WORKFLOW_DEFINITION_MANAGE,
+    WORKFLOW_REQUEST_CREATE,
+)
 from erp.platform.audit import AuditEventModel
 from erp.platform.outbox import OutboxEventModel
 from tests.integration.test_product_persistence import Fixture, fixture
+from tests.integration.test_workflow_api import _cleanup_workflow
 
 pytestmark = pytest.mark.integration
 
@@ -83,6 +89,7 @@ async def _seed_product(data: Fixture) -> str:
 
 
 async def _cleanup(data: Fixture) -> None:
+    await _cleanup_workflow(data)
     company_ids = (data.company_id, data.other_company_id)
     async with data.database.session() as session, session.begin():
         await session.execute(delete(OutboxEventModel).where(OutboxEventModel.source_module == "sales"))
@@ -105,7 +112,15 @@ def sales_api() -> Iterator[SalesApiFixture]:
         resolver.context = SecurityContext(
             principal=AuthenticatedPrincipal(data.actor_id, uuid4(), AuthenticationLevel.LEVEL_1),
             permissions=frozenset(
-                {SALES_QUOTE_CREATE, SALES_QUOTE_READ, SALES_QUOTE_SEND, SALES_QUOTE_UPDATE}
+                {
+                    SALES_DISCOUNT_REQUEST,
+                    SALES_QUOTE_CREATE,
+                    SALES_QUOTE_READ,
+                    SALES_QUOTE_SEND,
+                    SALES_QUOTE_UPDATE,
+                    WORKFLOW_DEFINITION_MANAGE,
+                    WORKFLOW_REQUEST_CREATE,
+                }
             ),
             scopes=frozenset({Scope(ScopeType.COMPANY, data.company_id)}),
         )
@@ -249,3 +264,72 @@ def test_quote_lifecycle_is_versioned_and_emits_atomic_audit_outbox() -> None:
 
         assert api.client.portal is not None
         assert api.client.portal.call(counts) == (3, 3)
+
+
+def test_discount_exception_opens_m22_workflow_and_links_quote() -> None:
+    with sales_api() as api:
+        definition = api.client.post(
+            "/api/v1/workflow/definitions",
+            headers=api.headers,
+            json={
+                "company_id": str(api.data.company_id),
+                "code": "SALES-DISCOUNT",
+                "name": "Alçada comercial",
+                "source_module": "SALES",
+                "source_type": "QUOTE_DISCOUNT",
+                "approval_mode": "SEQUENTIAL",
+                "steps": [
+                    {
+                        "sequence": 1,
+                        "code": "MANAGER",
+                        "name": "Gerência comercial",
+                        "required_permission": "workflow.approval.decide",
+                        "threshold_amount": "1.00",
+                    }
+                ],
+            },
+        )
+        assert definition.status_code == 201
+        created = api.client.post(
+            "/api/v1/sales/quotes",
+            headers=api.headers,
+            json={
+                "company_id": str(api.data.company_id),
+                "number": "Q-DISCOUNT",
+                "customer_id": api.customer_id,
+            },
+        ).json()
+        quote_id = created["id"]
+        revised = api.client.post(
+            f"/api/v1/sales/quotes/{quote_id}/revisions",
+            headers={**api.headers, "If-Match": '"1"'},
+            json={
+                "company_id": str(api.data.company_id),
+                "lines": [
+                    {
+                        "product_id": api.product_id,
+                        "quantity": "1.000000",
+                        "unit_price": "100.00",
+                        "discount_amount": "10.00",
+                    }
+                ],
+            },
+        )
+        assert revised.status_code == 200
+
+        requested = api.client.post(
+            f"/api/v1/sales/quotes/{quote_id}/discount-approval",
+            headers={**api.headers, "If-Match": '"2"'},
+            json={"company_id": str(api.data.company_id)},
+        )
+        assert requested.status_code == 200
+        body = requested.json()
+        workflow_id = body["detail"]["quote"]["workflow_instance_id"]
+        assert workflow_id is not None
+        assert requested.headers["etag"] == '"3"'
+
+        workflow = api.client.get(
+            f"/api/v1/workflow/instances/{workflow_id}?company_id={api.data.company_id}",
+            headers=api.headers,
+        )
+        assert workflow.status_code == 403  # read permission remains independently governed

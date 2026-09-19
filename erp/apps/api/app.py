@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from erp.apps.api.import_composition import compose_imports
 from erp.apps.api.middleware import CorrelationIdMiddleware, RequestIdMiddleware
 from erp.apps.api.routes import health_router
+from erp.apps.api.sales_workflow import WorkflowDiscountGateway
 from erp.apps.web.mount import mount_web
 from erp.modules.admin.api import router as admin_router
 from erp.modules.admin.api.session_context import router as session_router
@@ -82,11 +83,16 @@ from erp.modules.product.infrastructure.product_lifecycle import PostgresProduct
 from erp.modules.product.infrastructure.product_updates import PostgresProductUpdates
 from erp.modules.sales.api import router as sales_router
 from erp.modules.sales.application import (
+    DiscountApprovalService,
     SalesAuthorization,
     SalesQuoteLifecycleService,
     SalesQuoteService,
 )
-from erp.modules.sales.infrastructure import PostgresSalesQuoteLifecycle, PostgresSalesQuotes
+from erp.modules.sales.infrastructure import (
+    PostgresDiscountApproval,
+    PostgresSalesQuoteLifecycle,
+    PostgresSalesQuotes,
+)
 from erp.modules.wms.api import router as wms_router
 from erp.modules.wms.application import (
     PackingService,
@@ -160,6 +166,7 @@ def create_app(
     workflow_decisions: WorkflowDecisionService | None = None,
     sales_quotes: SalesQuoteService | None = None,
     sales_quote_lifecycle: SalesQuoteLifecycleService | None = None,
+    sales_discount_approvals: DiscountApprovalService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -205,6 +212,7 @@ def create_app(
     resolved_workflow_decisions = workflow_decisions
     resolved_sales_quotes = sales_quotes
     resolved_sales_quote_lifecycle = sales_quote_lifecycle
+    resolved_sales_discount_approvals = sales_discount_approvals
     sales_authorization = SalesAuthorization(
         CompanyAccessService(PostgresCorporateDirectory(resolved_database))
     ) if isinstance(resolved_database, Database) else None
@@ -327,6 +335,15 @@ def create_app(
             WorkflowAuthorization(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
             ),
+        )
+    if resolved_sales_discount_approvals is None and isinstance(resolved_database, Database):
+        assert sales_authorization is not None
+        assert resolved_workflow_instances is not None
+        resolved_sales_discount_approvals = DiscountApprovalService(
+            PostgresSalesQuotes(resolved_database),
+            PostgresDiscountApproval(resolved_database),
+            WorkflowDiscountGateway(resolved_workflow_instances),
+            sales_authorization,
         )
     if resolved_workflow_approvals is None and isinstance(resolved_database, Database):
         resolved_workflow_approvals = WorkflowApprovalQueryService(
@@ -500,6 +517,7 @@ def create_app(
     application.state.workflow_decisions = resolved_workflow_decisions
     application.state.sales_quotes = resolved_sales_quotes
     application.state.sales_quote_lifecycle = resolved_sales_quote_lifecycle
+    application.state.sales_discount_approvals = resolved_sales_discount_approvals
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)
