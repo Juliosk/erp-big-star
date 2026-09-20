@@ -21,6 +21,12 @@ from erp.modules.sales.application.lifecycle import (
     SalesQuoteMutationResult,
     TransitionSalesQuote,
 )
+from erp.modules.sales.application.order_cancellation import (
+    CancelSalesOrder,
+    SalesOrderCancellationResult,
+    SalesOrderCancellationService,
+    SalesOrderCancellationStore,
+)
 from erp.modules.sales.application.order_reservations import (
     ExtendSalesOrderHold,
     ReserveSalesOrder,
@@ -36,6 +42,7 @@ from erp.modules.sales.application.orders import (
 from erp.modules.sales.application.permissions import (
     SALES_CUSTOMER_PORTFOLIO_READ,
     SALES_DISCOUNT_REQUEST,
+    SALES_ORDER_CANCEL,
     SALES_ORDER_CREATE,
     SALES_ORDER_READ,
     SALES_ORDER_RESERVE,
@@ -58,6 +65,7 @@ from erp.modules.sales.application.quotes import (
 __all__ = [
     "SALES_CUSTOMER_PORTFOLIO_READ",
     "SALES_DISCOUNT_REQUEST",
+    "SALES_ORDER_CANCEL",
     "SALES_ORDER_CREATE",
     "SALES_ORDER_READ",
     "SALES_ORDER_RESERVE",
@@ -66,6 +74,7 @@ __all__ = [
     "SALES_QUOTE_READ",
     "SALES_QUOTE_SEND",
     "SALES_QUOTE_UPDATE",
+    "CancelSalesOrder",
     "CommandMetadata",
     "ConvertQuoteToOrder",
     "CreateSalesQuote",
@@ -78,6 +87,9 @@ __all__ = [
     "ReviseSalesQuote",
     "RevisionLine",
     "SalesAuthorization",
+    "SalesOrderCancellationResult",
+    "SalesOrderCancellationService",
+    "SalesOrderCancellationStore",
     "SalesOrderConversionResult",
     "SalesOrderConversionService",
     "SalesOrderConversionStore",

@@ -166,6 +166,14 @@ class SalesOrderReservationResponse(BaseModel):
     idempotency_replayed: bool = False
 
 
+class SalesOrderCancellationResponse(BaseModel):
+    order: SalesOrderResponse
+    reservation: SalesOrderReservationResponse
+    inventory_event_id: UUID
+    inventory_audit_event_id: UUID
+    idempotency_replayed: bool
+
+
 class PageMetadata(BaseModel):
     page: int
     page_size: int
@@ -187,6 +195,7 @@ __all__ = [
     "ReserveSalesOrderRequest",
     "ReviseSalesQuoteRequest",
     "RevisionLineRequest",
+    "SalesOrderCancellationResponse",
     "SalesOrderConversionResponse",
     "SalesOrderItemResponse",
     "SalesOrderListResponse",

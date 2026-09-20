@@ -16,6 +16,7 @@ from erp.modules.customer.infrastructure import CustomerModel
 from erp.modules.product.infrastructure import ProductRepository
 from erp.modules.sales.application import (
     SALES_DISCOUNT_REQUEST,
+    SALES_ORDER_CANCEL,
     SALES_ORDER_CREATE,
     SALES_ORDER_READ,
     SALES_ORDER_RESERVE,
@@ -123,6 +124,7 @@ def sales_api() -> Iterator[SalesApiFixture]:
                 {
                     SALES_DISCOUNT_REQUEST,
                     SALES_ORDER_CREATE,
+                    SALES_ORDER_CANCEL,
                     SALES_ORDER_READ,
                     SALES_ORDER_RESERVE,
                     SALES_QUOTE_CREATE,

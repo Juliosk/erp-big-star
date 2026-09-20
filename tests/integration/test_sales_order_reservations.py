@@ -317,3 +317,61 @@ def test_order_reservation_post_get_etag_and_tenant_scope() -> None:
             assert foreign.status_code == 404
         finally:
             api.client.portal.call(_cleanup_reservations, api)
+
+
+def test_order_cancellation_atomically_releases_m5_reservation_and_replays() -> None:
+    with sales_api() as api:
+        assert api.client.portal is not None
+        try:
+            order_id, expected_version = _create_order(
+                api, suffix="CANCEL", quantity="4.000000"
+            )
+            warehouse_id = api.client.portal.call(
+                _seed_stock_and_approve, api, (order_id,)
+            )
+            reserved = api.client.post(
+                f"/api/v1/sales/orders/{order_id}/reserve",
+                headers={
+                    **api.headers,
+                    "If-Match": f'"{expected_version}"',
+                    "Idempotency-Key": "reserve-before-cancel",
+                },
+                json={
+                    "company_id": str(api.data.company_id),
+                    "warehouse_id": str(warehouse_id),
+                    "reservation_kind": "HARD",
+                },
+            )
+            assert reserved.status_code == 201
+            inventory_reservation_id = UUID(
+                reserved.json()["inventory_reservation_id"]
+            )
+            url = (
+                f"/api/v1/sales/orders/{order_id}/cancel"
+                f"?company_id={api.data.company_id}"
+            )
+            headers = {
+                **api.headers,
+                "If-Match": f'"{expected_version}"',
+                "Idempotency-Key": "cancel-order-atomically",
+            }
+            cancelled = api.client.post(url, headers=headers)
+            assert cancelled.status_code == 200
+            assert cancelled.headers["etag"] == '"3"'
+            assert cancelled.json()["order"]["status"] == "CANCELLED"
+            assert cancelled.json()["reservation"]["status"] == "RELEASED"
+
+            replay = api.client.post(url, headers=headers)
+            assert replay.status_code == 200
+            assert replay.headers["idempotency-replayed"] == "true"
+
+            async def inventory_status() -> str | None:
+                async with api.data.database.session() as session:
+                    model = await session.get(
+                        InventoryReservationModel, inventory_reservation_id
+                    )
+                    return None if model is None else model.status
+
+            assert api.client.portal.call(inventory_status) == "RELEASED"
+        finally:
+            api.client.portal.call(_cleanup_reservations, api)

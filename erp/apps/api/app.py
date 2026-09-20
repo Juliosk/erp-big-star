@@ -85,6 +85,7 @@ from erp.modules.sales.api import router as sales_router
 from erp.modules.sales.application import (
     DiscountApprovalService,
     SalesAuthorization,
+    SalesOrderCancellationService,
     SalesOrderConversionService,
     SalesOrderReservationService,
     SalesOrderService,
@@ -93,6 +94,7 @@ from erp.modules.sales.application import (
 )
 from erp.modules.sales.infrastructure import (
     PostgresDiscountApproval,
+    PostgresSalesOrderCancellation,
     PostgresSalesOrderConversion,
     PostgresSalesOrderReservations,
     PostgresSalesOrders,
@@ -176,6 +178,7 @@ def create_app(
     sales_order_conversion: SalesOrderConversionService | None = None,
     sales_orders: SalesOrderService | None = None,
     sales_order_reservations: SalesOrderReservationService | None = None,
+    sales_order_cancellation: SalesOrderCancellationService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -225,6 +228,7 @@ def create_app(
     resolved_sales_order_conversion = sales_order_conversion
     resolved_sales_orders = sales_orders
     resolved_sales_order_reservations = sales_order_reservations
+    resolved_sales_order_cancellation = sales_order_cancellation
     sales_authorization = SalesAuthorization(
         CompanyAccessService(PostgresCorporateDirectory(resolved_database))
     ) if isinstance(resolved_database, Database) else None
@@ -258,6 +262,17 @@ def create_app(
         assert sales_authorization is not None
         resolved_sales_order_reservations = SalesOrderReservationService(
             PostgresSalesOrderReservations(
+                resolved_database,
+                ttl_seconds=resolved_settings.idempotency_ttl_seconds,
+            ),
+            sales_authorization,
+        )
+    if resolved_sales_order_cancellation is None and isinstance(
+        resolved_database, Database
+    ):
+        assert sales_authorization is not None
+        resolved_sales_order_cancellation = SalesOrderCancellationService(
+            PostgresSalesOrderCancellation(
                 resolved_database,
                 ttl_seconds=resolved_settings.idempotency_ttl_seconds,
             ),
@@ -557,6 +572,7 @@ def create_app(
     application.state.sales_order_conversion = resolved_sales_order_conversion
     application.state.sales_orders = resolved_sales_orders
     application.state.sales_order_reservations = resolved_sales_order_reservations
+    application.state.sales_order_cancellation = resolved_sales_order_cancellation
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)

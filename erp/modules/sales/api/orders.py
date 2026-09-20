@@ -14,6 +14,7 @@ from erp.modules.sales.api.schemas import (
     ExtendSalesOrderHoldRequest,
     PageMetadata,
     ReserveSalesOrderRequest,
+    SalesOrderCancellationResponse,
     SalesOrderConversionResponse,
     SalesOrderItemResponse,
     SalesOrderListResponse,
@@ -23,9 +24,11 @@ from erp.modules.sales.api.schemas import (
 )
 from erp.modules.sales.api.versioning import require_version
 from erp.modules.sales.application import (
+    CancelSalesOrder,
     ConvertQuoteToOrder,
     ExtendSalesOrderHold,
     ReserveSalesOrder,
+    SalesOrderCancellationService,
     SalesOrderConversionService,
     SalesOrderReservationService,
     SalesOrderService,
@@ -65,6 +68,17 @@ def get_order_reservations(request: Request) -> SalesOrderReservationService:
         raise ApplicationError(
             code="SALES_ORDER_RESERVATION_UNAVAILABLE",
             message="Sales order reservation service unavailable.",
+            status_code=503,
+        )
+    return service
+
+
+def get_order_cancellation(request: Request) -> SalesOrderCancellationService:
+    service = getattr(request.app.state, "sales_order_cancellation", None)
+    if not isinstance(service, SalesOrderCancellationService):
+        raise ApplicationError(
+            code="SALES_ORDER_CANCELLATION_UNAVAILABLE",
+            message="Sales order cancellation service unavailable.",
             status_code=503,
         )
     return service
@@ -243,6 +257,42 @@ async def extend_order_reservation_hold(
         result.reservation,
         inventory_event_id=result.inventory_event_id,
         audit_event_id=result.audit_event_id,
+        idempotency_replayed=result.idempotency_replayed,
+    )
+
+
+@router.post(
+    "/orders/{order_id}/cancel",
+    response_model=SalesOrderCancellationResponse,
+)
+async def cancel_order(
+    order_id: UUID,
+    company_id: UUID,
+    request: Request,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[SalesOrderCancellationService, Depends(get_order_cancellation)],
+    expected_version: Annotated[int, Depends(require_version)],
+    idempotency_key: Annotated[str, Depends(require_idempotency_key)],
+) -> SalesOrderCancellationResponse:
+    result = await service.cancel(
+        context,
+        CancelSalesOrder(
+            company_id=company_id,
+            order_id=order_id,
+            expected_version=expected_version,
+            idempotency_key=idempotency_key,
+            metadata=metadata(request),
+        ),
+    )
+    response.headers["ETag"] = f'"{result.order.version}"'
+    response.headers["Idempotency-Replayed"] = str(result.idempotency_replayed).lower()
+    response.headers["Cache-Control"] = "no-store"
+    return SalesOrderCancellationResponse(
+        order=_order(result.order),
+        reservation=_reservation(result.reservation),
+        inventory_event_id=result.inventory_event_id,
+        inventory_audit_event_id=result.inventory_audit_event_id,
         idempotency_replayed=result.idempotency_replayed,
     )
 

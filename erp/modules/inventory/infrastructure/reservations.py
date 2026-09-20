@@ -33,6 +33,7 @@ from erp.modules.inventory.contracts import (
     InventoryReservationStatusContract,
     OrderInventoryReservationGateway,
     OrderInventoryReservationResultContract,
+    ReleaseOrderInventoryContract,
     ReserveOrderInventoryContract,
 )
 from erp.modules.inventory.domain import (
@@ -717,6 +718,53 @@ class SessionOrderInventoryReservationGateway(OrderInventoryReservationGateway):
             .execution_options(populate_existing=True)
         )
         return None if model is None else _reservation_reference(_reservation(model))
+
+    async def release_order(
+        self, command: ReleaseOrderInventoryContract, actor_id: UUID
+    ) -> OrderInventoryReservationResultContract:
+        model = await self._session.scalar(
+            select(InventoryReservationModel)
+            .options(selectinload(InventoryReservationModel.allocations))
+            .where(
+                InventoryReservationModel.company_id == command.company_id,
+                InventoryReservationModel.id == command.reservation_id,
+                InventoryReservationModel.reference_type == "SALES_ORDER",
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if model is None:
+            raise ApplicationError(
+                code="RESOURCE_NOT_FOUND",
+                message="Inventory reservation not found.",
+                status_code=404,
+            )
+        before = _reservation(model)
+        try:
+            before.release()
+        except ValueError as error:
+            raise _reservation_conflict(str(error)) from error
+        model.status = InventoryReservationStatus.RELEASED
+        await self._session.flush()
+        result = await InventoryReservationEffects().record(
+            self._session,
+            _reservation(model),
+            event_type="InventoryReservationReleased",
+            actor_id=actor_id,
+            metadata=CommandMetadata(
+                command.request_id,
+                command.correlation_id,
+                command.source_ip,
+            ),
+            before=before,
+        )
+        if result.event_id is None or result.audit_event_id is None:
+            raise RuntimeError("M5 release effects did not return identifiers.")
+        return OrderInventoryReservationResultContract(
+            reservation=_reservation_reference(result.reservation),
+            event_id=result.event_id,
+            audit_event_id=result.audit_event_id,
+        )
 
 
 def _reservation_reference(reservation: InventoryReservation) -> InventoryReservationReference:

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from erp.modules.sales.domain import SalesOrder, SalesOrderItem, SalesOrderStatus
 from erp.modules.sales.infrastructure.order_model import SalesOrderItemModel, SalesOrderModel
+from erp.platform.concurrency import OptimisticLockError
 from erp.platform.errors import ApplicationError
 
 
@@ -121,6 +122,27 @@ class SalesOrderRepository:
             .offset(offset)
         )
         return tuple([await self._hydrate(model) for model in models])
+
+    async def save(self, order: SalesOrder, *, actor_id: UUID) -> SalesOrder:
+        if order.company_id != self._company_id:
+            raise ApplicationError(
+                code="SCOPE_FORBIDDEN", message="Order outside selected company.", status_code=403
+            )
+        model = await self._session.scalar(
+            select(SalesOrderModel)
+            .where(
+                SalesOrderModel.company_id == self._company_id,
+                SalesOrderModel.id == order.id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if model is None or model.version != order.version - 1:
+            raise OptimisticLockError(expected_version=order.version - 1)
+        model.status = order.status
+        model.updated_by = actor_id
+        await self._session.flush()
+        return order
 
     async def _hydrate(self, model: SalesOrderModel) -> SalesOrder:
         items = await self._session.scalars(
