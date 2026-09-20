@@ -1,5 +1,6 @@
 """HTTP contracts for M15 sales quotes."""
 
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -126,6 +127,38 @@ class SalesOrderConversionResponse(BaseModel):
     idempotency_replayed: bool
 
 
+class ReserveSalesOrderRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    company_id: UUID
+    warehouse_id: UUID
+    location_id: UUID | None = None
+    lot_id: UUID | None = None
+    pool_id: UUID | None = None
+    reservation_kind: str = "HARD"
+    expires_at: datetime | None = None
+
+
+class SalesOrderReservationLineResponse(BaseModel):
+    order_item_id: UUID
+    product_id: UUID
+    quantity: Decimal
+    pricing_snapshot_id: UUID | None
+
+
+class SalesOrderReservationResponse(BaseModel):
+    id: UUID
+    company_id: UUID
+    order_id: UUID
+    inventory_reservation_id: UUID | None
+    status: str
+    order_version: int
+    version: int
+    lines: list[SalesOrderReservationLineResponse]
+    inventory_event_id: UUID | None = None
+    audit_event_id: UUID | None = None
+    idempotency_replayed: bool = False
+
+
 class PageMetadata(BaseModel):
     page: int
     page_size: int
@@ -143,11 +176,14 @@ __all__ = [
     "PageMetadata",
     "QuoteItemResponse",
     "QuoteRevisionResponse",
+    "ReserveSalesOrderRequest",
     "ReviseSalesQuoteRequest",
     "RevisionLineRequest",
     "SalesOrderConversionResponse",
     "SalesOrderItemResponse",
     "SalesOrderListResponse",
+    "SalesOrderReservationLineResponse",
+    "SalesOrderReservationResponse",
     "SalesOrderResponse",
     "SalesQuoteDetailResponse",
     "SalesQuoteListResponse",

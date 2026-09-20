@@ -14,6 +14,7 @@ from erp.modules.sales.infrastructure.order_reservation_model import (
     SalesOrderReservationLineModel,
     SalesOrderReservationModel,
 )
+from erp.platform.concurrency import OptimisticLockError
 from erp.platform.errors import ApplicationError
 
 
@@ -71,6 +72,27 @@ class SalesOrderReservationRepository:
             .order_by(SalesOrderReservationLineModel.order_item_id)
         )
         return _reservation(model, tuple(rows))
+
+    async def save(
+        self, reservation: SalesOrderReservation, *, actor_id: UUID
+    ) -> SalesOrderReservation:
+        self._assert_company(reservation.company_id)
+        model = await self._session.scalar(
+            select(SalesOrderReservationModel)
+            .where(
+                SalesOrderReservationModel.company_id == self._company_id,
+                SalesOrderReservationModel.id == reservation.id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if model is None or model.version != reservation.version - 1:
+            raise OptimisticLockError(expected_version=reservation.version - 1)
+        model.inventory_reservation_id = reservation.inventory_reservation_id
+        model.status = reservation.status
+        model.updated_by = actor_id
+        await self._session.flush()
+        return reservation
 
     def _assert_company(self, company_id: UUID) -> None:
         if company_id != self._company_id:

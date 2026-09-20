@@ -220,3 +220,61 @@ def test_order_reservation_is_atomic_idempotent_and_prevents_over_reservation() 
             assert captured.value.code == "INVENTORY_RESERVATION_CONFLICT"
         finally:
             api.client.portal.call(_cleanup_reservations, api)
+
+
+def test_order_reservation_post_get_etag_and_tenant_scope() -> None:
+    with sales_api() as api:
+        assert api.client.portal is not None
+        try:
+            order_id, expected_version = _create_order(
+                api, suffix="API", quantity="2.000000"
+            )
+            warehouse_id = api.client.portal.call(
+                _seed_stock_and_approve, api, (order_id,)
+            )
+            body = {
+                "company_id": str(api.data.company_id),
+                "warehouse_id": str(warehouse_id),
+                "reservation_kind": "HARD",
+                "expires_at": (datetime.now(UTC) + timedelta(hours=2)).isoformat(),
+            }
+            headers = {
+                **api.headers,
+                "If-Match": f'"{expected_version}"',
+                "Idempotency-Key": "sales-order-reservation-api",
+            }
+            created = api.client.post(
+                f"/api/v1/sales/orders/{order_id}/reserve",
+                headers=headers,
+                json=body,
+            )
+            assert created.status_code == 201
+            assert created.headers["etag"] == '"2"'
+            assert created.json()["status"] == "HELD"
+            assert created.json()["inventory_event_id"] is not None
+
+            replay = api.client.post(
+                f"/api/v1/sales/orders/{order_id}/reserve",
+                headers=headers,
+                json=body,
+            )
+            assert replay.status_code == 201
+            assert replay.headers["idempotency-replayed"] == "true"
+
+            detail = api.client.get(
+                f"/api/v1/sales/orders/{order_id}/reservation"
+                f"?company_id={api.data.company_id}",
+                headers=api.headers,
+            )
+            assert detail.status_code == 200
+            assert detail.headers["etag"] == '"2"'
+            assert detail.json()["order_id"] == str(order_id)
+
+            foreign = api.client.get(
+                f"/api/v1/sales/orders/{order_id}/reservation"
+                f"?company_id={api.data.other_company_id}",
+                headers=api.headers,
+            )
+            assert foreign.status_code == 404
+        finally:
+            api.client.portal.call(_cleanup_reservations, api)

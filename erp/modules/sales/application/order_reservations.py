@@ -55,6 +55,10 @@ class SalesOrderReservationStore(Protocol):
         self, command: ReserveSalesOrder, actor_id: UUID
     ) -> SalesOrderReservationResult: ...
 
+    async def get(
+        self, company_id: UUID, order_id: UUID
+    ) -> SalesOrderReservation | None: ...
+
 
 class SalesOrderReservationService:
     def __init__(
@@ -70,6 +74,23 @@ class SalesOrderReservationService:
             context, command.company_id, SALES_ORDER_RESERVE, write=True
         )
         return await self._store.reserve(command, context.principal.user_id)
+
+    async def get(
+        self, context: SecurityContext, company_id: UUID, order_id: UUID
+    ) -> SalesOrderReservation:
+        await self._authorization.require(
+            context, company_id, SALES_ORDER_RESERVE, write=False
+        )
+        reservation = await self._store.get(company_id, order_id)
+        if reservation is None:
+            from erp.platform.errors import ApplicationError
+
+            raise ApplicationError(
+                code="RESOURCE_NOT_FOUND",
+                message="Sales order reservation not found.",
+                status_code=404,
+            )
+        return reservation
 
 
 __all__ = [

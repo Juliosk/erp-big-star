@@ -86,6 +86,7 @@ from erp.modules.sales.application import (
     DiscountApprovalService,
     SalesAuthorization,
     SalesOrderConversionService,
+    SalesOrderReservationService,
     SalesOrderService,
     SalesQuoteLifecycleService,
     SalesQuoteService,
@@ -93,6 +94,7 @@ from erp.modules.sales.application import (
 from erp.modules.sales.infrastructure import (
     PostgresDiscountApproval,
     PostgresSalesOrderConversion,
+    PostgresSalesOrderReservations,
     PostgresSalesOrders,
     PostgresSalesQuoteLifecycle,
     PostgresSalesQuotes,
@@ -173,6 +175,7 @@ def create_app(
     sales_discount_approvals: DiscountApprovalService | None = None,
     sales_order_conversion: SalesOrderConversionService | None = None,
     sales_orders: SalesOrderService | None = None,
+    sales_order_reservations: SalesOrderReservationService | None = None,
 ) -> FastAPI:
     """Build the public HTTP application."""
     resolved_settings = settings or get_settings()
@@ -221,6 +224,7 @@ def create_app(
     resolved_sales_discount_approvals = sales_discount_approvals
     resolved_sales_order_conversion = sales_order_conversion
     resolved_sales_orders = sales_orders
+    resolved_sales_order_reservations = sales_order_reservations
     sales_authorization = SalesAuthorization(
         CompanyAccessService(PostgresCorporateDirectory(resolved_database))
     ) if isinstance(resolved_database, Database) else None
@@ -247,6 +251,17 @@ def create_app(
         assert sales_authorization is not None
         resolved_sales_orders = SalesOrderService(
             PostgresSalesOrders(resolved_database), sales_authorization
+        )
+    if resolved_sales_order_reservations is None and isinstance(
+        resolved_database, Database
+    ):
+        assert sales_authorization is not None
+        resolved_sales_order_reservations = SalesOrderReservationService(
+            PostgresSalesOrderReservations(
+                resolved_database,
+                ttl_seconds=resolved_settings.idempotency_ttl_seconds,
+            ),
+            sales_authorization,
         )
     if isinstance(resolved_database, Database) and (
         resolved_inventory_queries is None
@@ -541,6 +556,7 @@ def create_app(
     application.state.sales_discount_approvals = resolved_sales_discount_approvals
     application.state.sales_order_conversion = resolved_sales_order_conversion
     application.state.sales_orders = resolved_sales_orders
+    application.state.sales_order_reservations = resolved_sales_order_reservations
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(admin_router)

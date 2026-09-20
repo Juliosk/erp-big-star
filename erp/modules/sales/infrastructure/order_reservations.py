@@ -72,6 +72,8 @@ class PostgresSalesOrderReservations(SalesOrderReservationStore):
             except ValueError as error:
                 raise _validation(str(error)) from error
 
+            await projection_repository.add(requested, actor_id=actor_id)
+
             inventory_result = await SessionOrderInventoryReservationGateway(
                 session
             ).reserve_order(
@@ -99,7 +101,7 @@ class PostgresSalesOrderReservations(SalesOrderReservationStore):
                 actor_id,
             )
             held = requested.hold(inventory_result.reservation.id)
-            await projection_repository.add(held, actor_id=actor_id)
+            await projection_repository.save(held, actor_id=actor_id)
             response_body: dict[str, object] = {
                 "order_id": str(order.id),
                 "reservation_id": str(held.id),
@@ -113,6 +115,14 @@ class PostgresSalesOrderReservations(SalesOrderReservationStore):
             return SalesOrderReservationResult(
                 held, inventory_result.event_id, inventory_result.audit_event_id
             )
+
+    async def get(
+        self, company_id: UUID, order_id: UUID
+    ) -> SalesOrderReservation | None:
+        async with self._database.session() as session:
+            return await SalesOrderReservationRepository(
+                session, company_id=company_id
+            ).get_for_order(order_id)
 
 
 def _validation(message: str) -> ApplicationError:
