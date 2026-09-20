@@ -11,21 +11,27 @@ from erp.modules.admin.domain import Branch
 from erp.modules.admin.infrastructure import BranchModel, BranchRepository
 from erp.modules.inventory.domain import Warehouse
 from erp.modules.inventory.infrastructure import (
+    INVENTORY_SALES_RESERVATION_CONSUMER,
     InventoryBalanceModel,
     InventoryReservationAllocationModel,
     InventoryReservationModel,
+    InventorySalesReservationConsumer,
     WarehouseModel,
     WarehouseRepository,
 )
 from erp.modules.sales.application import CommandMetadata, ReserveSalesOrder
 from erp.modules.sales.infrastructure import (
+    SALES_RESERVATION_PROJECTOR,
     PostgresSalesOrderReservations,
     SalesOrderModel,
     SalesOrderReservationLineModel,
     SalesOrderReservationModel,
+    SalesOrderReservationProjectionConsumer,
 )
 from erp.platform.audit import AuditEventModel
 from erp.platform.errors import ApplicationError
+from erp.platform.inbox import InboxEventModel
+from erp.platform.messaging import MessageEnvelope, MessageKind
 from erp.platform.outbox import OutboxEventModel
 from tests.integration.test_product_persistence import _cnpj
 from tests.integration.test_sales_quote_api import SalesApiFixture, sales_api
@@ -166,6 +172,16 @@ async def _cleanup_reservations(api: SalesApiFixture) -> None:
         )
         await session.execute(
             delete(AuditEventModel).where(AuditEventModel.company_id == company_id)
+        )
+        await session.execute(
+            delete(InboxEventModel).where(
+                InboxEventModel.consumer_name.in_(
+                    [
+                        INVENTORY_SALES_RESERVATION_CONSUMER,
+                        SALES_RESERVATION_PROJECTOR,
+                    ]
+                )
+            )
         )
         await session.commit()
     async with api.data.database.session() as session:
@@ -373,5 +389,124 @@ def test_order_cancellation_atomically_releases_m5_reservation_and_replays() -> 
                     return None if model is None else model.status
 
             assert api.client.portal.call(inventory_status) == "RELEASED"
+        finally:
+            api.client.portal.call(_cleanup_reservations, api)
+
+
+def test_reservation_events_are_consumed_once_across_m4_and_m5() -> None:
+    with sales_api() as api:
+        assert api.client.portal is not None
+        try:
+            order_id, expected_version = _create_order(
+                api, suffix="EVENTS", quantity="1.000000"
+            )
+            warehouse_id = api.client.portal.call(
+                _seed_stock_and_approve, api, (order_id,)
+            )
+            reserved = api.client.post(
+                f"/api/v1/sales/orders/{order_id}/reserve",
+                headers={
+                    **api.headers,
+                    "If-Match": f'"{expected_version}"',
+                    "Idempotency-Key": "reserve-events",
+                },
+                json={
+                    "company_id": str(api.data.company_id),
+                    "warehouse_id": str(warehouse_id),
+                    "reservation_kind": "HARD",
+                },
+            )
+            assert reserved.status_code == 201
+
+            async def consume_sales_event(event_type: str) -> tuple[bool, bool]:
+                async with api.data.database.session() as session:
+                    row = await session.scalar(
+                        select(OutboxEventModel)
+                        .where(
+                            OutboxEventModel.event_type == event_type,
+                            OutboxEventModel.payload["company_id"].as_string()
+                            == str(api.data.company_id),
+                        )
+                        .order_by(OutboxEventModel.occurred_at.desc())
+                    )
+                    assert row is not None
+                    envelope = MessageEnvelope.model_validate(row.payload)
+                consumer = InventorySalesReservationConsumer(api.data.database)
+                first = await consumer.consume(envelope)
+                second = await consumer.consume(envelope)
+                return first.processed, second.duplicate
+
+            assert api.client.portal.call(
+                consume_sales_event, "SalesOrderInventoryReserved"
+            ) == (True, True)
+
+            cancelled = api.client.post(
+                f"/api/v1/sales/orders/{order_id}/cancel"
+                f"?company_id={api.data.company_id}",
+                headers={
+                    **api.headers,
+                    "If-Match": f'"{expected_version}"',
+                    "Idempotency-Key": "cancel-events",
+                },
+            )
+            assert cancelled.status_code == 200
+            assert api.client.portal.call(
+                consume_sales_event, "SalesOrderReservationReleased"
+            ) == (True, True)
+
+            second_order, second_version = _create_order(
+                api, suffix="EXPIRED-EVENT", quantity="1.000000"
+            )
+            awaitable_warehouse = api.client.portal.call(
+                _seed_stock_and_approve, api, (second_order,)
+            )
+            second_reserved = api.client.post(
+                f"/api/v1/sales/orders/{second_order}/reserve",
+                headers={
+                    **api.headers,
+                    "If-Match": f'"{second_version}"',
+                    "Idempotency-Key": "reserve-expired-event",
+                },
+                json={
+                    "company_id": str(api.data.company_id),
+                    "warehouse_id": str(awaitable_warehouse),
+                    "reservation_kind": "HARD",
+                    "expires_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
+                },
+            )
+            assert second_reserved.status_code == 201
+            expiration = MessageEnvelope.new(
+                message_kind=MessageKind.DOMAIN_EVENT,
+                message_type="InventoryReservationExpired",
+                event_version=1,
+                producer_module="inventory",
+                producer_domain="inventory",
+                aggregate_type="inventory_reservation",
+                aggregate_id=UUID(second_reserved.json()["inventory_reservation_id"]),
+                aggregate_version=2,
+                company_id=api.data.company_id,
+                branch_id=None,
+                correlation_id=uuid4(),
+                causation_id=None,
+                request_id=uuid4(),
+                payload={
+                    "id": second_reserved.json()["inventory_reservation_id"],
+                    "company_id": str(api.data.company_id),
+                    "reference_id": str(second_order),
+                    "created_by": str(api.data.actor_id),
+                },
+            )
+
+            async def consume_expiration() -> tuple[bool, bool, str]:
+                consumer = SalesOrderReservationProjectionConsumer(api.data.database)
+                first = await consumer.consume(expiration)
+                duplicate = await consumer.consume(expiration)
+                projection = await PostgresSalesOrderReservations(
+                    api.data.database, ttl_seconds=86_400
+                ).get(api.data.company_id, second_order)
+                assert projection is not None
+                return first.processed, duplicate.duplicate, str(projection.status)
+
+            assert api.client.portal.call(consume_expiration) == (True, True, "EXPIRED")
         finally:
             api.client.portal.call(_cleanup_reservations, api)

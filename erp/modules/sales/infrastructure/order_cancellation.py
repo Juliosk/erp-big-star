@@ -13,6 +13,9 @@ from erp.modules.sales.infrastructure.order_repository import SalesOrderReposito
 from erp.modules.sales.infrastructure.order_reservation_repository import (
     SalesOrderReservationRepository,
 )
+from erp.modules.sales.infrastructure.reservation_effects import (
+    SalesOrderReservationEffects,
+)
 from erp.platform.concurrency import OptimisticLockError
 from erp.platform.database import Database
 from erp.platform.errors import ApplicationError, ErrorDetail
@@ -83,6 +86,14 @@ class PostgresSalesOrderCancellation(SalesOrderCancellationStore):
             )
             await reservations.save(released_projection, actor_id=actor_id)
             await orders.save(cancelled_order, actor_id=actor_id)
+            await SalesOrderReservationEffects().record(
+                session,
+                released_projection,
+                event_type="SalesOrderReservationReleased",
+                actor_id=actor_id,
+                metadata=command.metadata,
+                before=reservation,
+            )
             response_body: dict[str, object] = {
                 "order_id": str(order.id),
                 "reservation_id": str(reservation.id),

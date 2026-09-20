@@ -20,6 +20,9 @@ from erp.modules.sales.infrastructure.order_repository import SalesOrderReposito
 from erp.modules.sales.infrastructure.order_reservation_repository import (
     SalesOrderReservationRepository,
 )
+from erp.modules.sales.infrastructure.reservation_effects import (
+    SalesOrderReservationEffects,
+)
 from erp.platform.concurrency import OptimisticLockError
 from erp.platform.database import Database
 from erp.platform.errors import ApplicationError, ErrorDetail
@@ -108,6 +111,14 @@ class PostgresSalesOrderReservations(SalesOrderReservationStore):
                 expires_at=inventory_result.reservation.expires_at,
             )
             await projection_repository.save(held, actor_id=actor_id)
+            await SalesOrderReservationEffects().record(
+                session,
+                held,
+                event_type="SalesOrderInventoryReserved",
+                actor_id=actor_id,
+                metadata=command.metadata,
+                before=requested,
+            )
             response_body: dict[str, object] = {
                 "order_id": str(order.id),
                 "reservation_id": str(held.id),

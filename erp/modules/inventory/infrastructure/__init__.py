@@ -45,6 +45,11 @@ from erp.modules.inventory.infrastructure.reservations import (
     PostgresInventoryReservations,
     SessionOrderInventoryReservationGateway,
 )
+from erp.modules.inventory.infrastructure.sales_reservation_consumer import (
+    INVENTORY_SALES_RESERVATION_CONSUMER,
+    SUPPORTED_SALES_RESERVATION_EVENTS,
+    InventorySalesReservationConsumer,
+)
 from erp.modules.inventory.infrastructure.warehouse_model import (
     WarehouseLocationModel,
     WarehouseModel,
@@ -54,6 +59,8 @@ __all__ = [
     "INVENTORY_ADJUSTED",
     "INVENTORY_ADJUSTED_ROUTING_KEY",
     "INVENTORY_MOVEMENT_PROJECTOR",
+    "INVENTORY_SALES_RESERVATION_CONSUMER",
+    "SUPPORTED_SALES_RESERVATION_EVENTS",
     "InventoryAdjustmentEffects",
     "InventoryBalanceModel",
     "InventoryBalanceRepository",
@@ -68,6 +75,7 @@ __all__ = [
     "InventoryReservationAllocationModel",
     "InventoryReservationEffects",
     "InventoryReservationModel",
+    "InventorySalesReservationConsumer",
     "InventoryTransactionModel",
     "LocationRepository",
     "LotRepository",

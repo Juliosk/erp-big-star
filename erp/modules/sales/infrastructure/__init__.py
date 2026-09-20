@@ -24,8 +24,15 @@ from erp.modules.sales.infrastructure.quote_model import (
 )
 from erp.modules.sales.infrastructure.quotes import PostgresSalesQuotes
 from erp.modules.sales.infrastructure.repository import SalesQuoteRepository
+from erp.modules.sales.infrastructure.reservation_projection import (
+    INVENTORY_RESERVATION_EXPIRED,
+    SALES_RESERVATION_PROJECTOR,
+    SalesOrderReservationProjectionConsumer,
+)
 
 __all__ = [
+    "INVENTORY_RESERVATION_EXPIRED",
+    "SALES_RESERVATION_PROJECTOR",
     "PostgresDiscountApproval",
     "PostgresSalesOrderCancellation",
     "PostgresSalesOrderConversion",
@@ -40,6 +47,7 @@ __all__ = [
     "SalesOrderRepository",
     "SalesOrderReservationLineModel",
     "SalesOrderReservationModel",
+    "SalesOrderReservationProjectionConsumer",
     "SalesOrderReservationRepository",
     "SalesQuoteModel",
     "SalesQuoteRepository",
