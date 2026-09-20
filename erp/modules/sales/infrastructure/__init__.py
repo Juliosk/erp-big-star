@@ -12,6 +12,9 @@ from erp.modules.sales.infrastructure.order_reservation_model import (
 from erp.modules.sales.infrastructure.order_reservation_repository import (
     SalesOrderReservationRepository,
 )
+from erp.modules.sales.infrastructure.order_reservations import (
+    PostgresSalesOrderReservations,
+)
 from erp.modules.sales.infrastructure.orders import PostgresSalesOrders
 from erp.modules.sales.infrastructure.quote_model import (
     QuoteRevisionItemModel,
@@ -24,6 +27,7 @@ from erp.modules.sales.infrastructure.repository import SalesQuoteRepository
 __all__ = [
     "PostgresDiscountApproval",
     "PostgresSalesOrderConversion",
+    "PostgresSalesOrderReservations",
     "PostgresSalesOrders",
     "PostgresSalesQuoteLifecycle",
     "PostgresSalesQuotes",

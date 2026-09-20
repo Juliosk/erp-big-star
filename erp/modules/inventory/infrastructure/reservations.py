@@ -7,9 +7,11 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from erp.modules.inventory.application.commands import (
+    CommandMetadata,
     CreateInventoryReservation,
     ExpireInventoryReservations,
     InventoryReservationExpirationResult,
@@ -21,6 +23,15 @@ from erp.modules.inventory.application.queries import InventoryPage
 from erp.modules.inventory.application.reservations import (
     InventoryAvailabilityDirectory,
     InventoryReservationStore,
+)
+from erp.modules.inventory.contracts import (
+    InventoryReservationAllocationReference,
+    InventoryReservationKindContract,
+    InventoryReservationReference,
+    InventoryReservationStatusContract,
+    OrderInventoryReservationGateway,
+    OrderInventoryReservationResultContract,
+    ReserveOrderInventoryContract,
 )
 from erp.modules.inventory.domain import (
     InventoryAvailability,
@@ -64,6 +75,7 @@ class PostgresInventoryReservations(
     def __init__(self, database: Database, *, ttl_seconds: int | None = None) -> None:
         self._database = database
         self._idempotency = IdempotencyService(ttl_seconds=ttl_seconds or 86_400)
+
 
     async def add(self, reservation: InventoryReservation) -> InventoryReservation:
         async with self._database.session() as session, session.begin():
@@ -575,4 +587,91 @@ def _allocation(model: InventoryReservationAllocationModel) -> InventoryReservat
     )
 
 
-__all__ = ["PostgresInventoryReservations"]
+class SessionOrderInventoryReservationGateway(OrderInventoryReservationGateway):
+    """M5 adapter that joins a caller-owned transaction without owning its commit."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def reserve_order(
+        self, command: ReserveOrderInventoryContract, actor_id: UUID
+    ) -> OrderInventoryReservationResultContract:
+        inventory_command = CreateInventoryReservation(
+            company_id=command.company_id,
+            reservation_kind=InventoryReservationKind(command.reservation_kind),
+            reference_type="SALES_ORDER",
+            reference_id=command.order_id,
+            lines=tuple(
+                InventoryReservationLine(
+                    product_id=line.product_id,
+                    warehouse_id=line.warehouse_id,
+                    location_id=line.location_id,
+                    lot_id=line.lot_id,
+                    pool_id=line.pool_id,
+                    state=line.state,
+                    quantity=line.quantity,
+                )
+                for line in command.lines
+            ),
+            idempotency_key=command.idempotency_key,
+            metadata=CommandMetadata(
+                request_id=command.request_id,
+                correlation_id=command.correlation_id,
+                source_ip=command.source_ip,
+            ),
+            expires_at=command.expires_at,
+        )
+        if inventory_command.reservation_kind is InventoryReservationKind.HARD:
+            await _assert_hard_availability(self._session, inventory_command)
+        reservation = _reservation_from_command(inventory_command, actor_id=actor_id)
+        self._session.add(_reservation_model(reservation))
+        try:
+            await self._session.flush()
+        except IntegrityError as error:
+            if getattr(error.orig, "sqlstate", None) == "23505":
+                raise _reservation_conflict(
+                    "An active or historical reservation already exists for this order."
+                ) from error
+            raise
+        result = await InventoryReservationEffects().record(
+            self._session,
+            reservation,
+            event_type="InventoryReservationCreated",
+            actor_id=actor_id,
+            metadata=inventory_command.metadata,
+        )
+        if result.event_id is None or result.audit_event_id is None:
+            raise RuntimeError("M5 reservation effects did not return identifiers.")
+        return OrderInventoryReservationResultContract(
+            reservation=_reservation_reference(result.reservation),
+            event_id=result.event_id,
+            audit_event_id=result.audit_event_id,
+        )
+
+
+def _reservation_reference(reservation: InventoryReservation) -> InventoryReservationReference:
+    return InventoryReservationReference(
+        id=reservation.id,
+        company_id=reservation.company_id,
+        reservation_kind=InventoryReservationKindContract(reservation.reservation_kind),
+        status=InventoryReservationStatusContract(reservation.status),
+        reference_type=reservation.reference_type,
+        reference_id=reservation.reference_id,
+        expires_at=reservation.expires_at,
+        version=reservation.version,
+        allocations=tuple(
+            InventoryReservationAllocationReference(
+                product_id=line.product_id,
+                warehouse_id=line.warehouse_id,
+                location_id=line.location_id,
+                lot_id=line.lot_id,
+                pool_id=line.pool_id,
+                state=line.state,
+                quantity=line.quantity.value,
+            )
+            for line in reservation.allocations
+        ),
+    )
+
+
+__all__ = ["PostgresInventoryReservations", "SessionOrderInventoryReservationGateway"]

@@ -37,6 +37,7 @@ class SalesOrderReservationRepository:
                 updated_by=actor_id,
             )
         )
+        await self._session.flush()
         for line in reservation.lines:
             self._session.add(
                 SalesOrderReservationLineModel(

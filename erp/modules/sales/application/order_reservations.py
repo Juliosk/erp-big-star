@@ -17,6 +17,7 @@ class ReserveSalesOrder:
     company_id: UUID
     order_id: UUID
     warehouse_id: UUID
+    expected_version: int
     idempotency_key: str
     metadata: CommandMetadata
     location_id: UUID | None = None
@@ -30,6 +31,7 @@ class ReserveSalesOrder:
             "company_id": str(self.company_id),
             "order_id": str(self.order_id),
             "warehouse_id": str(self.warehouse_id),
+            "expected_version": self.expected_version,
             "location_id": str(self.location_id) if self.location_id else None,
             "lot_id": str(self.lot_id) if self.lot_id else None,
             "pool_id": str(self.pool_id) if self.pool_id else None,

@@ -100,6 +100,18 @@ class SalesOrderRepository:
         model = models.one_or_none()
         return None if model is None else await self._hydrate(model)
 
+    async def get_for_update(self, order_id: UUID) -> SalesOrder | None:
+        model = await self._session.scalar(
+            select(SalesOrderModel)
+            .where(
+                SalesOrderModel.company_id == self._company_id,
+                SalesOrderModel.id == order_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return None if model is None else await self._hydrate(model)
+
     async def list(self, *, limit: int, offset: int) -> tuple[SalesOrder, ...]:
         models = await self._session.scalars(
             select(SalesOrderModel)

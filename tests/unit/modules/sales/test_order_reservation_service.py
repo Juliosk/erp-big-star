@@ -55,6 +55,7 @@ def test_reservation_service_authorizes_critical_write_before_transaction() -> N
             company_id=company_id,
             order_id=uuid4(),
             warehouse_id=uuid4(),
+            expected_version=2,
             idempotency_key="order-reserve-1",
             metadata=CommandMetadata(
                 request_id=uuid4(), correlation_id=uuid4(), source_ip=None

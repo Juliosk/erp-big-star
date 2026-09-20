@@ -47,6 +47,7 @@ class ReserveOrderInventoryContract:
     idempotency_key: str
     request_id: UUID
     correlation_id: UUID
+    source_ip: str | None = None
     reservation_kind: InventoryReservationKindContract = InventoryReservationKindContract.HARD
     expires_at: datetime | None = None
 
@@ -56,7 +57,7 @@ class OrderInventoryReservationGateway(Protocol):
 
     async def reserve_order(
         self, command: ReserveOrderInventoryContract, actor_id: UUID
-    ) -> InventoryReservationReference: ...
+    ) -> OrderInventoryReservationResultContract: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,6 +116,13 @@ class InventoryReservationReference:
 
 
 @dataclass(frozen=True, slots=True)
+class OrderInventoryReservationResultContract:
+    reservation: InventoryReservationReference
+    event_id: UUID
+    audit_event_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
 class InventoryReservationCreated:
     event_id: UUID
     company_id: UUID
@@ -158,6 +166,7 @@ __all__ = [
     "InventoryReservationReleased",
     "InventoryReservationStatusContract",
     "OrderInventoryReservationGateway",
+    "OrderInventoryReservationResultContract",
     "OrderReservationLineContract",
     "ReserveOrderInventoryContract",
 ]
