@@ -1,5 +1,6 @@
 """Pure M4 order-to-reservation snapshot rules."""
 
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -55,3 +56,18 @@ def test_reservation_lifecycle_is_strict_and_versioned() -> None:
         held.hold(uuid4())
     with pytest.raises(ValueError, match="only held"):
         requested.release()
+
+
+def test_hold_extension_is_monotonic_bounded_and_expirable() -> None:
+    now = datetime(2026, 9, 20, 12, tzinfo=UTC)
+    held = SalesOrderReservation.request(_order().approve()).hold(
+        uuid4(), expires_at=now + timedelta(hours=1)
+    )
+    extended = held.extend_hold(now + timedelta(hours=2), now=now)
+    assert extended.hold_expires_at == now + timedelta(hours=2)
+    assert extended.version == 3
+    assert extended.expire().status is SalesOrderReservationStatus.EXPIRED
+    with pytest.raises(ValueError, match="move forward"):
+        held.extend_hold(now + timedelta(minutes=30), now=now)
+    with pytest.raises(ValueError, match="seven days"):
+        held.extend_hold(now + timedelta(days=8), now=now)

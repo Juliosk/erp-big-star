@@ -1,6 +1,7 @@
 """Pure M4 state for the reservation requested from M5 by a sales order."""
 
 from dataclasses import dataclass, replace
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID, uuid4
@@ -14,6 +15,7 @@ class SalesOrderReservationStatus(StrEnum):
     HELD = "HELD"
     RELEASED = "RELEASED"
     CANCELLED = "CANCELLED"
+    EXPIRED = "EXPIRED"
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +34,7 @@ class SalesOrderReservation:
     company_id: UUID
     order_id: UUID
     inventory_reservation_id: UUID | None
+    hold_expires_at: datetime | None
     status: SalesOrderReservationStatus
     order_version: int
     lines: tuple[SalesOrderReservationLine, ...]
@@ -46,6 +49,7 @@ class SalesOrderReservation:
             company_id=require_uuid(order.company_id, "company_id"),
             order_id=require_uuid(order.id, "order_id"),
             inventory_reservation_id=None,
+            hold_expires_at=None,
             status=SalesOrderReservationStatus.REQUESTED,
             order_version=order.version,
             lines=tuple(
@@ -60,7 +64,12 @@ class SalesOrderReservation:
             version=1,
         )
 
-    def hold(self, inventory_reservation_id: UUID) -> SalesOrderReservation:
+    def hold(
+        self,
+        inventory_reservation_id: UUID,
+        *,
+        expires_at: datetime | None = None,
+    ) -> SalesOrderReservation:
         if self.status is not SalesOrderReservationStatus.REQUESTED:
             raise ValueError("only requested reservations can be held.")
         return replace(
@@ -68,7 +77,37 @@ class SalesOrderReservation:
             inventory_reservation_id=require_uuid(
                 inventory_reservation_id, "inventory_reservation_id"
             ),
+            hold_expires_at=expires_at,
             status=SalesOrderReservationStatus.HELD,
+            version=self.version + 1,
+        )
+
+    def extend_hold(
+        self, expires_at: datetime, *, now: datetime | None = None
+    ) -> SalesOrderReservation:
+        if self.status is not SalesOrderReservationStatus.HELD:
+            raise ValueError("only held reservations can be extended.")
+        instant = now or datetime.now(UTC)
+        if expires_at.tzinfo is None or instant.tzinfo is None:
+            raise ValueError("hold expiration must be timezone-aware.")
+        if expires_at <= instant:
+            raise ValueError("hold expiration must be in the future.")
+        if expires_at > instant + timedelta(days=7):
+            raise ValueError("hold extension cannot exceed seven days.")
+        if self.hold_expires_at is not None and expires_at <= self.hold_expires_at:
+            raise ValueError("hold expiration must move forward.")
+        return replace(
+            self,
+            hold_expires_at=expires_at,
+            version=self.version + 1,
+        )
+
+    def expire(self) -> SalesOrderReservation:
+        if self.status is not SalesOrderReservationStatus.HELD:
+            raise ValueError("only held reservations can expire.")
+        return replace(
+            self,
+            status=SalesOrderReservationStatus.EXPIRED,
             version=self.version + 1,
         )
 

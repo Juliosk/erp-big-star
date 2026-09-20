@@ -31,6 +31,7 @@ class SalesOrderReservationRepository:
                 company_id=reservation.company_id,
                 order_id=reservation.order_id,
                 inventory_reservation_id=reservation.inventory_reservation_id,
+                hold_expires_at=reservation.hold_expires_at,
                 status=reservation.status,
                 order_version=reservation.order_version,
                 version=reservation.version,
@@ -73,6 +74,30 @@ class SalesOrderReservationRepository:
         )
         return _reservation(model, tuple(rows))
 
+    async def get_for_order_update(
+        self, order_id: UUID
+    ) -> SalesOrderReservation | None:
+        model = await self._session.scalar(
+            select(SalesOrderReservationModel)
+            .where(
+                SalesOrderReservationModel.company_id == self._company_id,
+                SalesOrderReservationModel.order_id == order_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if model is None:
+            return None
+        rows = await self._session.scalars(
+            select(SalesOrderReservationLineModel)
+            .where(
+                SalesOrderReservationLineModel.company_id == self._company_id,
+                SalesOrderReservationLineModel.reservation_id == model.id,
+            )
+            .order_by(SalesOrderReservationLineModel.order_item_id)
+        )
+        return _reservation(model, tuple(rows))
+
     async def save(
         self, reservation: SalesOrderReservation, *, actor_id: UUID
     ) -> SalesOrderReservation:
@@ -89,6 +114,7 @@ class SalesOrderReservationRepository:
         if model is None or model.version != reservation.version - 1:
             raise OptimisticLockError(expected_version=reservation.version - 1)
         model.inventory_reservation_id = reservation.inventory_reservation_id
+        model.hold_expires_at = reservation.hold_expires_at
         model.status = reservation.status
         model.updated_by = actor_id
         await self._session.flush()
@@ -112,6 +138,7 @@ def _reservation(
         company_id=model.company_id,
         order_id=model.order_id,
         inventory_reservation_id=model.inventory_reservation_id,
+        hold_expires_at=model.hold_expires_at,
         status=SalesOrderReservationStatus(model.status),
         order_version=model.order_version,
         version=model.version,

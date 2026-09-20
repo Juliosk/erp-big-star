@@ -22,6 +22,7 @@ from erp.modules.sales.application.lifecycle import (
     TransitionSalesQuote,
 )
 from erp.modules.sales.application.order_reservations import (
+    ExtendSalesOrderHold,
     ReserveSalesOrder,
     SalesOrderReservationResult,
     SalesOrderReservationService,
@@ -71,6 +72,7 @@ __all__ = [
     "DiscountApprovalService",
     "DiscountApprovalStore",
     "DiscountWorkflowGateway",
+    "ExtendSalesOrderHold",
     "RequestDiscountApproval",
     "ReserveSalesOrder",
     "ReviseSalesQuote",

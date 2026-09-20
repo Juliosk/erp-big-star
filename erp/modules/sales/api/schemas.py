@@ -145,11 +145,18 @@ class SalesOrderReservationLineResponse(BaseModel):
     pricing_snapshot_id: UUID | None
 
 
+class ExtendSalesOrderHoldRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    company_id: UUID
+    expires_at: datetime
+
+
 class SalesOrderReservationResponse(BaseModel):
     id: UUID
     company_id: UUID
     order_id: UUID
     inventory_reservation_id: UUID | None
+    hold_expires_at: datetime | None
     status: str
     order_version: int
     version: int
@@ -173,6 +180,7 @@ class SalesQuoteListResponse(BaseModel):
 __all__ = [
     "ConvertQuoteToOrderRequest",
     "CreateSalesQuoteRequest",
+    "ExtendSalesOrderHoldRequest",
     "PageMetadata",
     "QuoteItemResponse",
     "QuoteRevisionResponse",

@@ -52,12 +52,30 @@ class ReserveOrderInventoryContract:
     expires_at: datetime | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class ExtendOrderInventoryHoldContract:
+    company_id: UUID
+    reservation_id: UUID
+    expires_at: datetime
+    request_id: UUID
+    correlation_id: UUID
+    source_ip: str | None = None
+
+
 class OrderInventoryReservationGateway(Protocol):
     """M5-owned anti-corruption boundary consumed by the M4 composition adapter."""
 
     async def reserve_order(
         self, command: ReserveOrderInventoryContract, actor_id: UUID
     ) -> OrderInventoryReservationResultContract: ...
+
+    async def extend_order_hold(
+        self, command: ExtendOrderInventoryHoldContract, actor_id: UUID
+    ) -> OrderInventoryReservationResultContract: ...
+
+    async def get_order_reservation(
+        self, company_id: UUID, reservation_id: UUID
+    ) -> InventoryReservationReference | None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -155,6 +173,7 @@ __all__ = [
     "INVENTORY_AVAILABILITY_READ",
     "INVENTORY_BALANCE_READ",
     "INVENTORY_RESERVATION_MANAGE",
+    "ExtendOrderInventoryHoldContract",
     "InventoryAuthorization",
     "InventoryAvailabilityReference",
     "InventoryBalanceReference",

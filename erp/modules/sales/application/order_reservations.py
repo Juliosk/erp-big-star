@@ -48,6 +48,24 @@ class SalesOrderReservationResult:
     idempotency_replayed: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class ExtendSalesOrderHold:
+    company_id: UUID
+    order_id: UUID
+    expires_at: datetime
+    expected_version: int
+    idempotency_key: str
+    metadata: CommandMetadata
+
+    def payload(self) -> dict[str, object]:
+        return {
+            "company_id": str(self.company_id),
+            "order_id": str(self.order_id),
+            "expires_at": self.expires_at.isoformat(),
+            "expected_version": self.expected_version,
+        }
+
+
 class SalesOrderReservationStore(Protocol):
     """Atomic transaction boundary implemented by the M4-M5 composition adapter."""
 
@@ -58,6 +76,14 @@ class SalesOrderReservationStore(Protocol):
     async def get(
         self, company_id: UUID, order_id: UUID
     ) -> SalesOrderReservation | None: ...
+
+    async def extend_hold(
+        self, command: ExtendSalesOrderHold, actor_id: UUID
+    ) -> SalesOrderReservationResult: ...
+
+    async def synchronize_expiration(
+        self, company_id: UUID, order_id: UUID, actor_id: UUID
+    ) -> SalesOrderReservation: ...
 
 
 class SalesOrderReservationService:
@@ -92,8 +118,27 @@ class SalesOrderReservationService:
             )
         return reservation
 
+    async def extend_hold(
+        self, context: SecurityContext, command: ExtendSalesOrderHold
+    ) -> SalesOrderReservationResult:
+        await self._authorization.require(
+            context, command.company_id, SALES_ORDER_RESERVE, write=True
+        )
+        return await self._store.extend_hold(command, context.principal.user_id)
+
+    async def synchronize_expiration(
+        self, context: SecurityContext, company_id: UUID, order_id: UUID
+    ) -> SalesOrderReservation:
+        await self._authorization.require(
+            context, company_id, SALES_ORDER_RESERVE, write=True
+        )
+        return await self._store.synchronize_expiration(
+            company_id, order_id, context.principal.user_id
+        )
+
 
 __all__ = [
+    "ExtendSalesOrderHold",
     "ReserveSalesOrder",
     "SalesOrderReservationResult",
     "SalesOrderReservationService",

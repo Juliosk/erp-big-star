@@ -14,6 +14,7 @@ from erp.modules.sales.application import (
     SalesAuthorization,
     SalesOrderReservationResult,
     SalesOrderReservationService,
+    SalesOrderReservationStore,
 )
 
 
@@ -49,7 +50,8 @@ def test_reservation_service_authorizes_critical_write_before_transaction() -> N
         authorization = AuthorizationStub()
         store = StoreStub()
         service = SalesOrderReservationService(
-            store, cast(SalesAuthorization, authorization)
+            cast(SalesOrderReservationStore, store),
+            cast(SalesAuthorization, authorization),
         )
         command = ReserveSalesOrder(
             company_id=company_id,

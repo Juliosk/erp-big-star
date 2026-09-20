@@ -33,7 +33,7 @@ class SalesOrderReservationModel(OptimisticLockMixin, Base):
             name="uq_sales_order_reservation_inventory",
         ),
         CheckConstraint(
-            "status IN ('REQUESTED', 'HELD', 'RELEASED', 'CANCELLED')",
+            "status IN ('REQUESTED', 'HELD', 'RELEASED', 'CANCELLED', 'EXPIRED')",
             name="status",
         ),
         CheckConstraint("order_version >= 1", name="order_version_positive"),
@@ -62,6 +62,9 @@ class SalesOrderReservationModel(OptimisticLockMixin, Base):
     )
     order_id: Mapped[UUID] = mapped_column(nullable=False)
     inventory_reservation_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    hold_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     order_version: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

@@ -270,6 +270,45 @@ def test_order_reservation_post_get_etag_and_tenant_scope() -> None:
             assert detail.headers["etag"] == '"2"'
             assert detail.json()["order_id"] == str(order_id)
 
+            extended_until = datetime.now(UTC) + timedelta(hours=4)
+            extended = api.client.post(
+                f"/api/v1/sales/orders/{order_id}/reservation/extend-hold",
+                headers={
+                    **api.headers,
+                    "If-Match": '"2"',
+                    "Idempotency-Key": "sales-order-hold-extension-api",
+                },
+                json={
+                    "company_id": str(api.data.company_id),
+                    "expires_at": extended_until.isoformat(),
+                },
+            )
+            assert extended.status_code == 200
+            assert extended.headers["etag"] == '"3"'
+            assert datetime.fromisoformat(
+                extended.json()["hold_expires_at"].replace("Z", "+00:00")
+            ) == extended_until
+
+            async def expire_and_sync() -> str:
+                async with api.data.database.session() as session, session.begin():
+                    await session.execute(
+                        update(InventoryReservationModel)
+                        .where(
+                            InventoryReservationModel.company_id == api.data.company_id,
+                            InventoryReservationModel.id
+                            == UUID(created.json()["inventory_reservation_id"]),
+                        )
+                        .values(status="EXPIRED")
+                    )
+                synchronized = await PostgresSalesOrderReservations(
+                    api.data.database, ttl_seconds=86_400
+                ).synchronize_expiration(
+                    api.data.company_id, order_id, api.data.actor_id
+                )
+                return str(synchronized.status)
+
+            assert api.client.portal.call(expire_and_sync) == "EXPIRED"
+
             foreign = api.client.get(
                 f"/api/v1/sales/orders/{order_id}/reservation"
                 f"?company_id={api.data.other_company_id}",

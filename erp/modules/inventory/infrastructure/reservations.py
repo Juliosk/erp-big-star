@@ -1,6 +1,7 @@
 """PostgreSQL reservation and availability adapters for M5."""
 
 from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any, NamedTuple, cast
 from uuid import UUID, uuid4
@@ -25,6 +26,7 @@ from erp.modules.inventory.application.reservations import (
     InventoryReservationStore,
 )
 from erp.modules.inventory.contracts import (
+    ExtendOrderInventoryHoldContract,
     InventoryReservationAllocationReference,
     InventoryReservationKindContract,
     InventoryReservationReference,
@@ -647,6 +649,74 @@ class SessionOrderInventoryReservationGateway(OrderInventoryReservationGateway):
             event_id=result.event_id,
             audit_event_id=result.audit_event_id,
         )
+
+    async def extend_order_hold(
+        self, command: ExtendOrderInventoryHoldContract, actor_id: UUID
+    ) -> OrderInventoryReservationResultContract:
+        model = await self._session.scalar(
+            select(InventoryReservationModel)
+            .options(selectinload(InventoryReservationModel.allocations))
+            .where(
+                InventoryReservationModel.company_id == command.company_id,
+                InventoryReservationModel.id == command.reservation_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if model is None:
+            raise ApplicationError(
+                code="RESOURCE_NOT_FOUND",
+                message="Inventory reservation not found.",
+                status_code=404,
+            )
+        if model.status != InventoryReservationStatus.ACTIVE:
+            raise _reservation_conflict("Only active reservations can extend their hold.")
+        now = datetime.now(UTC)
+        expires_at = command.expires_at
+        if expires_at.tzinfo is None or expires_at <= now:
+            raise _reservation_conflict("Hold expiration must be timezone-aware and future.")
+        if expires_at > now + timedelta(days=7):
+            raise _reservation_conflict("Hold extension cannot exceed seven days.")
+        if model.expires_at is not None and expires_at <= model.expires_at:
+            raise _reservation_conflict("Hold expiration must move forward.")
+        before = _reservation(model)
+        model.expires_at = expires_at
+        await self._session.flush()
+        result = await InventoryReservationEffects().record(
+            self._session,
+            _reservation(model),
+            event_type="InventoryReservationHoldExtended",
+            actor_id=actor_id,
+            metadata=CommandMetadata(
+                command.request_id,
+                command.correlation_id,
+                command.source_ip,
+            ),
+            before=before,
+        )
+        if result.event_id is None or result.audit_event_id is None:
+            raise RuntimeError("M5 hold extension effects did not return identifiers.")
+        return OrderInventoryReservationResultContract(
+            reservation=_reservation_reference(result.reservation),
+            event_id=result.event_id,
+            audit_event_id=result.audit_event_id,
+        )
+
+    async def get_order_reservation(
+        self, company_id: UUID, reservation_id: UUID
+    ) -> InventoryReservationReference | None:
+        model = await self._session.scalar(
+            select(InventoryReservationModel)
+            .options(selectinload(InventoryReservationModel.allocations))
+            .where(
+                InventoryReservationModel.company_id == company_id,
+                InventoryReservationModel.id == reservation_id,
+                InventoryReservationModel.reference_type == "SALES_ORDER",
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return None if model is None else _reservation_reference(_reservation(model))
 
 
 def _reservation_reference(reservation: InventoryReservation) -> InventoryReservationReference:

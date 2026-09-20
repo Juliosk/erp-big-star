@@ -11,6 +11,7 @@ from erp.modules.inventory.contracts import InventoryReservationKindContract
 from erp.modules.sales.api.routes import metadata
 from erp.modules.sales.api.schemas import (
     ConvertQuoteToOrderRequest,
+    ExtendSalesOrderHoldRequest,
     PageMetadata,
     ReserveSalesOrderRequest,
     SalesOrderConversionResponse,
@@ -23,6 +24,7 @@ from erp.modules.sales.api.schemas import (
 from erp.modules.sales.api.versioning import require_version
 from erp.modules.sales.application import (
     ConvertQuoteToOrder,
+    ExtendSalesOrderHold,
     ReserveSalesOrder,
     SalesOrderConversionService,
     SalesOrderReservationService,
@@ -209,6 +211,42 @@ async def get_order_reservation(
     return _reservation(reservation)
 
 
+@router.post(
+    "/orders/{order_id}/reservation/extend-hold",
+    response_model=SalesOrderReservationResponse,
+)
+async def extend_order_reservation_hold(
+    order_id: UUID,
+    body: ExtendSalesOrderHoldRequest,
+    request: Request,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[SalesOrderReservationService, Depends(get_order_reservations)],
+    expected_version: Annotated[int, Depends(require_version)],
+    idempotency_key: Annotated[str, Depends(require_idempotency_key)],
+) -> SalesOrderReservationResponse:
+    result = await service.extend_hold(
+        context,
+        ExtendSalesOrderHold(
+            company_id=body.company_id,
+            order_id=order_id,
+            expires_at=body.expires_at,
+            expected_version=expected_version,
+            idempotency_key=idempotency_key,
+            metadata=metadata(request),
+        ),
+    )
+    response.headers["ETag"] = f'"{result.reservation.version}"'
+    response.headers["Idempotency-Replayed"] = str(result.idempotency_replayed).lower()
+    response.headers["Cache-Control"] = "no-store"
+    return _reservation(
+        result.reservation,
+        inventory_event_id=result.inventory_event_id,
+        audit_event_id=result.audit_event_id,
+        idempotency_replayed=result.idempotency_replayed,
+    )
+
+
 def _order(order: SalesOrder) -> SalesOrderResponse:
     return SalesOrderResponse(
         id=order.id,
@@ -251,6 +289,7 @@ def _reservation(
         company_id=reservation.company_id,
         order_id=reservation.order_id,
         inventory_reservation_id=reservation.inventory_reservation_id,
+        hold_expires_at=reservation.hold_expires_at,
         status=reservation.status,
         order_version=reservation.order_version,
         version=reservation.version,
