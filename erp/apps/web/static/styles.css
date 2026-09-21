@@ -702,6 +702,46 @@ form button[type="submit"] {
 }
 .sales-grid > * { min-width: 0; }
 .sales-orders { grid-column: 1 / -1; }
+.sales-reservation {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  border-top: 4px solid var(--ink);
+}
+.reservation-heading { display: flex; align-items: start; justify-content: space-between; gap: 20px; }
+.reservation-heading h2 { margin: 5px 0; }
+.reservation-signal {
+  padding: 8px 12px;
+  border: 1px solid var(--sky);
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--muted);
+  font: 700 11px "Cascadia Mono", monospace;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+.reservation-signal.HELD { background: #e8f6ef; color: #17633d; border-color: #afd8c2; }
+.reservation-signal.RELEASED,
+.reservation-signal.EXPIRED,
+.reservation-signal.CANCELLED { background: #fff0f2; color: var(--accent); border-color: #efc1c8; }
+.reservation-rail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 22px -24px;
+  border-block: 1px solid var(--sky);
+  background: #f8fbff;
+}
+.reservation-rail > div { padding: 20px 24px; }
+.reservation-rail > div + div { border-left: 1px solid var(--sky); }
+.reservation-rail span,
+.reservation-rail small { display: block; color: var(--muted); }
+.reservation-rail span { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+.reservation-rail strong { display: block; margin: 8px 0 4px; font: 700 24px "Cascadia Mono", monospace; color: var(--ink); }
+.reservation-rail small { font-size: 12px; }
+.reservation-action-form { display: grid; grid-template-columns: 1.2fr 1fr 1fr auto; align-items: end; gap: 12px; }
+.reservation-action-form button { align-self: end; }
+.reservation-lines { display: grid; gap: 8px; margin: 20px 0; }
+.reservation-line { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 18px; padding: 10px 0; border-bottom: 1px solid var(--sky); font: 12px "Cascadia Mono", monospace; }
+.reservation-line span:first-child { overflow-wrap: anywhere; }
 .sales-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -944,6 +984,7 @@ dialog::backdrop {
   .sales-form {
     grid-template-columns: 1fr;
   }
+  .reservation-action-form { grid-template-columns: 1fr 1fr; }
   #pricing table {
     table-layout: fixed;
     white-space: normal;
@@ -1056,6 +1097,13 @@ dialog::backdrop {
     align-self: center;
     transform: rotate(90deg);
   }
+  .reservation-heading { display: block; }
+  .reservation-signal { display: inline-block; margin-top: 10px; }
+  .reservation-rail { grid-template-columns: 1fr; margin-inline: -20px; }
+  .reservation-rail > div + div { border-left: 0; border-top: 1px solid var(--sky); }
+  .reservation-action-form { grid-template-columns: 1fr; }
+  .reservation-line { grid-template-columns: 1fr auto; }
+  .reservation-line span:last-child { grid-column: 1 / -1; }
   .dev-banner {
     font-size: 10px;
   }

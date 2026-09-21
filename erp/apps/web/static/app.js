@@ -358,9 +358,11 @@ async function api(
     if (response.status === 401 && requestToken === token) reset();
     const code = result.error?.code || "UNKNOWN";
     const trace = result.error?.correlation_id;
-    throw new Error(
+    const error = new Error(
       `${errors[code] || result.error?.message || "Não foi possível concluir a operação."}${trace ? ` Referência: ${trace}` : ""}`,
     );
+    error.code = code;
+    throw error;
   }
   return result;
 }

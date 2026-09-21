@@ -10,6 +10,9 @@ const labels = {
   APPROVED: "Aprovado",
   CANCELLED: "Cancelado",
   COMPLETED: "Concluído",
+  HELD: "Reserva ativa",
+  RELEASED: "Liberada",
+  EXPIRED: "Expirada",
 };
 
 function money(value) {
@@ -34,21 +37,178 @@ function badge(value) {
 
 export function mountSales({ api, context, notice, enter }) {
   let selected = null;
+  let selectedOrder = null;
+  let reservation = null;
+  let holdTimer = null;
   const query = () => `company_id=${encodeURIComponent(context().company)}`;
   const can = (permission) => context().permissions.has(permission);
 
   function hide() {
     $("sales").hidden = true;
+    stopHoldClock();
   }
 
   function reset() {
     selected = null;
+    selectedOrder = null;
+    reservation = null;
     hide();
     $("sales-quote-rows").replaceChildren();
     $("sales-order-rows").replaceChildren();
     $("sales-actions").replaceChildren();
     $("sales-revision-form").hidden = true;
     $("sales-convert-form").hidden = true;
+    $("sales-reservation-panel").hidden = true;
+    stopHoldClock();
+  }
+
+  function stopHoldClock() {
+    if (holdTimer) window.clearInterval(holdTimer);
+    holdTimer = null;
+  }
+
+  function quantity(value) {
+    return Number(value || 0).toLocaleString("pt-BR", { maximumFractionDigits: 6 });
+  }
+
+  async function getReservation(orderId) {
+    if (!can("sales.order.reserve")) return null;
+    try {
+      return await api(`sales/orders/${orderId}/reservation?${query()}`);
+    } catch (error) {
+      if (error.code === "RESOURCE_NOT_FOUND") return null;
+      throw error;
+    }
+  }
+
+  async function loadWarehouses() {
+    const select = $("sales-warehouse");
+    if (!can("inventory.warehouse.read")) {
+      select.replaceChildren(new Option("Informe pelo cockpit de estoque", ""));
+      return;
+    }
+    const result = await api(`inventory/warehouses?${query()}&active=true&page_size=100`);
+    select.replaceChildren(
+      new Option("Selecione", ""),
+      ...result.data.map((item) => new Option(`${item.code} · ${item.name}`, item.id)),
+    );
+  }
+
+  async function loadAvailability() {
+    if (!selectedOrder || !can("inventory.availability.read")) {
+      $("sales-available").textContent = "—";
+      $("sales-available-meta").textContent = "Consulta de ATP não autorizada";
+      return;
+    }
+    const warehouse = $("sales-warehouse").value;
+    const totals = await Promise.all(selectedOrder.items.map(async (item) => {
+      const params = `${query()}&product_id=${item.product_id}${warehouse ? `&warehouse_id=${warehouse}` : ""}&page_size=100`;
+      const result = await api(`inventory/availability?${params}`);
+      return result.data.reduce((sum, row) => sum + Number(row.available), 0);
+    }));
+    $("sales-available").textContent = totals.length === 1
+      ? quantity(totals[0])
+      : `${totals.length} SKUs`;
+    $("sales-available-meta").textContent = totals.length === 1
+      ? `ATP do produto ${selectedOrder.items[0].product_id.slice(0, 8)}`
+      : totals.map((value, index) => `#${index + 1}: ${quantity(value)}`).join(" · ");
+  }
+
+  function renderHoldClock() {
+    stopHoldClock();
+    const until = reservation?.hold_expires_at;
+    if (!until || reservation.status !== "HELD") {
+      $("sales-hold-clock").textContent = reservation ? labels[reservation.status] : "—";
+      $("sales-hold-until").textContent = until
+        ? new Date(until).toLocaleString("pt-BR")
+        : "Ainda não iniciado";
+      return;
+    }
+    const tick = () => {
+      const remaining = Math.max(0, new Date(until).getTime() - Date.now());
+      const hours = Math.floor(remaining / 3_600_000);
+      const minutes = Math.floor((remaining % 3_600_000) / 60_000);
+      const seconds = Math.floor((remaining % 60_000) / 1000);
+      $("sales-hold-clock").textContent = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+      if (!remaining) stopHoldClock();
+    };
+    $("sales-hold-until").textContent = `Até ${new Date(until).toLocaleString("pt-BR")}`;
+    tick();
+    holdTimer = window.setInterval(tick, 1000);
+  }
+
+  function renderReservation() {
+    const signal = $("sales-reservation-status");
+    signal.className = `reservation-signal ${reservation?.status || ""}`;
+    signal.textContent = reservation ? labels[reservation.status] || reservation.status : "Sem reserva";
+    $("sales-reserve-form").hidden = Boolean(reservation) || !can("sales.order.reserve") || selectedOrder.status !== "APPROVED";
+    $("sales-reservation-lines").replaceChildren(
+      ...(reservation?.lines || selectedOrder.items).map((item) => {
+        const line = document.createElement("div");
+        line.className = "reservation-line";
+        line.append(
+          Object.assign(document.createElement("span"), { textContent: `Produto ${item.product_id}` }),
+          Object.assign(document.createElement("strong"), { textContent: `${quantity(item.quantity)} un.` }),
+          Object.assign(document.createElement("span"), { textContent: reservation ? "Alocado no M5" : "Aguardando reserva" }),
+        );
+        return line;
+      }),
+    );
+    const actions = $("sales-reservation-actions");
+    actions.replaceChildren();
+    if (reservation?.status === "HELD" && can("sales.order.reserve")) {
+      actionInto(actions, "Estender hold +2h", extendHold);
+    }
+    if (reservation?.status === "HELD" && can("sales.order.cancel")) {
+      actionInto(actions, "Cancelar pedido e liberar", cancelOrder, false);
+    }
+    renderHoldClock();
+  }
+
+  async function selectOrder(id) {
+    selectedOrder = await api(`sales/orders/${id}?${query()}`);
+    reservation = await getReservation(id);
+    $("sales-reservation-panel").hidden = false;
+    $("sales-order-title").textContent = selectedOrder.number;
+    $("sales-order-meta").textContent = `${labels[selectedOrder.status] || selectedOrder.status} · versão ${selectedOrder.version} · ${selectedOrder.items.length} item(ns)`;
+    $("sales-required").textContent = quantity(selectedOrder.items.reduce((sum, item) => sum + Number(item.quantity), 0));
+    await loadWarehouses();
+    renderReservation();
+    await loadAvailability();
+    $("sales-reservation-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function actionInto(container, label, handler, secondary = true) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    if (secondary) button.className = "secondary";
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try { await handler(); } catch (error) { notice(error.message); button.disabled = false; }
+    });
+    container.append(button);
+  }
+
+  async function extendHold() {
+    const expiresAt = new Date(Date.now() + 2 * 3_600_000).toISOString();
+    reservation = await api(`sales/orders/${selectedOrder.id}/reservation/extend-hold`, {
+      method: "POST", version: reservation.version, key: crypto.randomUUID(),
+      body: { company_id: context().company, expires_at: expiresAt },
+    });
+    renderReservation();
+    notice("Hold estendido por mais 2 horas.");
+  }
+
+  async function cancelOrder() {
+    const result = await api(`sales/orders/${selectedOrder.id}/cancel?${query()}`, {
+      method: "POST", version: selectedOrder.version, key: crypto.randomUUID(),
+    });
+    selectedOrder = result.order;
+    reservation = result.reservation;
+    renderReservation();
+    await Promise.all([loadOrders(), loadAvailability()]);
+    notice("Pedido cancelado e reserva física liberada.");
   }
 
   async function loadOrders() {
@@ -60,11 +220,22 @@ export function mountSales({ api, context, notice, enter }) {
         const row = document.createElement("tr");
         const state = document.createElement("td");
         state.append(badge(order.status));
+        const reservationCell = document.createElement("td");
+        reservationCell.textContent = can("sales.order.reserve") ? "Abrir pedido" : "—";
+        const actionCell = document.createElement("td");
+        const open = document.createElement("button");
+        open.type = "button";
+        open.className = "quiet";
+        open.textContent = "Gerir →";
+        open.addEventListener("click", () => selectOrder(order.id).catch((error) => notice(error.message)));
+        actionCell.append(open);
         row.append(
           cell(order.number),
           cell(`Cotação ${order.source_quote_id.slice(0, 8)}`),
           state,
+          reservationCell,
           cell(money(order.net_amount)),
+          actionCell,
         );
         return row;
       }),
@@ -178,6 +349,31 @@ export function mountSales({ api, context, notice, enter }) {
   }
 
   $("sales-refresh").addEventListener("click", () => show().catch((error) => notice(error.message)));
+  $("sales-warehouse").addEventListener("change", () => loadAvailability().catch((error) => notice(error.message)));
+  $("sales-reserve-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = event.submitter;
+    button.disabled = true;
+    try {
+      const hours = Number($("sales-hold-hours").value);
+      reservation = await api(`sales/orders/${selectedOrder.id}/reserve`, {
+        method: "POST", version: selectedOrder.version, key: crypto.randomUUID(),
+        body: {
+          company_id: context().company,
+          warehouse_id: $("sales-warehouse").value,
+          reservation_kind: $("sales-reservation-kind").value,
+          expires_at: new Date(Date.now() + hours * 3_600_000).toISOString(),
+        },
+      });
+      renderReservation();
+      await Promise.all([loadOrders(), loadAvailability()]);
+      notice("Reserva física confirmada no M5.");
+    } catch (error) {
+      notice(error.message);
+    } finally {
+      button.disabled = false;
+    }
+  });
   $("sales-quote-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget;

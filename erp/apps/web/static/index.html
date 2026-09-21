@@ -1093,7 +1093,7 @@
           <button id="sales-refresh" class="secondary">Atualizar vendas</button>
         </div>
         <div class="sales-flow" aria-label="Fluxo comercial">
-          <span>Cotação</span><i aria-hidden="true">→</i><span>Revisão</span><i aria-hidden="true">→</i><span>Aprovação</span><i aria-hidden="true">→</i><span>Pedido</span>
+          <span>Cotação</span><i aria-hidden="true">→</i><span>Revisão</span><i aria-hidden="true">→</i><span>Aprovação</span><i aria-hidden="true">→</i><span>Pedido</span><i aria-hidden="true">→</i><span>Reserva física</span>
         </div>
         <div class="sales-grid">
           <section class="panel sales-quotes">
@@ -1130,7 +1130,26 @@
           </section>
           <section class="panel sales-orders">
             <div class="workflow-section-heading"><div><p class="eyebrow">PEDIDOS GERADOS</p><h2>Pedidos de venda</h2></div><span id="sales-order-count" class="workflow-count">0</span></div>
-            <div class="table-wrap compact-table"><table><thead><tr><th>Pedido</th><th>Origem</th><th>Status</th><th>Total</th></tr></thead><tbody id="sales-order-rows"></tbody></table></div>
+            <div class="table-wrap compact-table"><table><thead><tr><th>Pedido</th><th>Origem</th><th>Status</th><th>Reserva</th><th>Total</th><th></th></tr></thead><tbody id="sales-order-rows"></tbody></table></div>
+          </section>
+          <section id="sales-reservation-panel" class="panel sales-reservation" hidden aria-live="polite">
+            <div class="reservation-heading">
+              <div><p class="eyebrow">PEDIDO / RESERVA M5</p><h2 id="sales-order-title">Selecione um pedido</h2><p id="sales-order-meta" class="hint"></p></div>
+              <span id="sales-reservation-status" class="reservation-signal">Sem reserva</span>
+            </div>
+            <div class="reservation-rail" aria-label="Situação da reserva física">
+              <div><span>Saldo disponível</span><strong id="sales-available">—</strong><small id="sales-available-meta">Selecione o depósito</small></div>
+              <div><span>Quantidade do pedido</span><strong id="sales-required">—</strong><small>Itens convertidos</small></div>
+              <div><span>Hold</span><strong id="sales-hold-clock">—</strong><small id="sales-hold-until">Ainda não iniciado</small></div>
+            </div>
+            <form id="sales-reserve-form" class="reservation-action-form">
+              <div><label for="sales-warehouse">Depósito</label><select id="sales-warehouse" required><option value="">Selecione</option></select></div>
+              <div><label for="sales-reservation-kind">Modalidade</label><select id="sales-reservation-kind"><option value="HARD">HARD · bloqueia ATP</option><option value="SOFT">SOFT · planejamento</option></select></div>
+              <div><label for="sales-hold-hours">Duração do hold</label><select id="sales-hold-hours"><option value="1">1 hora</option><option value="2" selected>2 horas</option><option value="4">4 horas</option><option value="24">24 horas</option></select></div>
+              <button type="submit">Solicitar reserva</button>
+            </form>
+            <div id="sales-reservation-lines" class="reservation-lines"></div>
+            <div id="sales-reservation-actions" class="transition-actions"></div>
           </section>
         </div>
       </section>
