@@ -79,3 +79,39 @@ def test_governance_imports_only_own_module_or_public_owner_contracts() -> None:
             if imported.startswith("erp.modules.") and not imported.startswith(allowed):
                 violations.append((str(source.relative_to(PROJECT_ROOT)), imported))
     assert violations == []
+
+
+def test_procurement_imports_only_own_module_or_public_owner_contracts() -> None:
+    """M6 must integrate with other owners through explicit public contracts only."""
+    allowed = (
+        "erp.modules.procurement.",
+        "erp.modules.admin.contracts",
+        "erp.modules.product.contracts",
+        "erp.modules.inventory.contracts",
+        "erp.modules.workflow.contracts",
+    )
+    violations = []
+    root = PROJECT_ROOT / "erp" / "modules" / "procurement"
+    for source in root.rglob("*.py"):
+        for imported in imported_modules(source.read_text(encoding="utf-8")):
+            if imported.startswith("erp.modules.") and not imported.startswith(allowed):
+                violations.append((str(source.relative_to(PROJECT_ROOT)), imported))
+    assert violations == []
+
+
+def test_procurement_never_depends_on_fiscal_or_finance_internals() -> None:
+    """M11/M12 remain independent owners even after their packages are introduced."""
+    forbidden = (
+        "erp.modules.fiscal",
+        "erp.modules.finance",
+        "erp.modules.financial",
+        "erp.modules.accounts_receivable",
+        "erp.modules.accounts_payable",
+    )
+    violations = []
+    root = PROJECT_ROOT / "erp" / "modules" / "procurement"
+    for source in root.rglob("*.py"):
+        for imported in imported_modules(source.read_text(encoding="utf-8")):
+            if imported.startswith(forbidden):
+                violations.append((str(source.relative_to(PROJECT_ROOT)), imported))
+    assert violations == []
