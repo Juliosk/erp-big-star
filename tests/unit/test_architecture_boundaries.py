@@ -10,10 +10,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DOMAIN_FILES = sorted((PROJECT_ROOT / "erp" / "modules").glob("*/domain/**/*.py"))
 APPLICATION_FILES = sorted((PROJECT_ROOT / "erp" / "modules").glob("*/application/**/*.py"))
 FORBIDDEN_INFRASTRUCTURE_PREFIXES = (
+    "asyncpg",
     "celery",
     "fastapi",
     "httpx",
     "httpx2",
+    "psycopg",
+    "pydantic",
     "redis",
     "sqlalchemy",
     "erp.platform",
