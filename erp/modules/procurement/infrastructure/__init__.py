@@ -1,1 +1,8 @@
-"""M6 procurement adapters (introduced in later Sprint 13 commits)."""
+"""Public M6 procurement persistence models."""
+
+from erp.modules.procurement.infrastructure.supplier_model import (
+    SupplierModel,
+    SupplierSiteModel,
+)
+
+__all__ = ["SupplierModel", "SupplierSiteModel"]
