@@ -175,6 +175,7 @@ def test_get_and_list_never_cross_company_boundary() -> None:
             await own_repo.add(own, actor_id=data.actor_id)
             await foreign_repo.add(foreign, actor_id=data.actor_id)
             assert await own_repo.list() == (own,)
+            assert await own_repo.list(kind=SupplierKind.COMPANY) == (own,)
             assert await foreign_repo.list() == (foreign,)
             assert await own_repo.get(foreign.id) is None
             assert await SupplierRepository(session, company_id=uuid4()).list() == ()
@@ -356,5 +357,11 @@ def test_repository_rejects_invalid_context_actor_state_and_filters() -> None:
                 await repository.list(status="BAD")  # type: ignore[arg-type]
             with pytest.raises(ValueError, match="kind"):
                 await repository.list(kind="BAD")  # type: ignore[arg-type]
+            supplier = data.supplier()
+            await repository.add(supplier, actor_id=data.actor_id)
+            with pytest.raises(ValueError, match="newer than expected"):
+                await repository.save(
+                    supplier, actor_id=data.actor_id, expected_version=supplier.version
+                )
 
     asyncio.run(scenario())

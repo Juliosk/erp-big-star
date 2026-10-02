@@ -130,6 +130,7 @@ class SupplierRepository:
         *,
         status: SupplierStatus | None = None,
         kind: SupplierKind | None = None,
+        identity_value: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[Supplier, ...]:
@@ -140,6 +141,8 @@ class SupplierRepository:
             statement = statement.where(SupplierModel.status == status)
         if kind is not None:
             statement = statement.where(SupplierModel.kind == kind)
+        if identity_value is not None:
+            statement = statement.where(SupplierModel.identity_value == identity_value)
         models = await self._session.scalars(
             statement.order_by(SupplierModel.legal_name, SupplierModel.id)
             .limit(limit)

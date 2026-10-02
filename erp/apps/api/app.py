@@ -69,6 +69,9 @@ from erp.modules.pricing.infrastructure import (
     PostgresPricingResolver,
     PostgresPricingSnapshots,
 )
+from erp.modules.procurement.api import router as procurement_router
+from erp.modules.procurement.application import ProcurementAuthorization, SupplierService
+from erp.modules.procurement.infrastructure import PostgresSupplierStore
 from erp.modules.product.api import router as product_router
 from erp.modules.product.application import ProductQueries
 from erp.modules.product.application.barcodes import ProductBarcodeService
@@ -155,6 +158,7 @@ def create_app(
     customer_groups: CustomerGroupService | None = None,
     customer_duplicates: CustomerDuplicateService | None = None,
     customer_360: Customer360Service | None = None,
+    procurement_suppliers: SupplierService | None = None,
     inventory_queries: InventoryQueries | None = None,
     inventory_creation: InventoryCatalogService | None = None,
     inventory_adjustments: InventoryAdjustmentService | None = None,
@@ -205,6 +209,7 @@ def create_app(
     resolved_customer_groups = customer_groups
     resolved_customer_duplicates = customer_duplicates
     resolved_customer_360 = customer_360
+    resolved_procurement_suppliers = procurement_suppliers
     resolved_inventory_queries = inventory_queries
     resolved_inventory_creation = inventory_creation
     resolved_inventory_adjustments = inventory_adjustments
@@ -454,6 +459,13 @@ def create_app(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
             ),
         )
+    if resolved_procurement_suppliers is None and isinstance(resolved_database, Database):
+        resolved_procurement_suppliers = SupplierService(
+            PostgresSupplierStore(resolved_database),
+            ProcurementAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
     if product_barcodes is None and isinstance(resolved_database, Database):
         product_barcodes = ProductBarcodeService(
             PostgresProductBarcodes(
@@ -549,6 +561,7 @@ def create_app(
     application.state.customer_groups = resolved_customer_groups
     application.state.customer_duplicates = resolved_customer_duplicates
     application.state.customer_360 = resolved_customer_360
+    application.state.procurement_suppliers = resolved_procurement_suppliers
     application.state.inventory_queries = resolved_inventory_queries
     application.state.inventory_creation = resolved_inventory_creation
     application.state.inventory_adjustments = resolved_inventory_adjustments
@@ -578,6 +591,7 @@ def create_app(
     application.include_router(admin_router)
     application.include_router(product_router)
     application.include_router(customer_router)
+    application.include_router(procurement_router)
     application.include_router(inventory_router)
     application.include_router(pricing_router)
     application.include_router(wms_router)

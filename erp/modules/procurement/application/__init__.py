@@ -12,6 +12,15 @@ from erp.modules.procurement.application.permissions import (
     ProcurementAuthorization,
     procurement_permission_registry,
 )
+from erp.modules.procurement.application.suppliers import (
+    CreateSupplier,
+    SupplierPage,
+    SupplierService,
+    SupplierSiteInput,
+    SupplierStore,
+    UpdateSupplier,
+    apply_supplier_update,
+)
 
 __all__ = [
     "PROCUREMENT_PURCHASE_ORDER_CHANGE",
@@ -22,6 +31,13 @@ __all__ = [
     "PROCUREMENT_REQUISITION_READ",
     "PROCUREMENT_SUPPLIER_MANAGE",
     "PROCUREMENT_SUPPLIER_READ",
+    "CreateSupplier",
     "ProcurementAuthorization",
+    "SupplierPage",
+    "SupplierService",
+    "SupplierSiteInput",
+    "SupplierStore",
+    "UpdateSupplier",
+    "apply_supplier_update",
     "procurement_permission_registry",
 ]
