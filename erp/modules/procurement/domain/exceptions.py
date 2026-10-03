@@ -21,8 +21,23 @@ class DuplicateSupplierSiteError(ProcurementDomainError):
     """A site identity or code is already present in the aggregate."""
 
 
+class InvalidRequisitionError(ProcurementDomainError):
+    """A purchase requisition invariant was violated."""
+
+
+class InvalidPurchaseOrderError(ProcurementDomainError):
+    """A purchase order invariant was violated."""
+
+
+class InvalidProcurementTransitionError(ProcurementDomainError):
+    """A requisition or purchase order lifecycle transition is not allowed."""
+
+
 __all__ = [
     "DuplicateSupplierSiteError",
+    "InvalidProcurementTransitionError",
+    "InvalidPurchaseOrderError",
+    "InvalidRequisitionError",
     "InvalidSupplierDataError",
     "InvalidSupplierIdentityError",
     "InvalidSupplierTransitionError",
