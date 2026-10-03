@@ -86,12 +86,10 @@ class Settings(BaseSettings):
         "workflow.approval.decide",
         "procurement.supplier.read",
         "procurement.supplier.manage",
-        "procurement.requisition.create",
         "procurement.requisition.read",
-        "procurement.purchase_order.create",
-        "procurement.purchase_order.read",
-        "procurement.purchase_order.change",
-        "procurement.purchase_order.submit",
+        "procurement.requisition.manage",
+        "procurement.order.read",
+        "procurement.order.manage",
         "workflow.definition.manage",
     )
 

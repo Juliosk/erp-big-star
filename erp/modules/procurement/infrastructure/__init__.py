@@ -12,6 +12,7 @@ from erp.modules.procurement.infrastructure.purchasing_repository import (
     PurchaseRequisitionConflictError,
     PurchaseRequisitionRepository,
 )
+from erp.modules.procurement.infrastructure.purchasing_store import PostgresPurchasingStore
 from erp.modules.procurement.infrastructure.supplier_model import (
     SupplierModel,
     SupplierSiteModel,
@@ -23,6 +24,7 @@ from erp.modules.procurement.infrastructure.supplier_repository import (
 from erp.modules.procurement.infrastructure.supplier_store import PostgresSupplierStore
 
 __all__ = [
+    "PostgresPurchasingStore",
     "PostgresSupplierStore",
     "PurchaseOrderConflictError",
     "PurchaseOrderItemModel",

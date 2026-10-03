@@ -79,12 +79,10 @@ conectadas em `erp.apps`, nunca dentro do domínio.
 | --- | --- | --- |
 | `procurement.supplier.read` | MEDIUM | consultar fornecedor e sites |
 | `procurement.supplier.manage` | HIGH | criar e alterar fornecedor |
-| `procurement.requisition.create` | MEDIUM | criar requisição de compra |
 | `procurement.requisition.read` | MEDIUM | consultar requisição |
-| `procurement.purchase_order.create` | HIGH | criar pedido de compra |
-| `procurement.purchase_order.read` | MEDIUM | consultar pedido de compra |
-| `procurement.purchase_order.change` | HIGH | alterar pedido ainda mutável |
-| `procurement.purchase_order.submit` | CRITICAL | submeter pedido à alçada M22 |
+| `procurement.requisition.manage` | HIGH | criar e transicionar requisição |
+| `procurement.order.read` | MEDIUM | consultar pedido de compra |
+| `procurement.order.manage` | HIGH | criar e transicionar pedido de compra |
 
 A decisão de aprovação usa `workflow.approval.decide`, pertencente ao M22.
 Criador e aprovador do pedido devem ser atores distintos quando a política de

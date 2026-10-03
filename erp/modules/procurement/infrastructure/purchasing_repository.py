@@ -205,7 +205,14 @@ class PurchaseRequisitionRepository(_TenantRepository):
         return _requisition(model, tuple(items))
 
     async def list(
-        self, *, status: RequisitionStatus | None = None, limit: int = 50, offset: int = 0
+        self,
+        *,
+        status: RequisitionStatus | None = None,
+        cost_center_id: UUID | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+        limit: int = 50,
+        offset: int = 0,
     ) -> tuple[PurchaseRequisition, ...]:
         self._page(limit, offset)
         statement = select(PurchaseRequisitionModel).where(
@@ -215,6 +222,12 @@ class PurchaseRequisitionRepository(_TenantRepository):
             if not isinstance(status, RequisitionStatus):
                 raise ValueError("status must be an official requisition status.")
             statement = statement.where(PurchaseRequisitionModel.status == status)
+        if cost_center_id is not None:
+            statement = statement.where(PurchaseRequisitionModel.cost_center_id == cost_center_id)
+        if created_from is not None:
+            statement = statement.where(PurchaseRequisitionModel.created_at >= created_from)
+        if created_to is not None:
+            statement = statement.where(PurchaseRequisitionModel.created_at <= created_to)
         models = await self._session.scalars(
             statement.order_by(PurchaseRequisitionModel.number, PurchaseRequisitionModel.id)
             .limit(limit)
@@ -345,7 +358,14 @@ class PurchaseOrderRepository(_TenantRepository):
         return _order(model, await self._items(order_id))
 
     async def list(
-        self, *, status: PurchaseOrderStatus | None = None, limit: int = 50, offset: int = 0
+        self,
+        *,
+        status: PurchaseOrderStatus | None = None,
+        supplier_id: UUID | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+        limit: int = 50,
+        offset: int = 0,
     ) -> tuple[PurchaseOrder, ...]:
         self._page(limit, offset)
         statement = select(PurchaseOrderModel).where(
@@ -355,6 +375,12 @@ class PurchaseOrderRepository(_TenantRepository):
             if not isinstance(status, PurchaseOrderStatus):
                 raise ValueError("status must be an official purchase order status.")
             statement = statement.where(PurchaseOrderModel.status == status)
+        if supplier_id is not None:
+            statement = statement.where(PurchaseOrderModel.supplier_id == supplier_id)
+        if created_from is not None:
+            statement = statement.where(PurchaseOrderModel.created_at >= created_from)
+        if created_to is not None:
+            statement = statement.where(PurchaseOrderModel.created_at <= created_to)
         models = await self._session.scalars(
             statement.order_by(PurchaseOrderModel.number, PurchaseOrderModel.id)
             .limit(limit)

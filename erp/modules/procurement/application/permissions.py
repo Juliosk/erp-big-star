@@ -16,12 +16,10 @@ from erp.modules.admin.contracts import (
 
 PROCUREMENT_SUPPLIER_READ = PermissionCode("procurement.supplier.read")
 PROCUREMENT_SUPPLIER_MANAGE = PermissionCode("procurement.supplier.manage")
-PROCUREMENT_REQUISITION_CREATE = PermissionCode("procurement.requisition.create")
 PROCUREMENT_REQUISITION_READ = PermissionCode("procurement.requisition.read")
-PROCUREMENT_PURCHASE_ORDER_CREATE = PermissionCode("procurement.purchase_order.create")
-PROCUREMENT_PURCHASE_ORDER_READ = PermissionCode("procurement.purchase_order.read")
-PROCUREMENT_PURCHASE_ORDER_CHANGE = PermissionCode("procurement.purchase_order.change")
-PROCUREMENT_PURCHASE_ORDER_SUBMIT = PermissionCode("procurement.purchase_order.submit")
+PROCUREMENT_REQUISITION_MANAGE = PermissionCode("procurement.requisition.manage")
+PROCUREMENT_ORDER_READ = PermissionCode("procurement.order.read")
+PROCUREMENT_ORDER_MANAGE = PermissionCode("procurement.order.manage")
 
 
 def procurement_permission_registry() -> PermissionRegistry:
@@ -37,34 +35,24 @@ def procurement_permission_registry() -> PermissionRegistry:
             PermissionRiskLevel.HIGH,
         ),
         (
-            PROCUREMENT_REQUISITION_CREATE,
-            "Create purchase requisitions",
-            PermissionRiskLevel.MEDIUM,
-        ),
-        (
             PROCUREMENT_REQUISITION_READ,
             "Read purchase requisitions",
             PermissionRiskLevel.MEDIUM,
         ),
         (
-            PROCUREMENT_PURCHASE_ORDER_CREATE,
-            "Create purchase orders",
+            PROCUREMENT_REQUISITION_MANAGE,
+            "Create and transition purchase requisitions",
             PermissionRiskLevel.HIGH,
         ),
         (
-            PROCUREMENT_PURCHASE_ORDER_READ,
+            PROCUREMENT_ORDER_READ,
             "Read purchase orders",
             PermissionRiskLevel.MEDIUM,
         ),
         (
-            PROCUREMENT_PURCHASE_ORDER_CHANGE,
-            "Change mutable purchase orders",
+            PROCUREMENT_ORDER_MANAGE,
+            "Create and transition purchase orders",
             PermissionRiskLevel.HIGH,
-        ),
-        (
-            PROCUREMENT_PURCHASE_ORDER_SUBMIT,
-            "Submit purchase orders for approval",
-            PermissionRiskLevel.CRITICAL,
         ),
     )
     return PermissionRegistry(
@@ -98,11 +86,9 @@ class ProcurementAuthorization:
 
 
 __all__ = [
-    "PROCUREMENT_PURCHASE_ORDER_CHANGE",
-    "PROCUREMENT_PURCHASE_ORDER_CREATE",
-    "PROCUREMENT_PURCHASE_ORDER_READ",
-    "PROCUREMENT_PURCHASE_ORDER_SUBMIT",
-    "PROCUREMENT_REQUISITION_CREATE",
+    "PROCUREMENT_ORDER_MANAGE",
+    "PROCUREMENT_ORDER_READ",
+    "PROCUREMENT_REQUISITION_MANAGE",
     "PROCUREMENT_REQUISITION_READ",
     "PROCUREMENT_SUPPLIER_MANAGE",
     "PROCUREMENT_SUPPLIER_READ",
