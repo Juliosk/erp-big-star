@@ -1,5 +1,16 @@
 """Public M6 procurement persistence models."""
 
+from erp.modules.procurement.infrastructure.approval_consumer import (
+    APPROVAL_DECISION_MADE,
+    PROCUREMENT_APPROVAL_CONSUMER,
+    ProcurementApprovalDecisionConsumer,
+)
+from erp.modules.procurement.infrastructure.purchasing_effects import (
+    PURCHASE_APPROVAL_REQUESTED,
+    PURCHASE_ORDER_APPROVED,
+    PURCHASE_ORDER_CANCELLED,
+    PURCHASE_ORDER_REJECTED,
+)
 from erp.modules.procurement.infrastructure.purchasing_model import (
     PurchaseOrderItemModel,
     PurchaseOrderModel,
@@ -24,8 +35,15 @@ from erp.modules.procurement.infrastructure.supplier_repository import (
 from erp.modules.procurement.infrastructure.supplier_store import PostgresSupplierStore
 
 __all__ = [
+    "APPROVAL_DECISION_MADE",
+    "PROCUREMENT_APPROVAL_CONSUMER",
+    "PURCHASE_APPROVAL_REQUESTED",
+    "PURCHASE_ORDER_APPROVED",
+    "PURCHASE_ORDER_CANCELLED",
+    "PURCHASE_ORDER_REJECTED",
     "PostgresPurchasingStore",
     "PostgresSupplierStore",
+    "ProcurementApprovalDecisionConsumer",
     "PurchaseOrderConflictError",
     "PurchaseOrderItemModel",
     "PurchaseOrderModel",

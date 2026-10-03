@@ -12,6 +12,7 @@ from erp.modules.procurement.application.purchasing import (
     ReceivePurchaseOrder,
     RequisitionAction,
     RequisitionPage,
+    enforce_separation_of_duties,
 )
 from erp.modules.procurement.domain import (
     PaymentTerms,
@@ -20,6 +21,12 @@ from erp.modules.procurement.domain import (
     PurchaseRequisition,
     RequisitionStatus,
     SupplierStatus,
+)
+from erp.modules.procurement.infrastructure.purchasing_effects import (
+    PURCHASE_APPROVAL_REQUESTED,
+    PURCHASE_ORDER_APPROVED,
+    PURCHASE_ORDER_CANCELLED,
+    record_purchasing_effect,
 )
 from erp.modules.procurement.infrastructure.purchasing_repository import (
     PurchaseOrderRepository,
@@ -52,6 +59,8 @@ class PostgresPurchasingStore:
             if current is None:
                 raise _not_found("Purchase requisition")
             _version(current.version, command.expected_version)
+            if command.action is RequisitionAction.APPROVE and current.requester_id == actor_id:
+                enforce_separation_of_duties(owner_id=current.requester_id, approver_id=actor_id)
             try:
                 changed = {
                     RequisitionAction.SUBMIT: current.submit,
@@ -61,9 +70,27 @@ class PostgresPurchasingStore:
                 }[command.action]()
             except ValueError as error:
                 raise _validation("Invalid requisition transition.", error) from error
-            return await repository.save(
+            changed = await repository.save(
                 changed, actor_id=actor_id, expected_version=command.expected_version
             )
+            event_type = (
+                PURCHASE_APPROVAL_REQUESTED
+                if command.action is RequisitionAction.SUBMIT
+                else {
+                    RequisitionAction.APPROVE: "PurchaseRequisitionApproved",
+                    RequisitionAction.REJECT: "PurchaseRequisitionRejected",
+                    RequisitionAction.CANCEL: "PurchaseRequisitionCancelled",
+                }[command.action]
+            )
+            await record_purchasing_effect(
+                session,
+                before=current,
+                after=changed,
+                event_type=event_type,
+                actor_id=actor_id,
+                metadata=command.metadata,
+            )
+            return changed
 
     async def get_requisition(
         self, company_id: UUID, requisition_id: UUID
@@ -189,6 +216,8 @@ class PostgresPurchasingStore:
             if current is None:
                 raise _not_found("Purchase order")
             _version(current.version, command.expected_version)
+            if command.action is PurchaseOrderAction.APPROVE and current.buyer_id == actor_id:
+                enforce_separation_of_duties(owner_id=current.buyer_id, approver_id=actor_id)
             try:
                 changed = {
                     PurchaseOrderAction.SUBMIT: current.submit_for_approval,
@@ -198,9 +227,24 @@ class PostgresPurchasingStore:
                 }[command.action]()
             except ValueError as error:
                 raise _validation("Invalid purchase order transition.", error) from error
-            return await repository.save(
+            changed = await repository.save(
                 changed, actor_id=actor_id, expected_version=command.expected_version
             )
+            event_type = {
+                PurchaseOrderAction.SUBMIT: PURCHASE_APPROVAL_REQUESTED,
+                PurchaseOrderAction.APPROVE: PURCHASE_ORDER_APPROVED,
+                PurchaseOrderAction.ISSUE: "PurchaseOrderIssued",
+                PurchaseOrderAction.CANCEL: PURCHASE_ORDER_CANCELLED,
+            }[command.action]
+            await record_purchasing_effect(
+                session,
+                before=current,
+                after=changed,
+                event_type=event_type,
+                actor_id=actor_id,
+                metadata=command.metadata,
+            )
+            return changed
 
     async def receive_order(
         self, command: ReceivePurchaseOrder, *, actor_id: UUID
@@ -215,9 +259,18 @@ class PostgresPurchasingStore:
                 changed = current.receive(command.receipts)
             except ValueError as error:
                 raise _validation("Invalid purchase order receipt.", error) from error
-            return await repository.save(
+            changed = await repository.save(
                 changed, actor_id=actor_id, expected_version=command.expected_version
             )
+            await record_purchasing_effect(
+                session,
+                before=current,
+                after=changed,
+                event_type="PurchaseOrderReceived",
+                actor_id=actor_id,
+                metadata=command.metadata,
+            )
+            return changed
 
     async def get_order(self, company_id: UUID, order_id: UUID) -> PurchaseOrder | None:
         async with self._database.session() as session:

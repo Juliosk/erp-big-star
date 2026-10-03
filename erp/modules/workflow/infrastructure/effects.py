@@ -84,6 +84,34 @@ class WorkflowEffects:
             },
         )
         await OutboxService().enqueue(session, envelope)
+        if result.detail.instance.source_module == "procurement" and event_type in {
+            WORKFLOW_INSTANCE_APPROVED,
+            WORKFLOW_INSTANCE_REJECTED,
+        }:
+            decision_envelope = MessageEnvelope.new(
+                message_kind=MessageKind.DOMAIN_EVENT,
+                message_type="ApprovalDecisionMade",
+                event_version=1,
+                producer_module="workflow",
+                producer_domain="workflow",
+                aggregate_type="workflow_instance",
+                aggregate_id=result.detail.instance.id,
+                aggregate_version=result.detail.instance.version,
+                company_id=result.detail.instance.company_id,
+                branch_id=None,
+                correlation_id=command.metadata.correlation_id,
+                request_id=command.metadata.request_id,
+                causation_id=envelope.message_id,
+                payload={
+                    "source_module": "procurement",
+                    "source_type": result.detail.instance.source_type,
+                    "source_id": str(result.detail.instance.source_id),
+                    "decision": str(result.decision.decision),
+                    "decided_by": str(actor_id),
+                    "workflow_instance_id": str(result.detail.instance.id),
+                },
+            )
+            await OutboxService().enqueue(session, decision_envelope)
         return WorkflowDecisionResult(
             detail=result.detail,
             decision=result.decision,

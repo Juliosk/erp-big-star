@@ -23,6 +23,7 @@ from erp.modules.procurement.application.purchasing import (
     ChangeRequisitionStatus,
     CreatePurchaseOrder,
     CreateRequisition,
+    ProcurementCommandMetadata,
     PurchaseOrderAction,
     PurchaseOrderLineInput,
     PurchasingService,
@@ -34,6 +35,14 @@ from erp.modules.procurement.domain import PurchaseOrderStatus, RequisitionStatu
 from erp.platform.errors import ApplicationError
 
 router = APIRouter(prefix="/api/v1/procurement", tags=["procurement-purchasing"])
+
+
+def _metadata(request: Request) -> ProcurementCommandMetadata:
+    return ProcurementCommandMetadata(
+        request_id=UUID(request.state.request_id),
+        correlation_id=UUID(request.state.correlation_id),
+        source_ip=request.client.host if request.client is not None else None,
+    )
 
 
 def get_purchasing_service(request: Request) -> PurchasingService:
@@ -124,9 +133,10 @@ async def _change_requisition(
     context: SecurityContext,
     service: PurchasingService,
     version: int,
+    metadata: ProcurementCommandMetadata,
 ) -> RequisitionResponse:
     value = await service.change_requisition(
-        context, ChangeRequisitionStatus(company_id, requisition_id, version, action)
+        context, ChangeRequisitionStatus(company_id, requisition_id, version, action, metadata)
     )
     _etag(response, value.version)
     return RequisitionResponse.from_domain(value)
@@ -136,13 +146,21 @@ def _requisition_action(path: str, action: RequisitionAction) -> None:
     async def endpoint(
         requisition_id: UUID,
         company_id: UUID,
+        request: Request,
         response: Response,
         context: Annotated[SecurityContext, Depends(resolve_security_context)],
         service: Annotated[PurchasingService, Depends(get_purchasing_service)],
         version: Annotated[int, Depends(require_version)],
     ) -> RequisitionResponse:
         return await _change_requisition(
-            requisition_id, company_id, action, response, context, service, version
+            requisition_id,
+            company_id,
+            action,
+            response,
+            context,
+            service,
+            version,
+            _metadata(request),
         )
 
     router.add_api_route(
@@ -239,9 +257,10 @@ async def _change_order(
     context: SecurityContext,
     service: PurchasingService,
     version: int,
+    metadata: ProcurementCommandMetadata,
 ) -> PurchaseOrderResponse:
     value = await service.change_order(
-        context, ChangePurchaseOrderStatus(company_id, order_id, version, action)
+        context, ChangePurchaseOrderStatus(company_id, order_id, version, action, metadata)
     )
     _etag(response, value.version)
     return PurchaseOrderResponse.from_domain(value)
@@ -251,13 +270,21 @@ def _order_action(path: str, action: PurchaseOrderAction) -> None:
     async def endpoint(
         order_id: UUID,
         company_id: UUID,
+        request: Request,
         response: Response,
         context: Annotated[SecurityContext, Depends(resolve_security_context)],
         service: Annotated[PurchasingService, Depends(get_purchasing_service)],
         version: Annotated[int, Depends(require_version)],
     ) -> PurchaseOrderResponse:
         return await _change_order(
-            order_id, company_id, action, response, context, service, version
+            order_id,
+            company_id,
+            action,
+            response,
+            context,
+            service,
+            version,
+            _metadata(request),
         )
 
     router.add_api_route(
@@ -283,6 +310,7 @@ async def receive_purchase_order(
     order_id: UUID,
     company_id: UUID,
     body: ReceivePurchaseOrderRequest,
+    request: Request,
     response: Response,
     context: Annotated[SecurityContext, Depends(resolve_security_context)],
     service: Annotated[PurchasingService, Depends(get_purchasing_service)],
@@ -295,6 +323,7 @@ async def receive_purchase_order(
             order_id,
             version,
             tuple((item.item_id, item.quantity) for item in body.items),
+            _metadata(request),
         ),
     )
     _etag(response, value.version)

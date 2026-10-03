@@ -1,12 +1,12 @@
 """Authorized M6 purchase requisition and purchase order use cases."""
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 from typing import Protocol
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from erp.modules.admin.contracts import SecurityContext
 from erp.modules.procurement.application.permissions import (
@@ -45,6 +45,17 @@ class CreateRequisition:
     lines: tuple[RequisitionLineInput, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class ProcurementCommandMetadata:
+    request_id: UUID
+    correlation_id: UUID
+    source_ip: str | None = None
+
+    @classmethod
+    def new(cls) -> ProcurementCommandMetadata:
+        return cls(uuid4(), uuid4())
+
+
 class RequisitionAction(StrEnum):
     SUBMIT = "SUBMIT"
     APPROVE = "APPROVE"
@@ -58,6 +69,7 @@ class ChangeRequisitionStatus:
     requisition_id: UUID
     expected_version: int
     action: RequisitionAction
+    metadata: ProcurementCommandMetadata = field(default_factory=ProcurementCommandMetadata.new)
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,6 +105,7 @@ class ChangePurchaseOrderStatus:
     purchase_order_id: UUID
     expected_version: int
     action: PurchaseOrderAction
+    metadata: ProcurementCommandMetadata = field(default_factory=ProcurementCommandMetadata.new)
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,6 +114,7 @@ class ReceivePurchaseOrder:
     purchase_order_id: UUID
     expected_version: int
     receipts: tuple[tuple[UUID, Decimal], ...]
+    metadata: ProcurementCommandMetadata = field(default_factory=ProcurementCommandMetadata.new)
 
 
 @dataclass(frozen=True, slots=True)
@@ -341,6 +355,15 @@ def _not_found(resource: str) -> ApplicationError:
     return ApplicationError(
         code="RESOURCE_NOT_FOUND", message=f"{resource} not found.", status_code=404
     )
+
+
+def enforce_separation_of_duties(*, owner_id: UUID, approver_id: UUID) -> None:
+    if owner_id == approver_id:
+        raise ApplicationError(
+            code="SOD_VIOLATION",
+            message="The requester or buyer cannot approve their own purchase.",
+            status_code=403,
+        )
 
 
 __all__ = [name for name in globals() if not name.startswith("_")]

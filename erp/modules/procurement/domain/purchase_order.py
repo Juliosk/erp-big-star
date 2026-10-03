@@ -25,6 +25,7 @@ class PurchaseOrderStatus(StrEnum):
     DRAFT = "DRAFT"
     PENDING_APPROVAL = "PENDING_APPROVAL"
     APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
     ISSUED = "ISSUED"
     PARTIALLY_RECEIVED = "PARTIALLY_RECEIVED"
     COMPLETED = "COMPLETED"
@@ -219,6 +220,11 @@ class PurchaseOrder:
         if self.status is not PurchaseOrderStatus.PENDING_APPROVAL:
             raise InvalidProcurementTransitionError("only pending purchase orders can be approved.")
         return replace(self, status=PurchaseOrderStatus.APPROVED, version=self.version + 1)
+
+    def reject(self) -> PurchaseOrder:
+        if self.status is not PurchaseOrderStatus.PENDING_APPROVAL:
+            raise InvalidProcurementTransitionError("only pending purchase orders can be rejected.")
+        return replace(self, status=PurchaseOrderStatus.REJECTED, version=self.version + 1)
 
     def issue(self) -> PurchaseOrder:
         if self.status is not PurchaseOrderStatus.APPROVED:

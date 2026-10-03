@@ -109,6 +109,12 @@ def action(
     etag: str,
     body: dict[str, Any] | None = None,
 ) -> Any:
+    if name == "approve":
+        assert api.resolver.context is not None
+        api.resolver.context = replace(
+            api.resolver.context,
+            principal=replace(api.resolver.context.principal, user_id=uuid4()),
+        )
     return api.client.post(
         f"/api/v1/procurement/{resource}/{resource_id}/{name}?company_id={api.data.company_id}",
         json=body,
@@ -184,6 +190,12 @@ def test_complete_requisition_lifecycle_detail_filters_and_etags() -> None:
         assert detail.headers["etag"] == '"1"'
         assert detail.json()["items"][0]["product_id"] == str(api.product_id)
         submitted = action(api, "requisitions", body["id"], "submit", '"1"')
+        own_approval = api.client.post(
+            f"/api/v1/procurement/requisitions/{body['id']}/approve?company_id={api.data.company_id}",
+            headers={**api.headers, "If-Match": submitted.headers["etag"]},
+        )
+        assert own_approval.status_code == 403
+        assert own_approval.json()["error"]["code"] == "SOD_VIOLATION"
         approved = action(api, "requisitions", body["id"], "approve", submitted.headers["etag"])
         assert approved.headers["etag"] == '"3"'
         listing = api.client.get(

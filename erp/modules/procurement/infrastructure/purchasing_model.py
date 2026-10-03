@@ -114,7 +114,7 @@ class PurchaseOrderModel(OptimisticLockMixin, Base):
         CheckConstraint("currency ~ '^[A-Z]{3}$'", name="currency_format"),
         CheckConstraint(
             "status IN ('DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'ISSUED', "
-            "'PARTIALLY_RECEIVED', 'COMPLETED', 'CANCELLED')",
+            "'REJECTED', 'PARTIALLY_RECEIVED', 'COMPLETED', 'CANCELLED')",
             name="status",
         ),
         CheckConstraint("total_amount >= 0", name="total_non_negative"),

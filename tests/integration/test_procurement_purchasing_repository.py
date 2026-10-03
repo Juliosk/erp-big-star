@@ -8,7 +8,7 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, func, select
 
 from erp.modules.procurement.domain import (
     PaymentTerms,
@@ -19,6 +19,8 @@ from erp.modules.procurement.domain import (
     RequisitionUrgency,
 )
 from erp.modules.procurement.infrastructure import (
+    APPROVAL_DECISION_MADE,
+    ProcurementApprovalDecisionConsumer,
     PurchaseOrderItemModel,
     PurchaseOrderModel,
     PurchaseOrderRepository,
@@ -29,8 +31,12 @@ from erp.modules.procurement.infrastructure import (
 )
 from erp.modules.product.domain import Product, ProductType
 from erp.modules.product.infrastructure import ProductModel, ProductRepository
+from erp.platform.audit import AuditEventModel
 from erp.platform.concurrency import OptimisticLockError
 from erp.platform.errors import ApplicationError
+from erp.platform.inbox import InboxEventModel
+from erp.platform.messaging import MessageEnvelope, MessageKind
+from erp.platform.outbox import OutboxEventModel
 from tests.integration.test_procurement_supplier_repository import (
     ProcurementFixture,
     procurement_fixture,
@@ -70,6 +76,21 @@ async def purchasing_fixture() -> AsyncIterator[tuple[ProcurementFixture, Produc
         finally:
             async with data.database.session() as session, session.begin():
                 company_ids = (data.company_id, data.other_company_id)
+                await session.execute(
+                    delete(InboxEventModel).where(
+                        InboxEventModel.consumer_name == "procurement.approval-decision.v1"
+                    )
+                )
+                await session.execute(
+                    delete(OutboxEventModel).where(
+                        OutboxEventModel.payload["company_id"]
+                        .as_string()
+                        .in_(tuple(str(value) for value in company_ids))
+                    )
+                )
+                await session.execute(
+                    delete(AuditEventModel).where(AuditEventModel.company_id.in_(company_ids))
+                )
                 await session.execute(
                     delete(PurchaseOrderItemModel).where(
                         PurchaseOrderItemModel.company_id.in_(company_ids)
@@ -229,5 +250,74 @@ def test_purchase_order_round_trip_receipt_and_tenant_isolation() -> None:
                     )
                     is None
                 )
+
+    asyncio.run(scenario())
+
+
+def test_workflow_decision_is_consumed_exactly_once_with_outbox_effect() -> None:
+    async def scenario() -> None:
+        async with purchasing_fixture() as (data, product, _):
+            supplier = data.supplier()
+            draft = requisition(data, product.id)
+            approved_requisition = draft.submit().approve()
+            async with data.database.session() as session, session.begin():
+                await SupplierRepository(session, company_id=data.company_id).add(
+                    supplier, actor_id=data.actor_id
+                )
+                requisitions = PurchaseRequisitionRepository(session, company_id=data.company_id)
+                await requisitions.add(draft, actor_id=data.actor_id)
+                await requisitions.save(draft.submit(), actor_id=data.actor_id)
+                await requisitions.save(approved_requisition, actor_id=data.actor_id)
+                purchase_order = order(data, approved_requisition, supplier.id)
+                orders = PurchaseOrderRepository(session, company_id=data.company_id)
+                await orders.add(purchase_order, actor_id=data.actor_id)
+                pending = purchase_order.submit_for_approval()
+                await orders.save(pending, actor_id=data.actor_id)
+
+            approver_id = uuid4()
+            envelope = MessageEnvelope.new(
+                message_kind=MessageKind.DOMAIN_EVENT,
+                message_type=APPROVAL_DECISION_MADE,
+                event_version=1,
+                producer_module="workflow",
+                producer_domain="workflow",
+                aggregate_type="workflow_instance",
+                aggregate_id=uuid4(),
+                aggregate_version=2,
+                company_id=data.company_id,
+                branch_id=None,
+                correlation_id=uuid4(),
+                causation_id=None,
+                request_id=uuid4(),
+                payload={
+                    "source_module": "procurement",
+                    "source_type": "PURCHASE_ORDER",
+                    "source_id": str(purchase_order.id),
+                    "decision": "APPROVED",
+                    "decided_by": str(approver_id),
+                },
+            )
+            consumer = ProcurementApprovalDecisionConsumer(data.database)
+            first = await consumer.consume(envelope)
+            second = await consumer.consume(envelope)
+            assert first.processed
+            assert not first.duplicate
+            assert second.duplicate
+            assert not second.processed
+            async with data.database.session() as session:
+                persisted = await PurchaseOrderRepository(session, company_id=data.company_id).get(
+                    purchase_order.id
+                )
+                assert persisted is not None
+                assert persisted.status is PurchaseOrderStatus.APPROVED
+                event_count = await session.scalar(
+                    select(func.count())
+                    .select_from(OutboxEventModel)
+                    .where(
+                        OutboxEventModel.aggregate_id == purchase_order.id,
+                        OutboxEventModel.event_type == "PurchaseOrderApproved",
+                    )
+                )
+                assert event_count == 1
 
     asyncio.run(scenario())
