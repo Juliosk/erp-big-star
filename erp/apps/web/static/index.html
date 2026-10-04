@@ -35,6 +35,9 @@
           >Aprovações <span>M22</span></a
         >
         <a id="sales-nav" href="#sales" hidden>Vendas <span>M15</span></a>
+        <a id="procurement-nav" href="#procurement" hidden
+          >Compras <span>M6</span></a
+        >
       </nav>
       <div class="company-context">
         <label for="company">Empresa de trabalho</label
@@ -1079,6 +1082,80 @@
                 <h2>Nenhum snapshot encontrado</h2>
                 <p>Use resolver e congelar para persistir uma decisão.</p>
               </div>
+            </div>
+          </section>
+        </div>
+      </section>
+      <section id="procurement" hidden aria-labelledby="procurement-title">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">PROCURE-TO-PAY / M6</p>
+            <h1 id="procurement-title">Cockpit de compras</h1>
+            <p>
+              Fornecedores, requisições e pedidos sob alçadas formais e escopo
+              da empresa de trabalho.
+            </p>
+          </div>
+          <button id="procurement-refresh" class="secondary">
+            Atualizar compras
+          </button>
+        </div>
+        <div class="procurement-flow" aria-label="Fluxo de compras">
+          <span><small>01</small> Necessidade</span><i aria-hidden="true">→</i
+          ><span><small>02</small> Aprovação M22</span
+          ><i aria-hidden="true">→</i
+          ><span><small>03</small> Pedido</span>
+        </div>
+        <div class="procurement-grid">
+          <section class="panel procurement-suppliers">
+            <div class="workflow-section-heading">
+              <div><p class="eyebrow">BASE DE SUPRIMENTO</p><h2>Fornecedores</h2></div>
+              <span id="procurement-supplier-count" class="workflow-count">0</span>
+            </div>
+            <form id="procurement-supplier-form" class="procurement-form">
+              <div><label for="procurement-supplier-name">Razão social</label><input id="procurement-supplier-name" required maxlength="200" /></div>
+              <div><label for="procurement-supplier-trade-name">Nome fantasia</label><input id="procurement-supplier-trade-name" maxlength="200" /></div>
+              <div><label for="procurement-supplier-document">CNPJ</label><input id="procurement-supplier-document" required maxlength="18" inputmode="numeric" /></div>
+              <button type="submit">Cadastrar fornecedor</button>
+            </form>
+            <div class="table-wrap compact-table"><table><thead><tr><th>Fornecedor / Documento</th><th>Estabelecimentos</th><th>Status</th></tr></thead><tbody id="procurement-supplier-rows"></tbody></table>
+              <div id="procurement-supplier-empty" class="empty" hidden><span aria-hidden="true">◇</span><h2>Nenhum fornecedor</h2><p>Cadastre a origem do próximo pedido de compra.</p></div>
+            </div>
+          </section>
+          <section class="panel procurement-requisitions">
+            <div class="workflow-section-heading">
+              <div><p class="eyebrow">NECESSIDADES</p><h2>Requisições</h2></div>
+              <span id="procurement-requisition-count" class="workflow-count">0</span>
+            </div>
+            <form id="procurement-requisition-form" class="procurement-form procurement-form-wide">
+              <div><label for="procurement-requisition-number">Número</label><input id="procurement-requisition-number" required maxlength="64" placeholder="RC-0001" /></div>
+              <div><label for="procurement-cost-center">Centro de custo ID</label><input id="procurement-cost-center" required autocomplete="off" /></div>
+              <div><label for="procurement-product-id">Produto ID</label><input id="procurement-product-id" required autocomplete="off" /></div>
+              <div><label for="procurement-quantity">Quantidade</label><input id="procurement-quantity" type="number" min="0.000001" step="0.000001" value="1" required /></div>
+              <div><label for="procurement-needed-by">Necessário até</label><input id="procurement-needed-by" type="date" required /></div>
+              <div><label for="procurement-urgency">Urgência</label><select id="procurement-urgency"><option value="NORMAL">Normal</option><option value="HIGH">Alta</option><option value="CRITICAL">Crítica</option></select></div>
+              <div class="procurement-span"><label for="procurement-specification">Especificação</label><input id="procurement-specification" required maxlength="1000" /></div>
+              <div class="procurement-span"><label for="procurement-justification">Justificativa</label><input id="procurement-justification" required maxlength="1000" /></div>
+              <button type="submit">Abrir requisição</button>
+            </form>
+            <div class="table-wrap compact-table"><table><thead><tr><th>Requisição</th><th>Urgência</th><th>Prazo</th><th>Status</th><th></th></tr></thead><tbody id="procurement-requisition-rows"></tbody></table>
+              <div id="procurement-requisition-empty" class="empty" hidden><span aria-hidden="true">◇</span><h2>Nenhuma requisição</h2><p>Registre uma necessidade para iniciar o fluxo.</p></div>
+            </div>
+          </section>
+          <section class="panel procurement-orders">
+            <div class="workflow-section-heading">
+              <div><p class="eyebrow">COMPROMISSO DE COMPRA</p><h2>Pedidos</h2></div>
+              <span id="procurement-order-count" class="workflow-count">0</span>
+            </div>
+            <form id="procurement-order-form" class="procurement-form">
+              <div><label for="procurement-order-number">Número</label><input id="procurement-order-number" required maxlength="64" placeholder="PC-0001" /></div>
+              <div><label for="procurement-order-requisition">Requisição aprovada</label><select id="procurement-order-requisition" required></select></div>
+              <div><label for="procurement-order-supplier">Fornecedor</label><select id="procurement-order-supplier" required></select></div>
+              <div><label for="procurement-order-unit-price">Preço unitário</label><input id="procurement-order-unit-price" type="number" min="0" step="0.01" required /></div>
+              <button type="submit">Criar pedido</button>
+            </form>
+            <div class="table-wrap compact-table"><table><thead><tr><th>Pedido</th><th>Total</th><th>Status</th><th>Versão</th><th></th></tr></thead><tbody id="procurement-order-rows"></tbody></table>
+              <div id="procurement-order-empty" class="empty" hidden><span aria-hidden="true">◇</span><h2>Nenhum pedido</h2><p>Pedidos podem nascer de requisições aprovadas.</p></div>
             </div>
           </section>
         </div>

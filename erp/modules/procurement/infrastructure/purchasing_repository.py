@@ -164,6 +164,9 @@ class PurchaseRequisitionRepository(_TenantRepository):
                 updated_by=actor_id,
             )
         )
+        # Composite tenant FKs do not imply ORM dependency ordering without a
+        # relationship. Persist the aggregate root before its children.
+        await self._flush(PurchaseRequisitionConflictError)
         self._session.add_all(
             [
                 RequisitionItemModel(
@@ -325,6 +328,8 @@ class PurchaseOrderRepository(_TenantRepository):
                 updated_by=actor_id,
             )
         )
+        # Keep the tenant-bound root visible before item FK validation.
+        await self._flush()
         self._session.add_all(
             [
                 PurchaseOrderItemModel(

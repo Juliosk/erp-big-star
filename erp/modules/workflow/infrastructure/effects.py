@@ -84,7 +84,7 @@ class WorkflowEffects:
             },
         )
         await OutboxService().enqueue(session, envelope)
-        if result.detail.instance.source_module == "procurement" and event_type in {
+        if result.detail.instance.source_module == "PROCUREMENT" and event_type in {
             WORKFLOW_INSTANCE_APPROVED,
             WORKFLOW_INSTANCE_REJECTED,
         }:
