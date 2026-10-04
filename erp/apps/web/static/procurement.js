@@ -13,6 +13,9 @@ const statusLabels = {
   ISSUED: "Emitido",
   PARTIALLY_RECEIVED: "Recebido parcialmente",
   COMPLETED: "Concluído",
+  RECEIVED: "Recebido",
+  INSPECTED: "Inspecionado",
+  POSTED: "Lançado no estoque",
 };
 
 const money = (value, currency = "BRL") =>
@@ -35,7 +38,7 @@ function badge(status) {
 }
 
 export function mountProcurement({ api, context, notice, enter }) {
-  let suppliers = [], requisitions = [], orders = [];
+  let suppliers = [], requisitions = [], orders = [], receipts = [];
 
   const can = (permission) => context().permissions.has(permission);
 
@@ -49,7 +52,8 @@ export function mountProcurement({ api, context, notice, enter }) {
     suppliers = [];
     requisitions = [];
     orders = [];
-    ["procurement-supplier-rows", "procurement-requisition-rows", "procurement-order-rows"].forEach(
+    receipts = [];
+    ["procurement-supplier-rows", "procurement-requisition-rows", "procurement-order-rows", "procurement-receipt-cards"].forEach(
       (id) => $(id).replaceChildren(),
     );
   }
@@ -145,22 +149,69 @@ export function mountProcurement({ api, context, notice, enter }) {
         return row;
       }),
     );
+    $("procurement-receipt-order").replaceChildren(
+      new Option("Selecione um pedido emitido", ""),
+      ...orders
+        .filter((order) => ["ISSUED", "PARTIALLY_RECEIVED"].includes(order.status))
+        .map((order) => new Option(order.number, order.id)),
+    );
+  }
+
+  function receiptAction(label, action) {
+    const button = document.createElement("button");
+    button.className = "quiet";
+    button.textContent = label;
+    button.addEventListener("click", () => action().catch((error) => notice(error.message)));
+    return button;
+  }
+
+  function renderReceipts() {
+    $("procurement-receipt-count").textContent = String(receipts.length);
+    $("procurement-receipt-empty").hidden = receipts.length > 0;
+    $("procurement-receipt-cards").replaceChildren(
+      ...receipts.map((receipt) => {
+        const card = document.createElement("article");
+        card.className = "receipt-card";
+        const heading = document.createElement("div");
+        heading.className = "receipt-card-heading";
+        const title = document.createElement("strong");
+        title.textContent = receipt.number;
+        heading.append(title, badge(receipt.status));
+        const facts = document.createElement("p");
+        facts.className = "receipt-facts mono";
+        facts.textContent = `${receipt.items.length} item(ns) · v${receipt.version}`;
+        const actions = document.createElement("div");
+        actions.className = "receipt-actions";
+        if (receipt.status === "DRAFT") {
+          actions.append(receiptAction("Confirmar chegada", () => mutateReceipt(receipt, "receive", {})));
+        } else if (receipt.status === "RECEIVED") {
+          actions.append(receiptAction("Aprovar inspeção M17", () => inspectReceipt(receipt)));
+        } else if (receipt.status === "INSPECTED") {
+          actions.append(receiptAction("Postar no estoque M5", () => mutateReceipt(receipt, "post-to-inventory")));
+        }
+        card.append(heading, facts, actions);
+        return card;
+      }),
+    );
   }
 
   async function load() {
     const { company } = context();
     if (!company) return;
-    const [supplierPage, requisitionPage, orderPage] = await Promise.all([
+    const [supplierPage, requisitionPage, orderPage, receiptPage] = await Promise.all([
       api(`procurement/suppliers?company_id=${company}&page_size=100`),
       api(`procurement/requisitions?company_id=${company}&page_size=100`),
       api(`procurement/purchase-orders?company_id=${company}&page_size=100`),
+      api(`procurement/goods-receipts?company_id=${company}&page_size=100`),
     ]);
     suppliers = supplierPage.data;
     requisitions = requisitionPage.data;
     orders = orderPage.data;
+    receipts = receiptPage.data;
     renderSuppliers();
     renderRequisitions();
     renderOrders();
+    renderReceipts();
   }
 
   async function show() {
@@ -170,6 +221,7 @@ export function mountProcurement({ api, context, notice, enter }) {
     $("procurement-supplier-form").hidden = !can("procurement.supplier.manage");
     $("procurement-requisition-form").hidden = !can("procurement.requisition.manage");
     $("procurement-order-form").hidden = !can("procurement.order.manage");
+    $("procurement-receipt-form").hidden = !can("procurement.receipt.manage");
     await load();
   }
 
@@ -189,6 +241,29 @@ export function mountProcurement({ api, context, notice, enter }) {
     );
     notice("Aprovação formal solicitada ao M22.");
     await load();
+  }
+
+  async function mutateReceipt(receipt, action, body) {
+    await api(
+      `procurement/goods-receipts/${receipt.id}/${action}?company_id=${context().company}`,
+      { method: "POST", version: receipt.version, key: crypto.randomUUID(), body },
+    );
+    notice(action === "post-to-inventory" ? "Saldo físico atualizado no M5." : "Etapa do recebimento concluída.");
+    await load();
+  }
+
+  async function inspectReceipt(receipt) {
+    const item = receipt.items[0];
+    return mutateReceipt(receipt, "inspect", {
+      decisions: [{
+        receipt_item_id: item.id,
+        inspection_id: crypto.randomUUID(),
+        disposition: "APPROVE",
+        approved_quantity: item.received_quantity,
+        rejected_quantity: "0",
+        quarantine_quantity: "0",
+      }],
+    });
   }
 
   $("procurement-refresh").addEventListener("click", () =>
@@ -288,6 +363,40 @@ export function mountProcurement({ api, context, notice, enter }) {
       });
       event.target.reset();
       notice("Pedido de compra criado.");
+      await load();
+    } catch (error) {
+      notice(error.message);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  $("procurement-receipt-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = event.submitter;
+    button.disabled = true;
+    try {
+      const order = orders.find((item) => item.id === $("procurement-receipt-order").value);
+      if (!order) throw new Error("Selecione um pedido emitido.");
+      await api("procurement/goods-receipts", {
+        method: "POST",
+        key: crypto.randomUUID(),
+        body: {
+          company_id: context().company,
+          number: $("procurement-receipt-number").value,
+          purchase_order_id: order.id,
+          warehouse_id: $("procurement-receipt-warehouse").value,
+          tolerance_percentage: "0",
+          items: [{
+            purchase_order_item_id: order.items[0].id,
+            received_quantity: $("procurement-receipt-quantity").value,
+            specification_conforms: true,
+            lot_reference: $("procurement-receipt-lot").value || null,
+          }],
+        },
+      });
+      event.target.reset();
+      notice("Conferência cega registrada.");
       await load();
     } catch (error) {
       notice(error.message);

@@ -114,6 +114,8 @@ def procurement_browser_server() -> Iterator[ProcurementBrowserServer]:
             PermissionCode("procurement.requisition.manage"),
             PermissionCode("procurement.order.read"),
             PermissionCode("procurement.order.manage"),
+            PermissionCode("procurement.receipt.read"),
+            PermissionCode("procurement.receipt.manage"),
         }
         buyer = replace(
             fixture.resolver.context,
@@ -319,6 +321,7 @@ def test_procurement_cockpit_supplier_requisition_order_and_m22_decision() -> No
         expect(page.locator("#procurement-supplier-empty")).to_be_visible()
         expect(page.locator("#procurement-requisition-empty")).to_be_visible()
         expect(page.locator("#procurement-order-empty")).to_be_visible()
+        expect(page.locator("#procurement-receipt-empty")).to_be_visible()
         assert page.evaluate("localStorage.length + sessionStorage.length") == 0
         assert failures == []
         browser.close()

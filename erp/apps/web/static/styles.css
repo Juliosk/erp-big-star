@@ -897,6 +897,24 @@ form button[type="submit"] {
 .procurement-form input,
 .procurement-form select { width: 100%; min-width: 0; }
 .procurement-requisitions { grid-column: 1 / -1; }
+.procurement-receiving { grid-column: 1 / -1; }
+.receipt-lane {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin: .75rem 0 1rem;
+  padding: .8rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+}
+.receipt-lane span { display: flex; align-items: center; gap: .45rem; font-weight: 650; }
+.receipt-lane small { color: var(--accent); font-family: var(--mono); }
+.receipt-lane i { color: var(--muted); font-style: normal; }
+.receipt-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin-top: 1rem; }
+.receipt-card { padding: 1rem; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--radius-sm); background: var(--surface); }
+.receipt-card-heading, .receipt-actions { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.receipt-facts { color: var(--muted); font-size: .82rem; }
 .procurement-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1036,7 +1054,9 @@ dialog::backdrop {
     grid-template-columns: 1fr;
   }
   .procurement-requisitions,
+  .procurement-receiving,
   .procurement-span { grid-column: auto; }
+  .receipt-cards { grid-template-columns: 1fr; }
   .reservation-action-form { grid-template-columns: 1fr 1fr; }
   #pricing table {
     table-layout: fixed;
@@ -1151,6 +1171,8 @@ dialog::backdrop {
     flex-direction: column;
   }
   .procurement-flow i { align-self: center; transform: rotate(90deg); }
+  .receipt-lane { align-items: stretch; flex-direction: column; }
+  .receipt-lane i { align-self: center; transform: rotate(90deg); }
   .sales-flow i {
     align-self: center;
     transform: rotate(90deg);

@@ -1158,6 +1158,25 @@
               <div id="procurement-order-empty" class="empty" hidden><span aria-hidden="true">◇</span><h2>Nenhum pedido</h2><p>Pedidos podem nascer de requisições aprovadas.</p></div>
             </div>
           </section>
+          <section class="panel procurement-receiving">
+            <div class="workflow-section-heading">
+              <div><p class="eyebrow">DOCA DE RECEBIMENTO</p><h2>Conferência física</h2></div>
+              <span id="procurement-receipt-count" class="workflow-count">0</span>
+            </div>
+            <div class="receipt-lane" aria-label="Etapas do recebimento físico">
+              <span><small>01</small> Pedido emitido</span><i>→</i><span><small>02</small> Conferência cega</span><i>→</i><span><small>03</small> Qualidade M17</span><i>→</i><span><small>04</small> Estoque M5</span>
+            </div>
+            <form id="procurement-receipt-form" class="procurement-form procurement-form-wide">
+              <div><label for="procurement-receipt-number">Recebimento</label><input id="procurement-receipt-number" required maxlength="64" placeholder="REC-0001" /></div>
+              <div><label for="procurement-receipt-order">Pedido pendente</label><select id="procurement-receipt-order" required></select></div>
+              <div><label for="procurement-receipt-warehouse">Galpão / Warehouse ID</label><input id="procurement-receipt-warehouse" required autocomplete="off" /></div>
+              <div><label for="procurement-receipt-quantity">Quantidade contada</label><input id="procurement-receipt-quantity" type="number" min="0.000001" step="0.000001" required /></div>
+              <div><label for="procurement-receipt-lot">Lote (opcional)</label><input id="procurement-receipt-lot" maxlength="64" /></div>
+              <button type="submit">Registrar conferência cega</button>
+            </form>
+            <div id="procurement-receipt-cards" class="receipt-cards" aria-live="polite"></div>
+            <div id="procurement-receipt-empty" class="empty" hidden><span aria-hidden="true">◇</span><h2>Doca livre</h2><p>Pedidos emitidos aparecerão como candidatos ao recebimento.</p></div>
+          </section>
         </div>
       </section>
       <section id="sales" hidden aria-labelledby="sales-title">

@@ -31,6 +31,13 @@ from erp.modules.procurement.domain import (
     QualityInspectionResult,
     ReceiptTolerance,
 )
+from erp.modules.procurement.infrastructure.goods_receipt_events import (
+    GOODS_RECEIPT_CREATED,
+    GOODS_RECEIPT_INSPECTED,
+    GOODS_RECEIPT_POSTED,
+    GOODS_RECEIPT_RECEIVED,
+    record_goods_receipt_event,
+)
 from erp.modules.procurement.infrastructure.goods_receipt_repository import (
     GoodsReceiptRepository,
 )
@@ -87,6 +94,12 @@ class PostgresGoodsReceiptOperations:
             await GoodsReceiptRepository(session, company_id=command.company_id).add(
                 receipt, actor_id=actor_id
             )
+            await record_goods_receipt_event(
+                session,
+                receipt=receipt,
+                event_type=GOODS_RECEIPT_CREATED,
+                metadata=command.metadata,
+            )
             await _complete(self._idempotency, session, decision, receipt, 201)
             return receipt
 
@@ -104,6 +117,12 @@ class PostgresGoodsReceiptOperations:
                 raise _validation("Invalid physical receipt transition.", error) from error
             await repository.save(
                 changed, actor_id=actor_id, expected_version=command.expected_version
+            )
+            await record_goods_receipt_event(
+                session,
+                receipt=changed,
+                event_type=GOODS_RECEIPT_RECEIVED,
+                metadata=command.metadata,
             )
             await _complete(self._idempotency, session, decision, changed)
             return changed
@@ -139,6 +158,12 @@ class PostgresGoodsReceiptOperations:
                 raise _validation("Invalid M17 inspection decision.", error) from error
             await repository.save(
                 changed, actor_id=actor_id, expected_version=command.expected_version
+            )
+            await record_goods_receipt_event(
+                session,
+                receipt=changed,
+                event_type=GOODS_RECEIPT_INSPECTED,
+                metadata=command.metadata,
             )
             await _complete(self._idempotency, session, decision, changed)
             return changed
@@ -193,6 +218,12 @@ class PostgresGoodsReceiptOperations:
                 raise _validation("Invalid M5 inventory posting.", error) from error
             await repository.save(
                 changed, actor_id=actor_id, expected_version=command.expected_version
+            )
+            await record_goods_receipt_event(
+                session,
+                receipt=changed,
+                event_type=GOODS_RECEIPT_POSTED,
+                metadata=command.metadata,
             )
             await _complete(self._idempotency, session, decision, changed)
             return changed

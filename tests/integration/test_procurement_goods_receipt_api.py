@@ -22,8 +22,16 @@ from erp.modules.procurement.application import (
     PROCUREMENT_RECEIPT_MANAGE,
     PROCUREMENT_RECEIPT_READ,
 )
-from erp.modules.procurement.infrastructure import GoodsReceiptModel, ReceiptItemModel
+from erp.modules.procurement.infrastructure import (
+    GOODS_RECEIPT_LIFECYCLE_CONSUMER,
+    GoodsReceiptLifecycleConsumer,
+    GoodsReceiptModel,
+    ReceiptItemModel,
+)
 from erp.platform.idempotency import IdempotencyRecordModel
+from erp.platform.inbox import InboxEventModel
+from erp.platform.messaging import MessageEnvelope
+from erp.platform.outbox import OutboxEventModel
 from tests.integration.test_procurement_purchasing_api import (
     PurchasingApiFixture,
     action,
@@ -76,6 +84,18 @@ def goods_receipt_api() -> Iterator[tuple[PurchasingApiFixture, Warehouse]]:
 
             async def cleanup() -> None:
                 async with api.data.database.session() as session, session.begin():
+                    await session.execute(
+                        delete(InboxEventModel).where(
+                            InboxEventModel.consumer_name == GOODS_RECEIPT_LIFECYCLE_CONSUMER
+                        )
+                    )
+                    await session.execute(
+                        delete(OutboxEventModel).where(
+                            OutboxEventModel.aggregate_type == "goods_receipt",
+                            OutboxEventModel.payload["company_id"].astext
+                            == str(api.data.company_id),
+                        )
+                    )
                     await session.execute(text("SET LOCAL erp.allow_ledger_cleanup = 'on'"))
                     await session.execute(
                         delete(InventoryBalanceModel).where(
@@ -282,3 +302,57 @@ def test_receipt_idempotency_etag_rbac_and_tenant_scope() -> None:
         denied = _create_receipt(api, warehouse, issued)
         assert denied.status_code == 403
         assert denied.json()["error"]["code"] == "PERMISSION_FORBIDDEN"
+
+
+def test_receipt_events_are_transactional_and_consumed_exactly_once() -> None:
+    with goods_receipt_api() as (api, warehouse):
+        issued = _issued_order(api)
+        created = _create_receipt(api, warehouse, issued)
+        received = _mutate(api, created, "receive", {})
+        item = received.json()["items"][0]
+        inspected = _mutate(
+            api,
+            received,
+            "inspect",
+            {
+                "decisions": [
+                    {
+                        "receipt_item_id": item["id"],
+                        "inspection_id": str(uuid4()),
+                        "disposition": "APPROVE",
+                        "approved_quantity": item["received_quantity"],
+                    }
+                ]
+            },
+        )
+        posted = _mutate(api, inspected, "post-to-inventory", None)
+        assert posted.status_code == 200
+
+        async def verify() -> tuple[list[str], list[tuple[bool, bool]]]:
+            async with api.data.database.session() as session:
+                models = list(
+                    await session.scalars(
+                        select(OutboxEventModel)
+                        .where(OutboxEventModel.aggregate_id == UUID(posted.json()["id"]))
+                        .order_by(OutboxEventModel.occurred_at)
+                    )
+                )
+            consumer = GoodsReceiptLifecycleConsumer(api.data.database)
+            envelopes = [MessageEnvelope.model_validate(value.payload) for value in models]
+            outcomes = []
+            for envelope in envelopes:
+                first = await consumer.consume(envelope)
+                replay = await consumer.consume(envelope)
+                outcomes.extend([(first.processed, first.duplicate), (replay.processed, replay.duplicate)])
+            return [value.event_type for value in models], outcomes
+
+        portal = api.client.portal
+        assert portal is not None
+        event_types, outcomes = portal.call(verify)
+        assert event_types == [
+            "GoodsReceiptCreated",
+            "GoodsReceiptReceived",
+            "GoodsReceiptInspected",
+            "GoodsReceiptPosted",
+        ]
+        assert outcomes == [(True, False), (False, True)] * 4
