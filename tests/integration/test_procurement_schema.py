@@ -10,9 +10,11 @@ from sqlalchemy import Connection, inspect
 
 from erp.modules.admin.infrastructure import CompanyModel
 from erp.modules.procurement.infrastructure import (
+    GoodsReceiptModel,
     PurchaseOrderItemModel,
     PurchaseOrderModel,
     PurchaseRequisitionModel,
+    ReceiptItemModel,
     RequisitionItemModel,
     SupplierModel,
     SupplierSiteModel,
@@ -36,6 +38,8 @@ def test_procurement_migration_matches_orm_and_tenant_constraints() -> None:
             "purchase_order",
             "purchase_order_item",
             "purchase_requisition",
+            "goods_receipt",
+            "receipt_item",
             "requisition_item",
             "supplier",
             "supplier_site",
@@ -47,6 +51,8 @@ def test_procurement_migration_matches_orm_and_tenant_constraints() -> None:
             ("requisition_item", RequisitionItemModel),
             ("purchase_order", PurchaseOrderModel),
             ("purchase_order_item", PurchaseOrderItemModel),
+            ("goods_receipt", GoodsReceiptModel),
+            ("receipt_item", ReceiptItemModel),
         ):
             columns = {
                 column["name"] for column in inspector.get_columns(table, schema="procurement")
@@ -78,6 +84,16 @@ def test_procurement_migration_matches_orm_and_tenant_constraints() -> None:
         }
         assert ("company_id", "number") in requisition_uniques
         assert ("company_id", "number") in order_uniques
+        receipt_uniques = {
+            tuple(item["column_names"])
+            for item in inspector.get_unique_constraints("goods_receipt", "procurement")
+        }
+        assert ("company_id", "number") in receipt_uniques
+        receipt_fks = inspector.get_foreign_keys("goods_receipt", "procurement")
+        assert (
+            "company_id",
+            "purchase_order_id",
+        ) in {tuple(item["constrained_columns"]) for item in receipt_fks}
         site_fks = inspector.get_foreign_keys("supplier_site", "procurement")
         assert {
             tuple(item["constrained_columns"]): (

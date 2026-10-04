@@ -5,6 +5,14 @@ from erp.modules.procurement.infrastructure.approval_consumer import (
     PROCUREMENT_APPROVAL_CONSUMER,
     ProcurementApprovalDecisionConsumer,
 )
+from erp.modules.procurement.infrastructure.goods_receipt_model import (
+    GoodsReceiptModel,
+    ReceiptItemModel,
+)
+from erp.modules.procurement.infrastructure.goods_receipt_repository import (
+    GoodsReceiptConflictError,
+    GoodsReceiptRepository,
+)
 from erp.modules.procurement.infrastructure.purchasing_effects import (
     PURCHASE_APPROVAL_REQUESTED,
     PURCHASE_ORDER_APPROVED,
@@ -41,6 +49,9 @@ __all__ = [
     "PURCHASE_ORDER_APPROVED",
     "PURCHASE_ORDER_CANCELLED",
     "PURCHASE_ORDER_REJECTED",
+    "GoodsReceiptConflictError",
+    "GoodsReceiptModel",
+    "GoodsReceiptRepository",
     "PostgresPurchasingStore",
     "PostgresSupplierStore",
     "ProcurementApprovalDecisionConsumer",
@@ -51,6 +62,7 @@ __all__ = [
     "PurchaseRequisitionConflictError",
     "PurchaseRequisitionModel",
     "PurchaseRequisitionRepository",
+    "ReceiptItemModel",
     "RequisitionItemModel",
     "SupplierConflictError",
     "SupplierModel",
