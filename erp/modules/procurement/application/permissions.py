@@ -20,6 +20,8 @@ PROCUREMENT_REQUISITION_READ = PermissionCode("procurement.requisition.read")
 PROCUREMENT_REQUISITION_MANAGE = PermissionCode("procurement.requisition.manage")
 PROCUREMENT_ORDER_READ = PermissionCode("procurement.order.read")
 PROCUREMENT_ORDER_MANAGE = PermissionCode("procurement.order.manage")
+PROCUREMENT_RECEIPT_READ = PermissionCode("procurement.receipt.read")
+PROCUREMENT_RECEIPT_MANAGE = PermissionCode("procurement.receipt.manage")
 
 
 def procurement_permission_registry() -> PermissionRegistry:
@@ -52,6 +54,16 @@ def procurement_permission_registry() -> PermissionRegistry:
         (
             PROCUREMENT_ORDER_MANAGE,
             "Create and transition purchase orders",
+            PermissionRiskLevel.HIGH,
+        ),
+        (
+            PROCUREMENT_RECEIPT_READ,
+            "Read physical goods receipts",
+            PermissionRiskLevel.MEDIUM,
+        ),
+        (
+            PROCUREMENT_RECEIPT_MANAGE,
+            "Create and transition physical goods receipts",
             PermissionRiskLevel.HIGH,
         ),
     )
@@ -88,6 +100,8 @@ class ProcurementAuthorization:
 __all__ = [
     "PROCUREMENT_ORDER_MANAGE",
     "PROCUREMENT_ORDER_READ",
+    "PROCUREMENT_RECEIPT_MANAGE",
+    "PROCUREMENT_RECEIPT_READ",
     "PROCUREMENT_REQUISITION_MANAGE",
     "PROCUREMENT_REQUISITION_READ",
     "PROCUREMENT_SUPPLIER_MANAGE",

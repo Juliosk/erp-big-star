@@ -4,6 +4,8 @@ from erp.modules.admin.contracts import DataClassification, PermissionRiskLevel
 from erp.modules.procurement.application import (
     PROCUREMENT_ORDER_MANAGE,
     PROCUREMENT_ORDER_READ,
+    PROCUREMENT_RECEIPT_MANAGE,
+    PROCUREMENT_RECEIPT_READ,
     PROCUREMENT_REQUISITION_MANAGE,
     PROCUREMENT_REQUISITION_READ,
     PROCUREMENT_SUPPLIER_MANAGE,
@@ -21,6 +23,8 @@ def test_procurement_registry_exposes_the_canonical_m6_permissions() -> None:
         PROCUREMENT_REQUISITION_MANAGE,
         PROCUREMENT_ORDER_READ,
         PROCUREMENT_ORDER_MANAGE,
+        PROCUREMENT_RECEIPT_READ,
+        PROCUREMENT_RECEIPT_MANAGE,
     }
 
     assert frozenset(item.code for item in registry.all()) == frozenset(expected)

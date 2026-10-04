@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from erp.apps.api.import_composition import compose_imports
 from erp.apps.api.middleware import CorrelationIdMiddleware, RequestIdMiddleware
+from erp.apps.api.procurement_receipts import PostgresGoodsReceiptOperations
 from erp.apps.api.routes import health_router
 from erp.apps.api.sales_workflow import WorkflowDiscountGateway
 from erp.apps.web.mount import mount_web
@@ -71,6 +72,7 @@ from erp.modules.pricing.infrastructure import (
 )
 from erp.modules.procurement.api import router as procurement_router
 from erp.modules.procurement.application import (
+    GoodsReceiptService,
     ProcurementAuthorization,
     PurchasingService,
     SupplierService,
@@ -164,6 +166,7 @@ def create_app(
     customer_360: Customer360Service | None = None,
     procurement_suppliers: SupplierService | None = None,
     procurement_purchasing: PurchasingService | None = None,
+    procurement_goods_receipts: GoodsReceiptService | None = None,
     inventory_queries: InventoryQueries | None = None,
     inventory_creation: InventoryCatalogService | None = None,
     inventory_adjustments: InventoryAdjustmentService | None = None,
@@ -216,6 +219,7 @@ def create_app(
     resolved_customer_360 = customer_360
     resolved_procurement_suppliers = procurement_suppliers
     resolved_procurement_purchasing = procurement_purchasing
+    resolved_procurement_goods_receipts = procurement_goods_receipts
     resolved_inventory_queries = inventory_queries
     resolved_inventory_creation = inventory_creation
     resolved_inventory_adjustments = inventory_adjustments
@@ -479,6 +483,15 @@ def create_app(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
             ),
         )
+    if resolved_procurement_goods_receipts is None and isinstance(resolved_database, Database):
+        resolved_procurement_goods_receipts = GoodsReceiptService(
+            PostgresGoodsReceiptOperations(
+                resolved_database, ttl_seconds=resolved_settings.idempotency_ttl_seconds
+            ),
+            ProcurementAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
     if product_barcodes is None and isinstance(resolved_database, Database):
         product_barcodes = ProductBarcodeService(
             PostgresProductBarcodes(
@@ -576,6 +589,7 @@ def create_app(
     application.state.customer_360 = resolved_customer_360
     application.state.procurement_suppliers = resolved_procurement_suppliers
     application.state.procurement_purchasing = resolved_procurement_purchasing
+    application.state.procurement_goods_receipts = resolved_procurement_goods_receipts
     application.state.inventory_queries = resolved_inventory_queries
     application.state.inventory_creation = resolved_inventory_creation
     application.state.inventory_adjustments = resolved_inventory_adjustments

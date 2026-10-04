@@ -90,6 +90,8 @@ class Settings(BaseSettings):
         "procurement.requisition.manage",
         "procurement.order.read",
         "procurement.order.manage",
+        "procurement.receipt.read",
+        "procurement.receipt.manage",
         "workflow.definition.manage",
     )
 

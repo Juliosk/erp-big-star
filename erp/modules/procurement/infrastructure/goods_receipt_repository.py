@@ -230,6 +230,9 @@ class GoodsReceiptRepository:
         *,
         status: GoodsReceiptStatus | None = None,
         purchase_order_id: UUID | None = None,
+        supplier_id: UUID | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[GoodsReceipt, ...]:
@@ -243,6 +246,12 @@ class GoodsReceiptRepository:
             statement = statement.where(GoodsReceiptModel.status == status)
         if purchase_order_id is not None:
             statement = statement.where(GoodsReceiptModel.purchase_order_id == purchase_order_id)
+        if supplier_id is not None:
+            statement = statement.where(GoodsReceiptModel.supplier_id == supplier_id)
+        if created_from is not None:
+            statement = statement.where(GoodsReceiptModel.created_at >= created_from)
+        if created_to is not None:
+            statement = statement.where(GoodsReceiptModel.created_at <= created_to)
         roots = await self._session.scalars(
             statement.order_by(GoodsReceiptModel.number, GoodsReceiptModel.id)
             .limit(limit)
