@@ -29,12 +29,17 @@ class InvalidPurchaseOrderError(ProcurementDomainError):
     """A purchase order invariant was violated."""
 
 
+class InvalidGoodsReceiptError(ProcurementDomainError):
+    """A physical goods receipt invariant was violated."""
+
+
 class InvalidProcurementTransitionError(ProcurementDomainError):
     """A requisition or purchase order lifecycle transition is not allowed."""
 
 
 __all__ = [
     "DuplicateSupplierSiteError",
+    "InvalidGoodsReceiptError",
     "InvalidProcurementTransitionError",
     "InvalidPurchaseOrderError",
     "InvalidRequisitionError",
