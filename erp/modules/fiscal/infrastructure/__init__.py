@@ -7,5 +7,13 @@ from erp.modules.fiscal.infrastructure.fiscal_document_model import (
 from erp.modules.fiscal.infrastructure.fiscal_document_repository import (
     FiscalDocumentRepository,
 )
+from erp.modules.fiscal.infrastructure.fiscal_document_store import (
+    PostgresFiscalDocumentStore,
+)
 
-__all__ = ["FiscalDocumentItemModel", "FiscalDocumentModel", "FiscalDocumentRepository"]
+__all__ = [
+    "FiscalDocumentItemModel",
+    "FiscalDocumentModel",
+    "FiscalDocumentRepository",
+    "PostgresFiscalDocumentStore",
+]

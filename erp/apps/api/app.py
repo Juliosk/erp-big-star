@@ -42,6 +42,9 @@ from erp.modules.customer.infrastructure.customer_directory import PostgresCusto
 from erp.modules.customer.infrastructure.customer_duplicates import PostgresCustomerDuplicates
 from erp.modules.customer.infrastructure.customer_groups import PostgresCustomerGroups
 from erp.modules.customer.infrastructure.customer_updates import PostgresCustomerUpdates
+from erp.modules.fiscal.api import router as fiscal_router
+from erp.modules.fiscal.application import FiscalAuthorization, FiscalDocumentService
+from erp.modules.fiscal.infrastructure import PostgresFiscalDocumentStore
 from erp.modules.governance.api import router as import_router
 from erp.modules.governance.application.imports import ImportService
 from erp.modules.inventory.api import router as inventory_router
@@ -167,6 +170,7 @@ def create_app(
     procurement_suppliers: SupplierService | None = None,
     procurement_purchasing: PurchasingService | None = None,
     procurement_goods_receipts: GoodsReceiptService | None = None,
+    fiscal_documents: FiscalDocumentService | None = None,
     inventory_queries: InventoryQueries | None = None,
     inventory_creation: InventoryCatalogService | None = None,
     inventory_adjustments: InventoryAdjustmentService | None = None,
@@ -220,6 +224,7 @@ def create_app(
     resolved_procurement_suppliers = procurement_suppliers
     resolved_procurement_purchasing = procurement_purchasing
     resolved_procurement_goods_receipts = procurement_goods_receipts
+    resolved_fiscal_documents = fiscal_documents
     resolved_inventory_queries = inventory_queries
     resolved_inventory_creation = inventory_creation
     resolved_inventory_adjustments = inventory_adjustments
@@ -492,6 +497,15 @@ def create_app(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
             ),
         )
+    if resolved_fiscal_documents is None and isinstance(resolved_database, Database):
+        resolved_fiscal_documents = FiscalDocumentService(
+            PostgresFiscalDocumentStore(
+                resolved_database, ttl_seconds=resolved_settings.idempotency_ttl_seconds
+            ),
+            FiscalAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
     if product_barcodes is None and isinstance(resolved_database, Database):
         product_barcodes = ProductBarcodeService(
             PostgresProductBarcodes(
@@ -590,6 +604,7 @@ def create_app(
     application.state.procurement_suppliers = resolved_procurement_suppliers
     application.state.procurement_purchasing = resolved_procurement_purchasing
     application.state.procurement_goods_receipts = resolved_procurement_goods_receipts
+    application.state.fiscal_documents = resolved_fiscal_documents
     application.state.inventory_queries = resolved_inventory_queries
     application.state.inventory_creation = resolved_inventory_creation
     application.state.inventory_adjustments = resolved_inventory_adjustments
@@ -620,6 +635,7 @@ def create_app(
     application.include_router(product_router)
     application.include_router(customer_router)
     application.include_router(procurement_router)
+    application.include_router(fiscal_router)
     application.include_router(inventory_router)
     application.include_router(pricing_router)
     application.include_router(wms_router)

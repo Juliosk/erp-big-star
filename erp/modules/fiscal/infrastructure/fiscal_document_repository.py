@@ -69,6 +69,10 @@ class FiscalDocumentRepository:
         self,
         *,
         status: FiscalDocumentStatus | None = None,
+        access_key: str | None = None,
+        model: DomainFiscalDocumentModel | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[FiscalDocument, ...]:
@@ -83,6 +87,14 @@ class FiscalDocumentRepository:
             if not isinstance(status, FiscalDocumentStatus):
                 raise ValueError("status must be an official fiscal document status.")
             statement = statement.where(FiscalDocumentModel.status == status)
+        if access_key is not None:
+            statement = statement.where(FiscalDocumentModel.access_key == access_key)
+        if model is not None:
+            statement = statement.where(FiscalDocumentModel.model == model.value)
+        if created_from is not None:
+            statement = statement.where(FiscalDocumentModel.created_at >= created_from)
+        if created_to is not None:
+            statement = statement.where(FiscalDocumentModel.created_at <= created_to)
         roots = await self._session.scalars(
             statement.order_by(
                 FiscalDocumentModel.series,

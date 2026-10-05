@@ -1,11 +1,17 @@
 """Official M11 permissions evaluated through public M1 contracts."""
 
+from uuid import UUID
+
 from erp.modules.admin.contracts import (
+    AuthorizationPolicy,
+    CompanyAccessService,
     DataClassification,
     Permission,
     PermissionCode,
     PermissionRegistry,
     PermissionRiskLevel,
+    SecurityContext,
+    require_permission,
 )
 
 FISCAL_NFE_READ = PermissionCode("fiscal.nfe.read")
@@ -32,10 +38,30 @@ def fiscal_permission_registry() -> PermissionRegistry:
     )
 
 
+class FiscalAuthorization:
+    """Fail-closed fiscal permission and company-scope policy."""
+
+    def __init__(self, companies: CompanyAccessService) -> None:
+        self._companies = companies
+        self._policy = AuthorizationPolicy(fiscal_permission_registry())
+
+    async def require(
+        self,
+        context: SecurityContext,
+        company_id: UUID,
+        permission: PermissionCode,
+        *,
+        write: bool = False,
+    ) -> None:
+        require_permission(policy=self._policy, context=context, permission=permission)
+        await self._companies.require_company(context, company_id, write=write)
+
+
 __all__ = [
     "FISCAL_NFE_CANCEL",
     "FISCAL_NFE_CORRECT",
     "FISCAL_NFE_ISSUE",
     "FISCAL_NFE_READ",
+    "FiscalAuthorization",
     "fiscal_permission_registry",
 ]
