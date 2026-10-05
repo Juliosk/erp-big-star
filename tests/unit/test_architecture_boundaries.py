@@ -118,3 +118,35 @@ def test_procurement_never_depends_on_fiscal_or_finance_internals() -> None:
             if imported.startswith(forbidden):
                 violations.append((str(source.relative_to(PROJECT_ROOT)), imported))
     assert violations == []
+
+
+def test_fiscal_imports_only_own_module_or_public_owner_contracts() -> None:
+    """M11 cannot bypass M6/M12 ownership through internal imports."""
+    allowed = (
+        "erp.modules.fiscal.",
+        "erp.modules.admin.contracts",
+    )
+    violations = []
+    root = PROJECT_ROOT / "erp" / "modules" / "fiscal"
+    for source in root.rglob("*.py"):
+        for imported in imported_modules(source.read_text(encoding="utf-8")):
+            if imported.startswith("erp.modules.") and not imported.startswith(allowed):
+                violations.append((str(source.relative_to(PROJECT_ROOT)), imported))
+    assert violations == []
+
+
+def test_fiscal_never_depends_on_procurement_or_finance_internals() -> None:
+    forbidden = (
+        "erp.modules.procurement",
+        "erp.modules.finance",
+        "erp.modules.financial",
+        "erp.modules.accounts_payable",
+        "erp.modules.accounts_receivable",
+    )
+    violations = []
+    root = PROJECT_ROOT / "erp" / "modules" / "fiscal"
+    for source in root.rglob("*.py"):
+        for imported in imported_modules(source.read_text(encoding="utf-8")):
+            if imported.startswith(forbidden):
+                violations.append((str(source.relative_to(PROJECT_ROOT)), imported))
+    assert violations == []

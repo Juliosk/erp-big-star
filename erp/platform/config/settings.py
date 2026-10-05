@@ -92,6 +92,10 @@ class Settings(BaseSettings):
         "procurement.order.manage",
         "procurement.receipt.read",
         "procurement.receipt.manage",
+        "fiscal.nfe.read",
+        "fiscal.nfe.issue",
+        "fiscal.nfe.cancel",
+        "fiscal.nfe.correct",
         "workflow.definition.manage",
     )
 
