@@ -8,9 +8,19 @@ from erp.modules.fiscal.domain.document import (
 )
 from erp.modules.fiscal.domain.exceptions import (
     FiscalDomainError,
+    ImmutableDocumentError,
     InvalidAccessKeyError,
     InvalidFiscalContractError,
+    InvalidStateTransitionError,
     InvalidTaxSnapshotError,
+    TaxMismatchError,
+)
+from erp.modules.fiscal.domain.fiscal_document import (
+    LEGAL_ROUNDING_TOLERANCE,
+    FiscalDocument,
+    FiscalDocumentItem,
+    FiscalDocumentTotals,
+    FiscalPartySnapshot,
 )
 from erp.modules.fiscal.domain.tax_snapshot import (
     TaxComponentSnapshot,
@@ -19,15 +29,23 @@ from erp.modules.fiscal.domain.tax_snapshot import (
 )
 
 __all__ = [
+    "LEGAL_ROUNDING_TOLERANCE",
     "FiscalAuthorizationStatus",
+    "FiscalDocument",
+    "FiscalDocumentItem",
     "FiscalDocumentModel",
     "FiscalDocumentStatus",
+    "FiscalDocumentTotals",
     "FiscalDomainError",
+    "FiscalPartySnapshot",
+    "ImmutableDocumentError",
     "InvalidAccessKeyError",
     "InvalidFiscalContractError",
+    "InvalidStateTransitionError",
     "InvalidTaxSnapshotError",
     "NFeAccessKey",
     "TaxComponentSnapshot",
     "TaxKind",
+    "TaxMismatchError",
     "TaxSnapshot",
 ]

@@ -17,9 +17,24 @@ class InvalidFiscalContractError(FiscalDomainError):
     """Raised when a public fiscal integration contract is inconsistent."""
 
 
+class InvalidStateTransitionError(FiscalDomainError):
+    """Raised when a fiscal document lifecycle transition is forbidden."""
+
+
+class TaxMismatchError(FiscalDomainError):
+    """Raised when item and header fiscal totals exceed legal tolerance."""
+
+
+class ImmutableDocumentError(FiscalDomainError):
+    """Raised when an immutable fiscal document is changed."""
+
+
 __all__ = [
     "FiscalDomainError",
+    "ImmutableDocumentError",
     "InvalidAccessKeyError",
     "InvalidFiscalContractError",
+    "InvalidStateTransitionError",
     "InvalidTaxSnapshotError",
+    "TaxMismatchError",
 ]

@@ -10,10 +10,10 @@ class FiscalDocumentModel(StrEnum):
 
 class FiscalDocumentStatus(StrEnum):
     DRAFT = "DRAFT"
-    PENDING_SUBMISSION = "PENDING_SUBMISSION"
-    SUBMITTED = "SUBMITTED"
+    ISSUING = "ISSUING"
     AUTHORIZED = "AUTHORIZED"
     REJECTED = "REJECTED"
+    DENIED = "DENIED"
     CANCELLED = "CANCELLED"
 
 
