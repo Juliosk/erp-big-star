@@ -29,8 +29,23 @@ class ImmutableDocumentError(FiscalDomainError):
     """Raised when an immutable fiscal document is changed."""
 
 
+class FiscalDocumentConflictError(FiscalDomainError):
+    """Raised when a fiscal identity conflicts inside its tenant scope."""
+
+
+class FiscalVersionConflictError(FiscalDomainError):
+    """Raised when an optimistic fiscal write targets a stale version."""
+
+
+class FiscalScopeError(FiscalDomainError):
+    """Raised when a fiscal aggregate crosses its explicit tenant scope."""
+
+
 __all__ = [
+    "FiscalDocumentConflictError",
     "FiscalDomainError",
+    "FiscalScopeError",
+    "FiscalVersionConflictError",
     "ImmutableDocumentError",
     "InvalidAccessKeyError",
     "InvalidFiscalContractError",

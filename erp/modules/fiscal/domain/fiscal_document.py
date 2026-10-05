@@ -175,6 +175,24 @@ class FiscalDocumentTotals:
 
 
 @dataclass(frozen=True, slots=True)
+class SefazResponseSnapshot:
+    attempt_id: UUID
+    status_code: str
+    message: str
+    occurred_at: datetime
+    protocol: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.status_code.strip() or not self.message.strip():
+            raise FiscalDomainError("SEFAZ response code and message are required.")
+        object.__setattr__(self, "status_code", self.status_code.strip())
+        object.__setattr__(self, "message", self.message.strip())
+        if self.protocol is not None:
+            normalized = self.protocol.strip()
+            object.__setattr__(self, "protocol", normalized or None)
+
+
+@dataclass(frozen=True, slots=True)
 class FiscalDocument:
     id: UUID
     company_id: UUID
@@ -194,6 +212,7 @@ class FiscalDocument:
     authorized_at: datetime | None = None
     cancellation_protocol: str | None = None
     cancelled_at: datetime | None = None
+    sefaz_history: tuple[SefazResponseSnapshot, ...] = ()
 
     def __post_init__(self) -> None:
         if self.series < 1 or self.number < 1 or self.version < 1:
@@ -360,4 +379,5 @@ __all__ = [
     "FiscalDocumentItem",
     "FiscalDocumentTotals",
     "FiscalPartySnapshot",
+    "SefazResponseSnapshot",
 ]

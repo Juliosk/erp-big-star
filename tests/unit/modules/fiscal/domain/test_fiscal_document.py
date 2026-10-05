@@ -19,6 +19,7 @@ from erp.modules.fiscal.domain import (
     ImmutableDocumentError,
     InvalidStateTransitionError,
     NFeAccessKey,
+    SefazResponseSnapshot,
     TaxComponentSnapshot,
     TaxKind,
     TaxMismatchError,
@@ -342,4 +343,33 @@ def test_totals_reject_negative_and_invalid_values() -> None:
             discount_amount="0",
             tax_amount="0",
             total_amount="0",
+        )
+
+
+def test_sefaz_response_snapshot_is_normalized_and_validated() -> None:
+    occurred_at = datetime.now(UTC)
+    response = SefazResponseSnapshot(
+        attempt_id=uuid4(),
+        status_code=" 103 ",
+        message=" Lote recebido ",
+        occurred_at=occurred_at,
+        protocol=" ",
+    )
+
+    assert response.status_code == "103"
+    assert response.message == "Lote recebido"
+    assert response.protocol is None
+    assert SefazResponseSnapshot(
+        attempt_id=uuid4(),
+        status_code="100",
+        message="Autorizado",
+        occurred_at=occurred_at,
+    ).protocol is None
+    with pytest.raises(FiscalDomainError):
+        SefazResponseSnapshot(
+            attempt_id=uuid4(), status_code=" ", message="x", occurred_at=occurred_at
+        )
+    with pytest.raises(FiscalDomainError):
+        SefazResponseSnapshot(
+            attempt_id=uuid4(), status_code="100", message=" ", occurred_at=occurred_at
         )
