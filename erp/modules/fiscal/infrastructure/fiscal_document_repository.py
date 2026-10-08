@@ -212,8 +212,10 @@ def _root_values(document: FiscalDocument, actor_id: UUID) -> dict[str, Any]:
         "rejection_code": document.rejection_code,
         "rejection_reason": document.rejection_reason,
         "authorized_at": document.authorized_at,
+        "authorized_xml": document.authorized_xml,
         "cancellation_protocol": document.cancellation_protocol,
         "cancelled_at": document.cancelled_at,
+        "cancellation_xml": document.cancellation_xml,
         "sefaz_history": [_sefaz_payload(value) for value in document.sefaz_history],
         "version": document.version,
         "updated_at": datetime.now(UTC),
@@ -273,8 +275,10 @@ def _document(
         rejection_code=root.rejection_code,
         rejection_reason=root.rejection_reason,
         authorized_at=root.authorized_at,
+        authorized_xml=root.authorized_xml,
         cancellation_protocol=root.cancellation_protocol,
         cancelled_at=root.cancelled_at,
+        cancellation_xml=root.cancellation_xml,
         sefaz_history=tuple(_sefaz(value) for value in root.sefaz_history),
     )
 

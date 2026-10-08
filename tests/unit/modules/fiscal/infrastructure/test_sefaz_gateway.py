@@ -16,6 +16,7 @@ from cryptography.x509.oid import NameOID
 from erp.modules.fiscal.application import (
     ContingencyMode,
     SefazBatchRequest,
+    SefazCancellationRequest,
     SefazEndpoint,
     SefazEnvironment,
     SefazSubmissionMode,
@@ -35,6 +36,7 @@ from erp.modules.fiscal.infrastructure import (
     SefazMockScenario,
     SefazTransientError,
 )
+from tests.unit.modules.fiscal.domain.test_fiscal_document import access_key
 
 DS = "http://www.w3.org/2000/09/xmldsig#"
 CNPJ = "12345678000195"
@@ -83,7 +85,9 @@ def request(
     model: FiscalDocumentModel = FiscalDocumentModel.NFE,
     mode: SefazSubmissionMode = SefazSubmissionMode.SYNCHRONOUS,
 ) -> SefazBatchRequest:
-    return SefazBatchRequest("000000000000001", (b"<NFe/>",), model, mode, endpoint())
+    return SefazBatchRequest(
+        "000000000000001", (b"<NFe/>",), access_key(model.value), model, mode, endpoint()
+    )
 
 
 def test_a1_certificate_loads_identity_and_signs_verifiable_xmldsig() -> None:
@@ -338,13 +342,69 @@ def test_certificate_gateway_composes_local_signer_and_transport() -> None:
     )
     assert asyncio.run(gateway.submit_batch(request())).status_code == "100"
     assert asyncio.run(gateway.query_protocol(endpoint(), "REC-1")).status_code == "100"
+    cancellation = SefazCancellationRequest(
+        access_key(),
+        "135260000000001",
+        "Cancelamento operacional autorizado",
+        1,
+        endpoint(),
+    )
+    assert asyncio.run(gateway.cancel_document(cancellation)).accepted
+
+
+def test_resilient_cancellation_supports_contingency_and_failures() -> None:
+    request_value = SefazCancellationRequest(
+        access_key(),
+        "135260000000001",
+        "Cancelamento operacional autorizado",
+        1,
+        endpoint(),
+    )
+    mock = SefazMockAdapter((SefazMockScenario.TIMEOUT, SefazMockScenario.AUTHORIZED))
+    gateway = ResilientSefazGateway(
+        mock,
+        retry=RetryPolicy(max_attempts=1),
+        contingency=ContingencyPolicy({"SP": ContingencyMode.SVC_AN}),
+    )
+    result = asyncio.run(gateway.cancel_document(request_value))
+    assert result.accepted
+    assert result.endpoint.contingency is ContingencyMode.SVC_AN
+
+    unavailable = ResilientSefazGateway(
+        SefazMockAdapter((SefazMockScenario.UNAVAILABLE,)),
+        retry=RetryPolicy(max_attempts=1),
+    )
+    with pytest.raises(SefazTransientError):
+        asyncio.run(unavailable.cancel_document(request_value))
+
+
+@pytest.mark.parametrize("scenario", [SefazMockScenario.UNAVAILABLE, SefazMockScenario.TIMEOUT])
+def test_mock_cancellation_simulates_transport_failures(scenario: SefazMockScenario) -> None:
+    mock = SefazMockAdapter((scenario,))
+    request_value = SefazCancellationRequest(
+        access_key(),
+        "135260000000001",
+        "Cancelamento operacional autorizado",
+        1,
+        endpoint(),
+    )
+    expected = SefazTransientError if scenario is SefazMockScenario.UNAVAILABLE else TimeoutError
+    with pytest.raises(expected):
+        asyncio.run(mock.cancel_document(request_value))
 
 
 def test_contracts_and_policy_configuration_fail_closed() -> None:
     with pytest.raises(ValueError, match="two letters"):
         SefazEndpoint("S", SefazEnvironment.PRODUCTION)
     with pytest.raises(ValueError, match="required"):
-        SefazBatchRequest("", (), FiscalDocumentModel.NFE, SefazSubmissionMode.SYNCHRONOUS, endpoint())
+        SefazBatchRequest(
+            "",
+            (),
+            access_key(),
+            FiscalDocumentModel.NFE,
+            SefazSubmissionMode.SYNCHRONOUS,
+            endpoint(),
+        )
     with pytest.raises(ValueError, match="positive"):
         RetryPolicy(max_attempts=0)
     with pytest.raises(ValueError, match="delays"):
@@ -354,6 +414,16 @@ def test_contracts_and_policy_configuration_fail_closed() -> None:
     with pytest.raises(ValueError, match="thresholds"):
         CircuitBreaker(failure_threshold=0)
     assert ContingencyPolicy().select(endpoint(), FiscalDocumentModel.NFE) is None
+    with pytest.raises(ValueError, match="at least 15"):
+        SefazCancellationRequest(access_key(), "", "short", 1, endpoint())
+    with pytest.raises(ValueError, match="positive"):
+        SefazCancellationRequest(
+            access_key(),
+            "135260000000001",
+            "Cancelamento operacional autorizado",
+            0,
+            endpoint(),
+        )
 
 
 def _canonical(element: ElementTree.Element) -> bytes:

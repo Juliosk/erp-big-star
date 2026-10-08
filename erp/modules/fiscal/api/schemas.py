@@ -136,8 +136,10 @@ class FiscalDocumentResponse(BaseModel):
     rejection_code: str | None
     rejection_reason: str | None
     authorized_at: datetime | None
+    authorized_xml: str | None
     cancellation_protocol: str | None
     cancelled_at: datetime | None
+    cancellation_xml: str | None
     sefaz_history: list[dict[str, object]]
     version: int
 
@@ -193,8 +195,10 @@ class FiscalDocumentResponse(BaseModel):
             rejection_code=document.rejection_code,
             rejection_reason=document.rejection_reason,
             authorized_at=document.authorized_at,
+            authorized_xml=document.authorized_xml,
             cancellation_protocol=document.cancellation_protocol,
             cancelled_at=document.cancelled_at,
+            cancellation_xml=document.cancellation_xml,
             sefaz_history=[
                 {
                     "attempt_id": item.attempt_id,

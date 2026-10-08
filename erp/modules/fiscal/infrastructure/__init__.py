@@ -15,6 +15,7 @@ from erp.modules.fiscal.infrastructure.fiscal_document_repository import (
 from erp.modules.fiscal.infrastructure.fiscal_document_store import (
     PostgresFiscalDocumentStore,
 )
+from erp.modules.fiscal.infrastructure.issuance_store import PostgresFiscalIssuanceStore
 from erp.modules.fiscal.infrastructure.sefaz_gateway import (
     CertificateSefazGateway,
     CircuitBreaker,
@@ -41,6 +42,7 @@ __all__ = [
     "FiscalDocumentModel",
     "FiscalDocumentRepository",
     "PostgresFiscalDocumentStore",
+    "PostgresFiscalIssuanceStore",
     "ResilientSefazGateway",
     "RetryPolicy",
     "SefazCircuitOpenError",

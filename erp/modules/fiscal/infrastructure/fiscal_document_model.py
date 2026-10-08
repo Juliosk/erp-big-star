@@ -14,6 +14,7 @@ from sqlalchemy import (
     Index,
     Numeric,
     String,
+    Text,
     UniqueConstraint,
     func,
     text,
@@ -73,8 +74,10 @@ class FiscalDocumentModel(OptimisticLockMixin, Base):
     rejection_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
     rejection_reason: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     authorized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    authorized_xml: Mapped[str | None] = mapped_column(Text, nullable=True)
     cancellation_protocol: Mapped[str | None] = mapped_column(String(64), nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancellation_xml: Mapped[str | None] = mapped_column(Text, nullable=True)
     sefaz_history: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
     )

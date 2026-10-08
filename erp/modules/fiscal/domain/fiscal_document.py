@@ -210,8 +210,10 @@ class FiscalDocument:
     rejection_code: str | None = None
     rejection_reason: str | None = None
     authorized_at: datetime | None = None
+    authorized_xml: str | None = None
     cancellation_protocol: str | None = None
     cancelled_at: datetime | None = None
+    cancellation_xml: str | None = None
     sefaz_history: tuple[SefazResponseSnapshot, ...] = ()
 
     def __post_init__(self) -> None:
@@ -243,6 +245,12 @@ class FiscalDocument:
         cancelled = self.status is FiscalDocumentStatus.CANCELLED
         if cancelled != (self.cancellation_protocol is not None and self.cancelled_at is not None):
             raise FiscalDomainError("Cancellation metadata does not match document state.")
+        if self.authorized_xml is not None and not self.authorized_xml.strip():
+            raise FiscalDomainError("Authorized XML cannot be blank.")
+        if self.cancellation_xml is not None and not self.cancellation_xml.strip():
+            raise FiscalDomainError("Cancellation XML cannot be blank.")
+        if not cancelled and self.cancellation_xml is not None:
+            raise FiscalDomainError("Cancellation XML is restricted to cancelled documents.")
 
     @classmethod
     def create(
@@ -275,7 +283,13 @@ class FiscalDocument:
         return replace(self, status=FiscalDocumentStatus.ISSUING, version=self.version + 1)
 
     def authorize(
-        self, *, access_key: NFeAccessKey, protocol: str, authorized_at: datetime
+        self,
+        *,
+        access_key: NFeAccessKey,
+        protocol: str,
+        authorized_at: datetime,
+        authorized_xml: str | None = None,
+        sefaz_response: SefazResponseSnapshot | None = None,
     ) -> Self:
         self._require(FiscalDocumentStatus.ISSUING)
         if not protocol.strip():
@@ -286,16 +300,35 @@ class FiscalDocument:
             access_key=access_key,
             authorization_protocol=protocol.strip(),
             authorized_at=authorized_at,
+            authorized_xml=None if authorized_xml is None else authorized_xml.strip(),
+            sefaz_history=self.sefaz_history
+            if sefaz_response is None
+            else (*self.sefaz_history, sefaz_response),
             version=self.version + 1,
         )
 
-    def reject(self, *, code: str, reason: str) -> Self:
-        return self._complete_unsuccessfully(FiscalDocumentStatus.REJECTED, code, reason)
+    def reject(
+        self, *, code: str, reason: str, sefaz_response: SefazResponseSnapshot | None = None
+    ) -> Self:
+        return self._complete_unsuccessfully(
+            FiscalDocumentStatus.REJECTED, code, reason, sefaz_response
+        )
 
-    def deny(self, *, code: str, reason: str) -> Self:
-        return self._complete_unsuccessfully(FiscalDocumentStatus.DENIED, code, reason)
+    def deny(
+        self, *, code: str, reason: str, sefaz_response: SefazResponseSnapshot | None = None
+    ) -> Self:
+        return self._complete_unsuccessfully(
+            FiscalDocumentStatus.DENIED, code, reason, sefaz_response
+        )
 
-    def cancel(self, *, protocol: str, cancelled_at: datetime) -> Self:
+    def cancel(
+        self,
+        *,
+        protocol: str,
+        cancelled_at: datetime,
+        cancellation_xml: str | None = None,
+        sefaz_response: SefazResponseSnapshot | None = None,
+    ) -> Self:
         self._require(FiscalDocumentStatus.AUTHORIZED)
         if not protocol.strip():
             raise FiscalDomainError("Cancellation protocol is required.")
@@ -304,6 +337,10 @@ class FiscalDocument:
             status=FiscalDocumentStatus.CANCELLED,
             cancellation_protocol=protocol.strip(),
             cancelled_at=cancelled_at,
+            cancellation_xml=None if cancellation_xml is None else cancellation_xml.strip(),
+            sefaz_history=self.sefaz_history
+            if sefaz_response is None
+            else (*self.sefaz_history, sefaz_response),
             version=self.version + 1,
         )
 
@@ -319,7 +356,11 @@ class FiscalDocument:
         )
 
     def _complete_unsuccessfully(
-        self, status: FiscalDocumentStatus, code: str, reason: str
+        self,
+        status: FiscalDocumentStatus,
+        code: str,
+        reason: str,
+        sefaz_response: SefazResponseSnapshot | None = None,
     ) -> Self:
         self._require(FiscalDocumentStatus.ISSUING)
         if not code.strip() or not reason.strip():
@@ -329,6 +370,9 @@ class FiscalDocument:
             status=status,
             rejection_code=code.strip(),
             rejection_reason=reason.strip(),
+            sefaz_history=self.sefaz_history
+            if sefaz_response is None
+            else (*self.sefaz_history, sefaz_response),
             version=self.version + 1,
         )
 

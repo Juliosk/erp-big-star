@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Protocol
 
-from erp.modules.fiscal.domain import FiscalAuthorizationStatus, FiscalDocumentModel
+from erp.modules.fiscal.domain import FiscalAuthorizationStatus, FiscalDocumentModel, NFeAccessKey
 
 
 class SefazEnvironment(StrEnum):
@@ -51,6 +51,7 @@ class SefazServiceStatus:
 class SefazBatchRequest:
     batch_id: str
     signed_documents: tuple[bytes, ...]
+    access_key: NFeAccessKey
     model: FiscalDocumentModel
     mode: SefazSubmissionMode
     endpoint: SefazEndpoint
@@ -69,6 +70,9 @@ class SefazSubmissionResult:
     batch_id: str
     receipt_number: str | None = None
     protocol: str | None = None
+    access_key: NFeAccessKey | None = None
+    authorized_at: datetime | None = None
+    authorized_xml: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +83,35 @@ class SefazProtocolResult:
     endpoint: SefazEndpoint
     receipt_number: str
     protocol: str | None = None
+    access_key: NFeAccessKey | None = None
+    authorized_at: datetime | None = None
+    authorized_xml: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class SefazCancellationRequest:
+    access_key: NFeAccessKey
+    authorization_protocol: str
+    reason: str
+    event_sequence: int
+    endpoint: SefazEndpoint
+
+    def __post_init__(self) -> None:
+        if not self.authorization_protocol.strip() or len(self.reason.strip()) < 15:
+            raise ValueError("Cancellation protocol and a reason of at least 15 characters are required.")
+        if self.event_sequence < 1:
+            raise ValueError("Cancellation event sequence must be positive.")
+
+
+@dataclass(frozen=True, slots=True)
+class SefazCancellationResult:
+    accepted: bool
+    status_code: str
+    message: str
+    endpoint: SefazEndpoint
+    protocol: str | None = None
+    cancelled_at: datetime | None = None
+    event_xml: str | None = None
 
 
 class SefazGatewayPort(Protocol):
@@ -92,10 +125,16 @@ class SefazGatewayPort(Protocol):
         self, endpoint: SefazEndpoint, receipt_number: str
     ) -> SefazProtocolResult: ...
 
+    async def cancel_document(
+        self, request: SefazCancellationRequest
+    ) -> SefazCancellationResult: ...
+
 
 __all__ = [
     "ContingencyMode",
     "SefazBatchRequest",
+    "SefazCancellationRequest",
+    "SefazCancellationResult",
     "SefazEndpoint",
     "SefazEnvironment",
     "SefazGatewayPort",

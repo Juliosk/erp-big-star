@@ -12,6 +12,8 @@ from time import monotonic
 from erp.modules.fiscal.application.sefaz import (
     ContingencyMode,
     SefazBatchRequest,
+    SefazCancellationRequest,
+    SefazCancellationResult,
     SefazEndpoint,
     SefazGatewayPort,
     SefazProtocolResult,
@@ -19,7 +21,7 @@ from erp.modules.fiscal.application.sefaz import (
     SefazSubmissionMode,
     SefazSubmissionResult,
 )
-from erp.modules.fiscal.domain import FiscalAuthorizationStatus, FiscalDocumentModel
+from erp.modules.fiscal.domain import FiscalAuthorizationStatus, FiscalDocumentModel, NFeAccessKey
 from erp.modules.fiscal.infrastructure.certificate import CertificateAdapter
 
 
@@ -178,6 +180,23 @@ class ResilientSefazGateway:
             endpoint, lambda: self._gateway.query_protocol(endpoint, receipt_number)
         )
 
+    async def cancel_document(
+        self, request: SefazCancellationRequest
+    ) -> SefazCancellationResult:
+        try:
+            return await self._execute(
+                request.endpoint, lambda: self._gateway.cancel_document(request)
+            )
+        except (SefazTransientError, SefazCircuitOpenError):
+            model = FiscalDocumentModel(request.access_key.model)
+            endpoint = self._contingency.select(request.endpoint, model)
+            if endpoint is None:
+                raise
+            fallback = replace(request, endpoint=endpoint)
+            return await self._execute(
+                endpoint, lambda: self._gateway.cancel_document(fallback)
+            )
+
     async def _execute[T](
         self, endpoint: SefazEndpoint, operation: Callable[[], Awaitable[T]]
     ) -> T:
@@ -218,6 +237,11 @@ class CertificateSefazGateway:
     ) -> SefazProtocolResult:
         return await self._transport.query_protocol(endpoint, receipt_number)
 
+    async def cancel_document(
+        self, request: SefazCancellationRequest
+    ) -> SefazCancellationResult:
+        return await self._transport.cancel_document(request)
+
 
 class SefazMockScenario(StrEnum):
     AUTHORIZED = "AUTHORIZED"
@@ -235,6 +259,7 @@ class SefazMockAdapter:
     def __init__(self, scenarios: tuple[SefazMockScenario, ...] = ()) -> None:
         self._scenarios = deque(scenarios)
         self.calls: list[tuple[str, SefazEndpoint]] = []
+        self._receipts: dict[str, tuple[NFeAccessKey, str]] = {}
 
     async def service_status(self, endpoint: SefazEndpoint) -> SefazServiceStatus:
         self.calls.append(("status", endpoint))
@@ -259,15 +284,24 @@ class SefazMockAdapter:
             raise TimeoutError("Mock SEFAZ timeout.")
         status, code, message = _mock_outcome(scenario)
         asynchronous = request.mode is SefazSubmissionMode.ASYNCHRONOUS
+        receipt = f"REC-{request.batch_id}" if asynchronous else None
+        if receipt is not None:
+            self._receipts[receipt] = (request.access_key, request.signed_documents[0].decode())
+        authorized = status is FiscalAuthorizationStatus.AUTHORIZED
         return SefazSubmissionResult(
             FiscalAuthorizationStatus.PENDING if asynchronous else status,
             "103" if asynchronous else code,
             "Lote recebido" if asynchronous else message,
             request.endpoint,
             request.batch_id,
-            receipt_number=f"REC-{request.batch_id}" if asynchronous else None,
+            receipt_number=receipt,
             protocol="135260000000001"
-            if not asynchronous and status is FiscalAuthorizationStatus.AUTHORIZED
+            if not asynchronous and authorized
+            else None,
+            access_key=request.access_key if not asynchronous and authorized else None,
+            authorized_at=datetime.now(UTC) if not asynchronous and authorized else None,
+            authorized_xml=request.signed_documents[0].decode()
+            if not asynchronous and authorized
             else None,
         )
 
@@ -281,6 +315,8 @@ class SefazMockAdapter:
         if scenario is SefazMockScenario.TIMEOUT:
             raise TimeoutError("Mock SEFAZ timeout.")
         status, code, message = _mock_outcome(scenario)
+        receipt = self._receipts.get(receipt_number)
+        authorized = status is FiscalAuthorizationStatus.AUTHORIZED
         return SefazProtocolResult(
             status,
             code,
@@ -288,8 +324,31 @@ class SefazMockAdapter:
             endpoint,
             receipt_number,
             protocol="135260000000001"
-            if status is FiscalAuthorizationStatus.AUTHORIZED
+            if authorized
             else None,
+            access_key=receipt[0] if authorized and receipt is not None else None,
+            authorized_at=datetime.now(UTC) if authorized else None,
+            authorized_xml=receipt[1] if authorized and receipt is not None else None,
+        )
+
+    async def cancel_document(
+        self, request: SefazCancellationRequest
+    ) -> SefazCancellationResult:
+        self.calls.append(("cancel", request.endpoint))
+        scenario = self._next()
+        if scenario is SefazMockScenario.UNAVAILABLE:
+            raise SefazTransientError("Mock SEFAZ unavailable.")
+        if scenario is SefazMockScenario.TIMEOUT:
+            raise TimeoutError("Mock SEFAZ timeout.")
+        accepted = scenario is SefazMockScenario.AUTHORIZED
+        return SefazCancellationResult(
+            accepted,
+            "135" if accepted else "573",
+            "Evento registrado e vinculado a NF-e" if accepted else "Rejeicao do evento",
+            request.endpoint,
+            protocol="135260000000002" if accepted else None,
+            cancelled_at=datetime.now(UTC) if accepted else None,
+            event_xml="<procEventoNFe tpEvento='110111'/>" if accepted else None,
         )
 
     def _next(self) -> SefazMockScenario:

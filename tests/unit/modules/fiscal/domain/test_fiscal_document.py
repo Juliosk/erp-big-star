@@ -305,6 +305,23 @@ def test_cancellation_requires_protocol() -> None:
         authorized().cancel(protocol=" ", cancelled_at=datetime.now(UTC))
 
 
+def test_authorization_and_cancellation_xml_invariants() -> None:
+    now = datetime.now(UTC)
+    with pytest.raises(FiscalDomainError, match="Authorized XML"):
+        draft().start_issuing().authorize(
+            access_key=access_key(), protocol="1", authorized_at=now, authorized_xml=" "
+        )
+    authorized_document = draft().start_issuing().authorize(
+        access_key=access_key(), protocol="1", authorized_at=now, authorized_xml="<nfeProc/>"
+    )
+    with pytest.raises(FiscalDomainError, match="Cancellation XML cannot"):
+        authorized_document.cancel(
+            protocol="2", cancelled_at=now, cancellation_xml=" "
+        )
+    with pytest.raises(FiscalDomainError, match="restricted"):
+        replace(authorized_document, cancellation_xml="<procEventoNFe/>")
+
+
 @pytest.mark.parametrize(
     "change",
     [
