@@ -5,7 +5,12 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Protocol
 
-from erp.modules.fiscal.domain import FiscalAuthorizationStatus, FiscalDocumentModel, NFeAccessKey
+from erp.modules.fiscal.domain import (
+    FiscalAuthorizationStatus,
+    FiscalDocumentModel,
+    NFeAccessKey,
+    RecipientManifestationType,
+)
 
 
 class SefazEnvironment(StrEnum):
@@ -98,7 +103,9 @@ class SefazCancellationRequest:
 
     def __post_init__(self) -> None:
         if not self.authorization_protocol.strip() or len(self.reason.strip()) < 15:
-            raise ValueError("Cancellation protocol and a reason of at least 15 characters are required.")
+            raise ValueError(
+                "Cancellation protocol and a reason of at least 15 characters are required."
+            )
         if self.event_sequence < 1:
             raise ValueError("Cancellation event sequence must be positive.")
 
@@ -111,6 +118,46 @@ class SefazCancellationResult:
     endpoint: SefazEndpoint
     protocol: str | None = None
     cancelled_at: datetime | None = None
+    event_xml: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class SefazManifestationRequest:
+    access_key: NFeAccessKey
+    event_type: RecipientManifestationType
+    event_sequence: int
+    endpoint: SefazEndpoint
+    recipient_tax_id: str
+    reason: str | None = None
+
+    def __post_init__(self) -> None:
+        tax_id = "".join(character for character in self.recipient_tax_id if character.isdigit())
+        if (
+            self.access_key.model != FiscalDocumentModel.NFE.value
+            or len(tax_id) not in {11, 14}
+            or self.event_sequence < 1
+        ):
+            raise ValueError("MDE recipient and event sequence are invalid.")
+        reason = None if self.reason is None else self.reason.strip()
+        if self.event_type is RecipientManifestationType.OPERATION_NOT_PERFORMED:
+            if reason is None or len(reason) < 15:
+                raise ValueError(
+                    "Operation not performed requires a reason of at least 15 characters."
+                )
+        elif reason is not None:
+            raise ValueError("MDE reason is only allowed for operation not performed.")
+        object.__setattr__(self, "recipient_tax_id", tax_id)
+        object.__setattr__(self, "reason", reason)
+
+
+@dataclass(frozen=True, slots=True)
+class SefazManifestationResult:
+    accepted: bool
+    status_code: str
+    message: str
+    endpoint: SefazEndpoint
+    protocol: str | None = None
+    registered_at: datetime | None = None
     event_xml: str | None = None
 
 
@@ -129,6 +176,10 @@ class SefazGatewayPort(Protocol):
         self, request: SefazCancellationRequest
     ) -> SefazCancellationResult: ...
 
+    async def manifest_recipient(
+        self, request: SefazManifestationRequest
+    ) -> SefazManifestationResult: ...
+
 
 __all__ = [
     "ContingencyMode",
@@ -138,6 +189,8 @@ __all__ = [
     "SefazEndpoint",
     "SefazEnvironment",
     "SefazGatewayPort",
+    "SefazManifestationRequest",
+    "SefazManifestationResult",
     "SefazProtocolResult",
     "SefazServiceStatus",
     "SefazSubmissionMode",

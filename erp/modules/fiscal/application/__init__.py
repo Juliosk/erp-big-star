@@ -30,6 +30,13 @@ from erp.modules.fiscal.application.events import (
     FiscalIntegrationEffect,
     integration_effects,
 )
+from erp.modules.fiscal.application.inbound import (
+    InboundFiscalDocumentStore,
+    InboundFiscalService,
+    InboundNFeParser,
+    ManifestInboundDocument,
+    purchase_match_reference,
+)
 from erp.modules.fiscal.application.issuance import (
     CancelFiscalDocument,
     FiscalIssuanceStore,
@@ -58,6 +65,8 @@ from erp.modules.fiscal.application.sefaz import (
     SefazEndpoint,
     SefazEnvironment,
     SefazGatewayPort,
+    SefazManifestationRequest,
+    SefazManifestationResult,
     SefazProtocolResult,
     SefazServiceStatus,
     SefazSubmissionMode,
@@ -99,7 +108,11 @@ __all__ = [
     "FiscalOperationsService",
     "FiscalWorkerMetadata",
     "FiscalXmlPackager",
+    "InboundFiscalDocumentStore",
+    "InboundFiscalService",
+    "InboundNFeParser",
     "IssueFiscalDocument",
+    "ManifestInboundDocument",
     "ProcessFiscalDocument",
     "SefazBatchRequest",
     "SefazCancellationRequest",
@@ -107,6 +120,8 @@ __all__ = [
     "SefazEndpoint",
     "SefazEnvironment",
     "SefazGatewayPort",
+    "SefazManifestationRequest",
+    "SefazManifestationResult",
     "SefazProtocolResult",
     "SefazServiceStatus",
     "SefazSubmissionMode",
@@ -114,4 +129,5 @@ __all__ = [
     "TransmitFiscalDocument",
     "fiscal_permission_registry",
     "integration_effects",
+    "purchase_match_reference",
 ]

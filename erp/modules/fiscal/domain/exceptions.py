@@ -41,6 +41,14 @@ class FiscalScopeError(FiscalDomainError):
     """Raised when a fiscal aggregate crosses its explicit tenant scope."""
 
 
+class InvalidInboundFiscalDocumentError(FiscalDomainError):
+    """Raised when a supplier NF-e XML violates inbound fiscal invariants."""
+
+
+class InvalidManifestationError(FiscalDomainError):
+    """Raised when an MDE event or transition is invalid."""
+
+
 __all__ = [
     "FiscalDocumentConflictError",
     "FiscalDomainError",
@@ -49,6 +57,8 @@ __all__ = [
     "ImmutableDocumentError",
     "InvalidAccessKeyError",
     "InvalidFiscalContractError",
+    "InvalidInboundFiscalDocumentError",
+    "InvalidManifestationError",
     "InvalidStateTransitionError",
     "InvalidTaxSnapshotError",
     "TaxMismatchError",

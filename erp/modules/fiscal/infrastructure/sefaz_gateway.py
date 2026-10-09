@@ -16,6 +16,8 @@ from erp.modules.fiscal.application.sefaz import (
     SefazCancellationResult,
     SefazEndpoint,
     SefazGatewayPort,
+    SefazManifestationRequest,
+    SefazManifestationResult,
     SefazProtocolResult,
     SefazServiceStatus,
     SefazSubmissionMode,
@@ -124,15 +126,16 @@ class ContingencyPolicy:
         else:
             self._manual[state] = mode
 
-    def select(
-        self, endpoint: SefazEndpoint, model: FiscalDocumentModel
-    ) -> SefazEndpoint | None:
+    def select(self, endpoint: SefazEndpoint, model: FiscalDocumentModel) -> SefazEndpoint | None:
         mode = self._manual.get(endpoint.state_code) or self._automatic.get(endpoint.state_code)
         if mode is None or mode is ContingencyMode.NONE:
             return None
         if mode is ContingencyMode.OFFLINE_NFCE and model is not FiscalDocumentModel.NFCE:
             raise ValueError("Offline contingency is restricted to NFC-e model 65.")
-        if mode in {ContingencyMode.SVC_AN, ContingencyMode.SVC_RS} and model is not FiscalDocumentModel.NFE:
+        if (
+            mode in {ContingencyMode.SVC_AN, ContingencyMode.SVC_RS}
+            and model is not FiscalDocumentModel.NFE
+        ):
             raise ValueError("SVC contingency is restricted to NF-e model 55.")
         return replace(endpoint, contingency=mode)
 
@@ -166,7 +169,7 @@ class ResilientSefazGateway:
             return await self._execute(
                 request.endpoint, lambda: self._gateway.submit_batch(request)
             )
-        except (SefazTransientError, SefazCircuitOpenError):
+        except SefazTransientError, SefazCircuitOpenError:
             endpoint = self._contingency.select(request.endpoint, request.model)
             if endpoint is None:
                 raise
@@ -180,22 +183,33 @@ class ResilientSefazGateway:
             endpoint, lambda: self._gateway.query_protocol(endpoint, receipt_number)
         )
 
-    async def cancel_document(
-        self, request: SefazCancellationRequest
-    ) -> SefazCancellationResult:
+    async def cancel_document(self, request: SefazCancellationRequest) -> SefazCancellationResult:
         try:
             return await self._execute(
                 request.endpoint, lambda: self._gateway.cancel_document(request)
             )
-        except (SefazTransientError, SefazCircuitOpenError):
+        except SefazTransientError, SefazCircuitOpenError:
             model = FiscalDocumentModel(request.access_key.model)
             endpoint = self._contingency.select(request.endpoint, model)
             if endpoint is None:
                 raise
             fallback = replace(request, endpoint=endpoint)
+            return await self._execute(endpoint, lambda: self._gateway.cancel_document(fallback))
+
+    async def manifest_recipient(
+        self, request: SefazManifestationRequest
+    ) -> SefazManifestationResult:
+        try:
             return await self._execute(
-                endpoint, lambda: self._gateway.cancel_document(fallback)
+                request.endpoint, lambda: self._gateway.manifest_recipient(request)
             )
+        except SefazTransientError, SefazCircuitOpenError:
+            model = FiscalDocumentModel(request.access_key.model)
+            endpoint = self._contingency.select(request.endpoint, model)
+            if endpoint is None:
+                raise
+            fallback = replace(request, endpoint=endpoint)
+            return await self._execute(endpoint, lambda: self._gateway.manifest_recipient(fallback))
 
     async def _execute[T](
         self, endpoint: SefazEndpoint, operation: Callable[[], Awaitable[T]]
@@ -208,7 +222,9 @@ class ResilientSefazGateway:
             except (TimeoutError, ConnectionError, SefazTransientError) as error:
                 if attempt == self._retry.max_attempts:
                     self._circuit.failure(key)
-                    raise SefazTransientError("SEFAZ operation exhausted retry attempts.") from error
+                    raise SefazTransientError(
+                        "SEFAZ operation exhausted retry attempts."
+                    ) from error
                 await self._sleep(self._retry.delay(attempt, self._random()))
             else:
                 self._circuit.success(key)
@@ -237,10 +253,13 @@ class CertificateSefazGateway:
     ) -> SefazProtocolResult:
         return await self._transport.query_protocol(endpoint, receipt_number)
 
-    async def cancel_document(
-        self, request: SefazCancellationRequest
-    ) -> SefazCancellationResult:
+    async def cancel_document(self, request: SefazCancellationRequest) -> SefazCancellationResult:
         return await self._transport.cancel_document(request)
+
+    async def manifest_recipient(
+        self, request: SefazManifestationRequest
+    ) -> SefazManifestationResult:
+        return await self._transport.manifest_recipient(request)
 
 
 class SefazMockScenario(StrEnum):
@@ -295,9 +314,7 @@ class SefazMockAdapter:
             request.endpoint,
             request.batch_id,
             receipt_number=receipt,
-            protocol="135260000000001"
-            if not asynchronous and authorized
-            else None,
+            protocol="135260000000001" if not asynchronous and authorized else None,
             access_key=request.access_key if not asynchronous and authorized else None,
             authorized_at=datetime.now(UTC) if not asynchronous and authorized else None,
             authorized_xml=request.signed_documents[0].decode()
@@ -323,17 +340,13 @@ class SefazMockAdapter:
             message,
             endpoint,
             receipt_number,
-            protocol="135260000000001"
-            if authorized
-            else None,
+            protocol="135260000000001" if authorized else None,
             access_key=receipt[0] if authorized and receipt is not None else None,
             authorized_at=datetime.now(UTC) if authorized else None,
             authorized_xml=receipt[1] if authorized and receipt is not None else None,
         )
 
-    async def cancel_document(
-        self, request: SefazCancellationRequest
-    ) -> SefazCancellationResult:
+    async def cancel_document(self, request: SefazCancellationRequest) -> SefazCancellationResult:
         self.calls.append(("cancel", request.endpoint))
         scenario = self._next()
         if scenario is SefazMockScenario.UNAVAILABLE:
@@ -349,6 +362,34 @@ class SefazMockAdapter:
             protocol="135260000000002" if accepted else None,
             cancelled_at=datetime.now(UTC) if accepted else None,
             event_xml="<procEventoNFe tpEvento='110111'/>" if accepted else None,
+        )
+
+    async def manifest_recipient(
+        self, request: SefazManifestationRequest
+    ) -> SefazManifestationResult:
+        self.calls.append(("manifest", request.endpoint))
+        scenario = self._next()
+        if scenario is SefazMockScenario.UNAVAILABLE:
+            raise SefazTransientError("Mock SEFAZ unavailable.")
+        if scenario is SefazMockScenario.TIMEOUT:
+            raise TimeoutError("Mock SEFAZ timeout.")
+        accepted = scenario is SefazMockScenario.AUTHORIZED
+        timestamp = datetime.now(UTC) if accepted else None
+        protocol = f"13526000021{request.event_sequence:04d}" if accepted else None
+        event_xml = (
+            f"<procEventoNFe><infEvento><tpEvento>{request.event_type.value}</tpEvento>"
+            f"<nSeqEvento>{request.event_sequence}</nSeqEvento></infEvento></procEventoNFe>"
+            if accepted
+            else None
+        )
+        return SefazManifestationResult(
+            accepted=accepted,
+            status_code="135" if accepted else "573",
+            message="Evento registrado e vinculado a NF-e" if accepted else "Rejeicao do evento",
+            endpoint=request.endpoint,
+            protocol=protocol,
+            registered_at=timestamp,
+            event_xml=event_xml,
         )
 
     def _next(self) -> SefazMockScenario:
