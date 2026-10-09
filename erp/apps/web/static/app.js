@@ -6,6 +6,7 @@ import { mountWms } from "./wms.js";
 import { mountWorkflow } from "./workflow.js";
 import { mountSales } from "./sales.js";
 import { mountProcurement } from "./procurement.js";
+import { mountFiscal } from "./fiscal.js";
 const $ = (id) => document.getElementById(id);
 const labels = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -77,6 +78,16 @@ const errors = {
   BUSINESS_VALIDATION_ERROR: "Os dados não atendem às regras do cadastro.",
   SUPPLIER_CONFLICT: "Já existe um fornecedor com este documento na empresa.",
   SOD_VIOLATION: "O solicitante não pode aprovar a própria compra.",
+  FISCAL_SEFAZ_UNAVAILABLE:
+    "O gateway SEFAZ não está configurado para este ambiente.",
+  FISCAL_CANCELLATION_WINDOW_EXPIRED:
+    "A janela legal de cancelamento deste documento expirou.",
+  FISCAL_CANCELLATION_REJECTED:
+    "A SEFAZ rejeitou o evento de cancelamento. Consulte o histórico.",
+  FISCAL_DOCUMENT_NOT_EXPORTABLE:
+    "O documento ainda não possui artefato fiscal oficial para exportação.",
+  FISCAL_STORAGE_UNAVAILABLE:
+    "O armazenamento fiscal está temporariamente indisponível.",
 };
 let token = "",
   permissions = new Set(),
@@ -87,7 +98,7 @@ let token = "",
   area = "products";
 let lastCreation = { body: "", key: "" };
 const can = (action) => permissions.has(`product.product.${action}`);
-let customers, inventory, pricing, wms, workflow, sales, procurement;
+let customers, inventory, pricing, wms, workflow, sales, procurement, fiscal;
 const imports = mountImports({
   api,
   context: () => ({ company, permissions }),
@@ -103,6 +114,7 @@ const imports = mountImports({
     $("workflow-nav").removeAttribute("aria-current");
     $("sales-nav").removeAttribute("aria-current");
     $("procurement-nav").removeAttribute("aria-current");
+    $("fiscal-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent =
       "Governança / Importações";
     generation++;
@@ -116,6 +128,7 @@ const imports = mountImports({
     workflow?.hide();
     sales?.hide();
     procurement?.hide();
+    fiscal?.hide();
   },
 });
 customers = mountCustomers({
@@ -133,6 +146,7 @@ customers = mountCustomers({
     $("workflow-nav").removeAttribute("aria-current");
     $("sales-nav").removeAttribute("aria-current");
     $("procurement-nav").removeAttribute("aria-current");
+    $("fiscal-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent = "Cadastros / Clientes";
     generation++;
     current = null;
@@ -143,6 +157,7 @@ customers = mountCustomers({
     workflow?.hide();
     sales?.hide();
     procurement?.hide();
+    fiscal?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -162,6 +177,7 @@ inventory = mountInventory({
     $("workflow-nav").removeAttribute("aria-current");
     $("sales-nav").removeAttribute("aria-current");
     $("procurement-nav").removeAttribute("aria-current");
+    $("fiscal-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent =
       "Operações / Inventário";
     generation++;
@@ -173,6 +189,7 @@ inventory = mountInventory({
     workflow?.hide();
     sales?.hide();
     procurement?.hide();
+    fiscal?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -192,6 +209,7 @@ pricing = mountPricing({
     $("workflow-nav").removeAttribute("aria-current");
     $("sales-nav").removeAttribute("aria-current");
     $("procurement-nav").removeAttribute("aria-current");
+    $("fiscal-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent =
       "Comercial / Pricing";
     generation++;
@@ -202,6 +220,7 @@ pricing = mountPricing({
     workflow?.hide();
     sales?.hide();
     procurement?.hide();
+    fiscal?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -221,6 +240,7 @@ wms = mountWms({
     $("workflow-nav").removeAttribute("aria-current");
     $("sales-nav").removeAttribute("aria-current");
     $("procurement-nav").removeAttribute("aria-current");
+    $("fiscal-nav").removeAttribute("aria-current");
     document.querySelector(".topbar > span").textContent =
       "Operações / Expedição";
     generation++;
@@ -232,6 +252,7 @@ wms = mountWms({
     workflow?.hide();
     sales?.hide();
     procurement?.hide();
+    fiscal?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -245,6 +266,7 @@ workflow = mountWorkflow({
     $("workflow-nav").setAttribute("aria-current", "page");
     $("sales-nav").removeAttribute("aria-current");
     $("procurement-nav").removeAttribute("aria-current");
+    $("fiscal-nav").removeAttribute("aria-current");
     $("products-nav").removeAttribute("aria-current");
     $("imports-nav").removeAttribute("aria-current");
     $("customers-nav").removeAttribute("aria-current");
@@ -262,6 +284,7 @@ workflow = mountWorkflow({
     wms.hide();
     sales?.hide();
     procurement?.hide();
+    fiscal?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -274,7 +297,7 @@ sales = mountSales({
     area = "sales";
     $("sales-nav").setAttribute("aria-current", "page");
     $("procurement-nav").removeAttribute("aria-current");
-    ["products", "imports", "customers", "inventory", "pricing", "wms", "workflow"].forEach(
+    ["products", "imports", "customers", "inventory", "pricing", "wms", "workflow", "fiscal"].forEach(
       (name) => $(`${name}-nav`)?.removeAttribute("aria-current"),
     );
     document.querySelector(".topbar > span").textContent = "Comercial / Vendas";
@@ -287,6 +310,7 @@ sales = mountSales({
     wms.hide();
     workflow.hide();
     procurement?.hide();
+    fiscal?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -298,7 +322,7 @@ procurement = mountProcurement({
   enter: () => {
     area = "procurement";
     $("procurement-nav").setAttribute("aria-current", "page");
-    ["products", "imports", "customers", "inventory", "pricing", "wms", "workflow", "sales"].forEach(
+    ["products", "imports", "customers", "inventory", "pricing", "wms", "workflow", "sales", "fiscal"].forEach(
       (name) => $(`${name}-nav`)?.removeAttribute("aria-current"),
     );
     document.querySelector(".topbar > span").textContent = "Suprimentos / Compras";
@@ -311,6 +335,32 @@ procurement = mountProcurement({
     wms.hide();
     workflow.hide();
     sales.hide();
+    $("catalog").hidden = true;
+    $("detail").hidden = true;
+    fiscal?.hide();
+  },
+});
+fiscal = mountFiscal({
+  api,
+  context: () => ({ company, permissions }),
+  notice,
+  enter: () => {
+    area = "fiscal";
+    $("fiscal-nav").setAttribute("aria-current", "page");
+    ["products", "imports", "customers", "inventory", "pricing", "wms", "workflow", "sales", "procurement"].forEach(
+      (name) => $(`${name}-nav`)?.removeAttribute("aria-current"),
+    );
+    document.querySelector(".topbar > span").textContent = "Fiscal / Emissão eletrônica";
+    generation++;
+    current = null;
+    imports.reset();
+    customers.hide();
+    inventory.hide();
+    pricing.hide();
+    wms.hide();
+    workflow.hide();
+    sales.hide();
+    procurement.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -328,6 +378,7 @@ function reset() {
   workflow.reset();
   sales.reset();
   procurement.reset();
+  fiscal.reset();
   $("imports-nav").hidden = true;
   $("customers-nav").hidden = true;
   $("inventory-nav").hidden = true;
@@ -336,6 +387,7 @@ function reset() {
   $("workflow-nav").hidden = true;
   $("sales-nav").hidden = true;
   $("procurement-nav").hidden = true;
+  $("fiscal-nav").hidden = true;
   token = "";
   permissions.clear();
   current = null;
@@ -463,6 +515,7 @@ async function connect() {
     !permissions.has("procurement.supplier.read") &&
     !permissions.has("procurement.requisition.read") &&
     !permissions.has("procurement.order.read");
+  $("fiscal-nav").hidden = !permissions.has("fiscal.nfe.read");
   if (!company) {
     notice(
       "Nenhuma empresa ativa autorizada. Configure os escopos da identidade.",
@@ -484,6 +537,7 @@ async function loadList() {
   $("workflow-nav").removeAttribute("aria-current");
   $("sales-nav").removeAttribute("aria-current");
   $("procurement-nav").removeAttribute("aria-current");
+  $("fiscal-nav").removeAttribute("aria-current");
   document.querySelector(".topbar > span").textContent = "Cadastros / Produtos";
   imports.reset();
   customers.hide();
@@ -493,6 +547,7 @@ async function loadList() {
   workflow.hide();
   sales.hide();
   procurement.hide();
+  fiscal.hide();
   const epoch = ++generation;
   current = null;
   $("detail").hidden = true;
@@ -654,6 +709,7 @@ bind(
     if (area === "workflow") return workflow.show();
     if (area === "sales") return sales.show();
     if (area === "procurement") return procurement.show();
+    if (area === "fiscal") return fiscal.show();
     await loadList();
   },
   "change",
@@ -688,6 +744,9 @@ bind("sales-nav", () => {
 });
 bind("procurement-nav", () => {
   if (company) return procurement.show();
+});
+bind("fiscal-nav", () => {
+  if (company) return fiscal.show();
 });
 bind("products-nav", () => {
   if (company) return loadList();

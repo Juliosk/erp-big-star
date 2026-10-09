@@ -38,6 +38,7 @@
         <a id="procurement-nav" href="#procurement" hidden
           >Compras <span>M6</span></a
         >
+        <a id="fiscal-nav" href="#fiscal" hidden>Fiscal <span>M11</span></a>
       </nav>
       <div class="company-context">
         <label for="company">Empresa de trabalho</label
@@ -1176,6 +1177,66 @@
             </form>
             <div id="procurement-receipt-cards" class="receipt-cards" aria-live="polite"></div>
             <div id="procurement-receipt-empty" class="empty" hidden><span aria-hidden="true">◇</span><h2>Doca livre</h2><p>Pedidos emitidos aparecerão como candidatos ao recebimento.</p></div>
+          </section>
+        </div>
+      </section>
+      <section id="fiscal" hidden aria-labelledby="fiscal-title">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">DOCUMENTOS ELETRÔNICOS / M11</p>
+            <h1 id="fiscal-title">Cockpit fiscal</h1>
+            <p>Emissão assistida, retorno SEFAZ, contingência e custódia dos artefatos oficiais.</p>
+          </div>
+          <button id="fiscal-refresh" class="secondary">Atualizar documentos</button>
+        </div>
+        <div class="fiscal-rail" aria-label="Ciclo do documento fiscal">
+          <span data-fiscal-stage="DRAFT"><small>01</small> Rascunho</span><i>→</i>
+          <span data-fiscal-stage="ISSUING"><small>02</small> Transmissão</span><i>→</i>
+          <span data-fiscal-stage="AUTHORIZED"><small>03</small> Autorização</span><i>→</i>
+          <span data-fiscal-stage="CANCELLED"><small>04</small> Evento 110111</span>
+        </div>
+        <div class="fiscal-grid">
+          <section class="panel fiscal-create">
+            <div class="workflow-section-heading">
+              <div><p class="eyebrow">EMISSÃO MANUAL</p><h2>Novo documento</h2></div>
+            </div>
+            <form id="fiscal-create-form" class="fiscal-form">
+              <div><label for="fiscal-model">Modelo</label><select id="fiscal-model"><option value="55">NF-e · 55</option><option value="65">NFC-e · 65</option></select></div>
+              <div><label for="fiscal-series">Série</label><input id="fiscal-series" type="number" min="1" value="1" required /></div>
+              <div><label for="fiscal-number">Número</label><input id="fiscal-number" type="number" min="1" required /></div>
+              <div><label for="fiscal-issuer-tax-id">CNPJ emitente</label><input id="fiscal-issuer-tax-id" value="11222333000181" required /></div>
+              <div class="fiscal-span"><label for="fiscal-issuer-name">Razão social emitente</label><input id="fiscal-issuer-name" value="Big Star Brinquedos Ltda" required /></div>
+              <div><label for="fiscal-recipient-tax-id">CPF/CNPJ destinatário</label><input id="fiscal-recipient-tax-id" value="12345678909" required /></div>
+              <div><label for="fiscal-recipient-name">Destinatário</label><input id="fiscal-recipient-name" value="Cliente Homologação" required /></div>
+              <div><label for="fiscal-product-id">Produto ID</label><input id="fiscal-product-id" required autocomplete="off" /></div>
+              <div><label for="fiscal-item-code">Código do item fiscal</label><input id="fiscal-item-code" value="SKU-FISCAL" required /></div>
+              <div class="fiscal-span"><label for="fiscal-item-description">Descrição</label><input id="fiscal-item-description" value="Produto para emissão fiscal" required /></div>
+              <div><label for="fiscal-quantity">Quantidade</label><input id="fiscal-quantity" type="number" min="0.001" step="0.001" value="1" required /></div>
+              <div><label for="fiscal-unit-price">Preço unitário</label><input id="fiscal-unit-price" type="number" min="0" step="0.01" value="10.00" required /></div>
+              <button type="submit">Criar rascunho</button>
+            </form>
+          </section>
+          <section class="panel fiscal-monitor">
+            <div class="workflow-section-heading">
+              <div><p class="eyebrow">MONITOR SEFAZ</p><h2>Documentos recentes</h2></div>
+              <span id="fiscal-document-count" class="workflow-count">0</span>
+            </div>
+            <div class="table-wrap compact-table"><table><thead><tr><th>Documento</th><th>Destinatário</th><th>Status</th><th>Versão</th></tr></thead><tbody id="fiscal-document-rows"></tbody></table>
+              <div id="fiscal-empty" class="empty" hidden><span aria-hidden="true">◇</span><h2>Nenhum documento</h2><p>Crie um rascunho para iniciar a jornada fiscal.</p></div>
+            </div>
+          </section>
+          <section class="panel fiscal-operation" aria-live="polite">
+            <div class="workflow-section-heading"><div><p class="eyebrow">OPERAÇÃO</p><h2 id="fiscal-selected-title">Selecione um documento</h2></div><span id="fiscal-selected-status" class="status">—</span></div>
+            <p id="fiscal-selected-meta" class="hint">Os comandos respeitam versão, empresa e permissão do operador.</p>
+            <div id="fiscal-actions" class="fiscal-actions" hidden>
+              <label for="fiscal-contingency">Canal de transmissão</label>
+              <select id="fiscal-contingency"><option value="NONE">SEFAZ normal</option><option value="SVC_AN">SVC-AN</option><option value="SVC_RS">SVC-RS</option><option value="OFFLINE_NFCE">NFC-e offline</option></select>
+              <div class="fiscal-action-row"><button id="fiscal-issue">Solicitar emissão</button><button id="fiscal-process" class="secondary">Processar retorno SEFAZ</button></div>
+              <label for="fiscal-cancel-reason">Justificativa do cancelamento</label><input id="fiscal-cancel-reason" minlength="15" value="Cancelamento operacional homologado" />
+              <div class="fiscal-action-row"><button id="fiscal-danfe" class="secondary">Visualizar DANFE</button><button id="fiscal-xml" class="secondary">Baixar XML</button><button id="fiscal-cancel" class="danger">Cancelar NF</button></div>
+            </div>
+            <ol id="fiscal-history" class="workflow-rail"></ol>
+            <iframe id="fiscal-danfe-preview" title="Pré-visualização da DANFE" hidden></iframe>
           </section>
         </div>
       </section>

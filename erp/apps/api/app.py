@@ -48,8 +48,14 @@ from erp.modules.fiscal.application import (
     FiscalAuthorization,
     FiscalDocumentService,
     FiscalDocumentStorageService,
+    FiscalIssuanceWorker,
+    FiscalOperationsService,
 )
-from erp.modules.fiscal.infrastructure import PostgresFiscalDocumentStore
+from erp.modules.fiscal.infrastructure import (
+    PostgresFiscalDocumentStore,
+    PostgresFiscalIssuanceStore,
+    SefazMockAdapter,
+)
 from erp.modules.governance.api import router as import_router
 from erp.modules.governance.application.imports import ImportService
 from erp.modules.inventory.api import router as inventory_router
@@ -144,7 +150,7 @@ from erp.modules.workflow.infrastructure import (
     PostgresWorkflowDefinitions,
     PostgresWorkflowInstances,
 )
-from erp.platform.config import Settings, get_settings
+from erp.platform.config import Environment, Settings, get_settings
 from erp.platform.database import Database, ManagedDatabase
 from erp.platform.errors import register_error_handlers
 from erp.platform.observability import configure_logging
@@ -177,6 +183,7 @@ def create_app(
     procurement_purchasing: PurchasingService | None = None,
     procurement_goods_receipts: GoodsReceiptService | None = None,
     fiscal_documents: FiscalDocumentService | None = None,
+    fiscal_operations: FiscalOperationsService | None = None,
     fiscal_artifact_storage: FiscalArtifactStoragePort | None = None,
     inventory_queries: InventoryQueries | None = None,
     inventory_creation: InventoryCatalogService | None = None,
@@ -232,6 +239,7 @@ def create_app(
     resolved_procurement_purchasing = procurement_purchasing
     resolved_procurement_goods_receipts = procurement_goods_receipts
     resolved_fiscal_documents = fiscal_documents
+    resolved_fiscal_operations = fiscal_operations
     resolved_fiscal_document_storage: FiscalDocumentStorageService | None = None
     resolved_inventory_queries = inventory_queries
     resolved_inventory_creation = inventory_creation
@@ -257,9 +265,11 @@ def create_app(
     resolved_sales_orders = sales_orders
     resolved_sales_order_reservations = sales_order_reservations
     resolved_sales_order_cancellation = sales_order_cancellation
-    sales_authorization = SalesAuthorization(
-        CompanyAccessService(PostgresCorporateDirectory(resolved_database))
-    ) if isinstance(resolved_database, Database) else None
+    sales_authorization = (
+        SalesAuthorization(CompanyAccessService(PostgresCorporateDirectory(resolved_database)))
+        if isinstance(resolved_database, Database)
+        else None
+    )
     if resolved_sales_quotes is None and isinstance(resolved_database, Database):
         assert sales_authorization is not None
         resolved_sales_quotes = SalesQuoteService(
@@ -284,9 +294,7 @@ def create_app(
         resolved_sales_orders = SalesOrderService(
             PostgresSalesOrders(resolved_database), sales_authorization
         )
-    if resolved_sales_order_reservations is None and isinstance(
-        resolved_database, Database
-    ):
+    if resolved_sales_order_reservations is None and isinstance(resolved_database, Database):
         assert sales_authorization is not None
         resolved_sales_order_reservations = SalesOrderReservationService(
             PostgresSalesOrderReservations(
@@ -295,9 +303,7 @@ def create_app(
             ),
             sales_authorization,
         )
-    if resolved_sales_order_cancellation is None and isinstance(
-        resolved_database, Database
-    ):
+    if resolved_sales_order_cancellation is None and isinstance(resolved_database, Database):
         assert sales_authorization is not None
         resolved_sales_order_cancellation = SalesOrderCancellationService(
             PostgresSalesOrderCancellation(
@@ -381,25 +387,19 @@ def create_app(
     if resolved_wms_picking_waves is None and isinstance(resolved_database, Database):
         resolved_wms_picking_waves = PickingWaveService(
             PostgresPickingWaveStore(resolved_database),
-            WmsAuthorization(
-                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
-            ),
+            WmsAuthorization(CompanyAccessService(PostgresCorporateDirectory(resolved_database))),
         )
     if resolved_wms_picking_tasks is None and isinstance(resolved_database, Database):
         resolved_wms_picking_tasks = PickingTaskScanService(
             PostgresPickingTaskStore(
                 resolved_database, ttl_seconds=resolved_settings.idempotency_ttl_seconds
             ),
-            WmsAuthorization(
-                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
-            ),
+            WmsAuthorization(CompanyAccessService(PostgresCorporateDirectory(resolved_database))),
         )
     if resolved_wms_packing is None and isinstance(resolved_database, Database):
         resolved_wms_packing = PackingService(
             PostgresPackingStore(resolved_database),
-            WmsAuthorization(
-                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
-            ),
+            WmsAuthorization(CompanyAccessService(PostgresCorporateDirectory(resolved_database))),
         )
     if resolved_workflow_definitions is None and isinstance(resolved_database, Database):
         resolved_workflow_definitions = WorkflowDefinitionService(
@@ -514,6 +514,21 @@ def create_app(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
             ),
         )
+    if (
+        resolved_fiscal_operations is None
+        and isinstance(resolved_database, Database)
+        and resolved_settings.dev_auth_enabled
+        and resolved_settings.environment in {Environment.LOCAL, Environment.TEST}
+    ):
+        authorization = FiscalAuthorization(
+            CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+        )
+        resolved_fiscal_operations = FiscalOperationsService(
+            FiscalIssuanceWorker(
+                PostgresFiscalIssuanceStore(resolved_database), SefazMockAdapter()
+            ),
+            authorization,
+        )
     if fiscal_artifact_storage is None and resolved_settings.import_storage_access_key:
         fiscal_artifact_storage = MinioStorage(resolved_settings)
     if resolved_fiscal_documents is not None and fiscal_artifact_storage is not None:
@@ -620,6 +635,7 @@ def create_app(
     application.state.procurement_purchasing = resolved_procurement_purchasing
     application.state.procurement_goods_receipts = resolved_procurement_goods_receipts
     application.state.fiscal_documents = resolved_fiscal_documents
+    application.state.fiscal_operations = resolved_fiscal_operations
     application.state.fiscal_document_storage = resolved_fiscal_document_storage
     application.state.inventory_queries = resolved_inventory_queries
     application.state.inventory_creation = resolved_inventory_creation

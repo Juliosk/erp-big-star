@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Annotated, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import Response as BinaryResponse
@@ -10,15 +10,20 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from erp.modules.admin.contracts import SecurityContext, SecurityContextResolver
 from erp.modules.fiscal.api.schemas import (
+    CancelFiscalDocumentRequest,
     CreateFiscalDocumentRequest,
     FiscalDocumentListResponse,
     FiscalDocumentResponse,
+    ProcessFiscalDocumentRequest,
 )
 from erp.modules.fiscal.api.versioning import require_version
 from erp.modules.fiscal.application import (
+    CancelAuthorizedFiscalDocument,
     FiscalDocumentService,
     FiscalDocumentStorageService,
+    FiscalOperationsService,
     IssueFiscalDocument,
+    ProcessFiscalDocument,
 )
 from erp.modules.fiscal.domain import FiscalDocumentModel, FiscalDocumentStatus
 from erp.platform.errors import ApplicationError
@@ -79,6 +84,17 @@ def get_fiscal_storage(request: Request) -> FiscalDocumentStorageService:
     return service
 
 
+def get_fiscal_operations(request: Request) -> FiscalOperationsService:
+    service = getattr(request.app.state, "fiscal_operations", None)
+    if not isinstance(service, FiscalOperationsService):
+        raise ApplicationError(
+            code="FISCAL_SEFAZ_UNAVAILABLE",
+            message="Fiscal transmission services are unavailable.",
+            status_code=503,
+        )
+    return service
+
+
 @router.post("", status_code=201, response_model=FiscalDocumentResponse)
 async def create_document(
     body: CreateFiscalDocumentRequest,
@@ -111,6 +127,60 @@ async def issue_document(
     _version_headers(response, result.document.version)
     response.headers["Idempotency-Replayed"] = str(result.idempotency_replayed).lower()
     return FiscalDocumentResponse.from_domain(result.document)
+
+
+@router.post("/{document_id}/process", response_model=FiscalDocumentResponse)
+async def process_document(
+    document_id: UUID,
+    company_id: UUID,
+    body: ProcessFiscalDocumentRequest,
+    request: Request,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[FiscalOperationsService, Depends(get_fiscal_operations)],
+    version: Annotated[int, Depends(require_version)],
+) -> FiscalDocumentResponse:
+    document = await service.process(
+        context,
+        ProcessFiscalDocument(
+            company_id=company_id,
+            document_id=document_id,
+            expected_version=version,
+            contingency=body.contingency,
+            request_id=_request_uuid(request, "request_id"),
+            correlation_id=_request_uuid(request, "correlation_id"),
+            source_ip=None if request.client is None else request.client.host,
+        ),
+    )
+    _version_headers(response, document.version)
+    return FiscalDocumentResponse.from_domain(document)
+
+
+@router.post("/{document_id}/cancel", response_model=FiscalDocumentResponse)
+async def cancel_document(
+    document_id: UUID,
+    company_id: UUID,
+    body: CancelFiscalDocumentRequest,
+    request: Request,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[FiscalOperationsService, Depends(get_fiscal_operations)],
+    version: Annotated[int, Depends(require_version)],
+) -> FiscalDocumentResponse:
+    document = await service.cancel(
+        context,
+        CancelAuthorizedFiscalDocument(
+            company_id=company_id,
+            document_id=document_id,
+            expected_version=version,
+            reason=body.reason,
+            request_id=_request_uuid(request, "request_id"),
+            correlation_id=_request_uuid(request, "correlation_id"),
+            source_ip=None if request.client is None else request.client.host,
+        ),
+    )
+    _version_headers(response, document.version)
+    return FiscalDocumentResponse.from_domain(document)
 
 
 @router.get("", response_model=FiscalDocumentListResponse)
@@ -198,6 +268,14 @@ async def download_xml(
 def _version_headers(response: Response, version: int) -> None:
     response.headers["ETag"] = f'"{version}"'
     response.headers["Cache-Control"] = "no-store"
+
+
+def _request_uuid(request: Request, name: str) -> UUID:
+    value = getattr(request.state, name, None)
+    try:
+        return UUID(str(value))
+    except TypeError, ValueError:
+        return uuid4()
 
 
 __all__ = ["router"]

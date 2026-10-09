@@ -175,6 +175,10 @@ class FiscalIssuanceWorker:
             message=result.message,
         )
 
+    async def get(self, company_id: UUID, document_id: UUID) -> FiscalDocument | None:
+        """Read through the worker boundary for operator orchestration."""
+        return await self._store.get(company_id, document_id)
+
     async def _required(self, company_id: UUID, document_id: UUID) -> FiscalDocument:
         document = await self._store.get(company_id, document_id)
         if document is None:

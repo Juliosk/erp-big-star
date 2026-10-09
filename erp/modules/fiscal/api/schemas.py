@@ -6,7 +6,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from erp.modules.fiscal.application import CreateFiscalDocument, FiscalDocumentPage
+from erp.modules.fiscal.application import (
+    ContingencyMode,
+    CreateFiscalDocument,
+    FiscalDocumentPage,
+)
 from erp.modules.fiscal.domain import (
     FiscalDocument,
     FiscalDocumentItem,
@@ -120,6 +124,16 @@ class CreateFiscalDocumentRequest(BaseModel):
         )
 
 
+class ProcessFiscalDocumentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    contingency: ContingencyMode = ContingencyMode.NONE
+
+
+class CancelFiscalDocumentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reason: str = Field(min_length=15, max_length=255)
+
+
 class FiscalDocumentResponse(BaseModel):
     id: UUID
     company_id: UUID
@@ -189,7 +203,10 @@ class FiscalDocumentResponse(BaseModel):
                 }
                 for item in document.items
             ],
-            totals={name: getattr(document.totals, name) for name in document.totals.__dataclass_fields__},
+            totals={
+                name: getattr(document.totals, name)
+                for name in document.totals.__dataclass_fields__
+            },
             access_key=None if document.access_key is None else str(document.access_key),
             authorization_protocol=document.authorization_protocol,
             rejection_code=document.rejection_code,
@@ -232,7 +249,9 @@ class FiscalDocumentListResponse(BaseModel):
 
 
 __all__ = [
+    "CancelFiscalDocumentRequest",
     "CreateFiscalDocumentRequest",
     "FiscalDocumentListResponse",
     "FiscalDocumentResponse",
+    "ProcessFiscalDocumentRequest",
 ]

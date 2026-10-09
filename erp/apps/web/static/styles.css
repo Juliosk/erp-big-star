@@ -1015,6 +1015,68 @@ dialog::backdrop {
   overflow: hidden;
   clip-path: inset(50%);
 }
+.fiscal-rail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 22px 0;
+  color: var(--muted);
+}
+.fiscal-rail span {
+  flex: 1;
+  border: 1px solid var(--sky);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fff;
+  font-weight: 700;
+}
+.fiscal-rail span.active {
+  border-color: var(--navy);
+  color: var(--navy);
+  box-shadow: inset 4px 0 var(--accent);
+}
+.fiscal-rail small { color: var(--accent); margin-right: 6px; }
+.fiscal-rail i { font-style: normal; color: var(--sky); }
+.fiscal-grid {
+  display: grid;
+  grid-template-columns: minmax(310px, .8fr) minmax(480px, 1.2fr);
+  gap: 20px;
+}
+#fiscal,
+.fiscal-grid > *,
+#fiscal .table-wrap,
+#fiscal input,
+#fiscal select,
+#fiscal button {
+  min-width: 0;
+  max-width: 100%;
+}
+.fiscal-operation { grid-column: 1 / -1; }
+.fiscal-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.fiscal-form .fiscal-span,
+.fiscal-form > button { grid-column: 1 / -1; }
+.fiscal-actions {
+  display: grid;
+  grid-template-columns: minmax(180px, 300px) 1fr;
+  gap: 10px 18px;
+  align-items: end;
+  margin: 18px 0;
+}
+.fiscal-action-row { display: flex; flex-wrap: wrap; gap: 8px; }
+#fiscal-danfe-preview {
+  width: 100%;
+  min-height: 620px;
+  margin-top: 18px;
+  border: 1px solid var(--sky);
+  border-radius: 10px;
+  background: #fff;
+}
+#fiscal-document-rows tr { cursor: pointer; }
+#fiscal-document-rows tr.selected { background: #eef5ff; }
 @media (max-width: 1050px) {
   body {
     grid-template-columns: 208px minmax(0, 1fr);
@@ -1053,6 +1115,11 @@ dialog::backdrop {
   .procurement-form-wide {
     grid-template-columns: 1fr;
   }
+  .fiscal-grid,
+  .fiscal-form { grid-template-columns: 1fr; }
+  .fiscal-form .fiscal-span,
+  .fiscal-form > button,
+  .fiscal-operation { grid-column: auto; }
   .procurement-requisitions,
   .procurement-receiving,
   .procurement-span { grid-column: auto; }
@@ -1173,6 +1240,9 @@ dialog::backdrop {
   .procurement-flow i { align-self: center; transform: rotate(90deg); }
   .receipt-lane { align-items: stretch; flex-direction: column; }
   .receipt-lane i { align-self: center; transform: rotate(90deg); }
+  .fiscal-rail { align-items: stretch; flex-direction: column; }
+  .fiscal-rail i { align-self: center; transform: rotate(90deg); }
+  .fiscal-actions { grid-template-columns: 1fr; }
   .sales-flow i {
     align-self: center;
     transform: rotate(90deg);

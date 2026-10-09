@@ -37,6 +37,11 @@ from erp.modules.fiscal.application.issuance import (
     FiscalWorkerMetadata,
     TransmitFiscalDocument,
 )
+from erp.modules.fiscal.application.operations import (
+    CancelAuthorizedFiscalDocument,
+    FiscalOperationsService,
+    ProcessFiscalDocument,
+)
 from erp.modules.fiscal.application.permissions import (
     FISCAL_NFE_CANCEL,
     FISCAL_NFE_CORRECT,
@@ -70,6 +75,7 @@ __all__ = [
     "FISCAL_NFE_READ",
     "PDF_CONTENT_TYPE",
     "XML_CONTENT_TYPE",
+    "CancelAuthorizedFiscalDocument",
     "CancelFiscalDocument",
     "ContingencyMode",
     "CreateFiscalDocument",
@@ -90,9 +96,11 @@ __all__ = [
     "FiscalIssuanceStore",
     "FiscalIssuanceWorker",
     "FiscalIssueResult",
+    "FiscalOperationsService",
     "FiscalWorkerMetadata",
     "FiscalXmlPackager",
     "IssueFiscalDocument",
+    "ProcessFiscalDocument",
     "SefazBatchRequest",
     "SefazCancellationRequest",
     "SefazCancellationResult",
