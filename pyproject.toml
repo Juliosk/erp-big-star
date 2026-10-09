@@ -15,6 +15,7 @@ dependencies = [
     "minio==7.2.20",
     "openpyxl==3.1.5",
     "pydantic-settings==2.15.0",
+    "reportlab==4.4.4",
     "sqlalchemy[asyncio]==2.0.52",
     "uvicorn[standard]==0.52.4",
 ]
@@ -24,13 +25,16 @@ dev = [
     "coverage[toml]==7.16.0",
     "httpx2==2.12.0",
     "mypy==2.3.1",
+    "pdfplumber==0.11.7",
     "pip-audit==2.10.1",
     "playwright==1.62.0",
+    "pypdf==6.1.1",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
     "ruff==0.16.6",
     "types-defusedxml==0.7.0.20260504",
     "types-openpyxl==3.1.5.20260827",
+    "types-reportlab==5.0.0.20261006",
 ]
 
 [tool.uv]

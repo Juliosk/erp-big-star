@@ -41,7 +41,13 @@ class MinioStorage:
             status_code=503,
         )
 
-    async def put(self, key: str, content: bytes) -> StoredObject:
+    async def put(
+        self,
+        key: str,
+        content: bytes,
+        *,
+        content_type: str = XLSX_CONTENT_TYPE,
+    ) -> StoredObject:
         if not 1 <= len(content) <= MAX_OBJECT_BYTES:
             raise ValueError("Object must contain 1 byte to 10 MiB.")
         await asyncio.to_thread(self._private_bucket)
@@ -51,7 +57,7 @@ class MinioStorage:
             key,
             BytesIO(content),
             len(content),
-            content_type=XLSX_CONTENT_TYPE,
+            content_type=content_type,
         )
         return StoredObject(key, hashlib.sha256(content).hexdigest(), len(content))
 
@@ -69,6 +75,19 @@ class MinioStorage:
 
     async def get(self, key: str) -> bytes:
         return await asyncio.to_thread(self._read, key)
+
+    def _exists(self, key: str) -> bool:
+        self._private_bucket()
+        try:
+            self._client.stat_object(self._bucket, key)
+        except S3Error as error:
+            if error.code in {"NoSuchKey", "NoSuchObject"}:
+                return False
+            raise
+        return True
+
+    async def exists(self, key: str) -> bool:
+        return await asyncio.to_thread(self._exists, key)
 
     async def delete(self, key: str) -> None:
         await asyncio.to_thread(self._client.remove_object, self._bucket, key)

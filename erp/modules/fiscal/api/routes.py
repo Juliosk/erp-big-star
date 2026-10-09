@@ -5,6 +5,7 @@ from typing import Annotated, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi.responses import Response as BinaryResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from erp.modules.admin.contracts import SecurityContext, SecurityContextResolver
@@ -14,7 +15,11 @@ from erp.modules.fiscal.api.schemas import (
     FiscalDocumentResponse,
 )
 from erp.modules.fiscal.api.versioning import require_version
-from erp.modules.fiscal.application import FiscalDocumentService, IssueFiscalDocument
+from erp.modules.fiscal.application import (
+    FiscalDocumentService,
+    FiscalDocumentStorageService,
+    IssueFiscalDocument,
+)
 from erp.modules.fiscal.domain import FiscalDocumentModel, FiscalDocumentStatus
 from erp.platform.errors import ApplicationError
 from erp.platform.idempotency import require_idempotency_key
@@ -58,6 +63,17 @@ def get_fiscal_service(request: Request) -> FiscalDocumentService:
         raise ApplicationError(
             code="FISCAL_SERVICE_UNAVAILABLE",
             message="Fiscal document services unavailable.",
+            status_code=503,
+        )
+    return service
+
+
+def get_fiscal_storage(request: Request) -> FiscalDocumentStorageService:
+    service = getattr(request.app.state, "fiscal_document_storage", None)
+    if not isinstance(service, FiscalDocumentStorageService):
+        raise ApplicationError(
+            code="FISCAL_STORAGE_UNAVAILABLE",
+            message="Fiscal document storage is unavailable.",
             status_code=503,
         )
     return service
@@ -137,6 +153,46 @@ async def get_document(
     document = await service.get(context, company_id, document_id)
     _version_headers(response, document.version)
     return FiscalDocumentResponse.from_domain(document)
+
+
+@router.get("/{document_id}/danfe", response_class=BinaryResponse)
+async def download_danfe(
+    document_id: UUID,
+    company_id: UUID,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[FiscalDocumentStorageService, Depends(get_fiscal_storage)],
+) -> BinaryResponse:
+    artifact = await service.danfe(context, company_id, document_id)
+    return BinaryResponse(
+        artifact.content,
+        media_type=artifact.content_type,
+        headers={
+            "Content-Disposition": f'inline; filename="{artifact.filename}"',
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+            "Digest": f"sha-256={artifact.sha256}",
+        },
+    )
+
+
+@router.get("/{document_id}/xml", response_class=BinaryResponse)
+async def download_xml(
+    document_id: UUID,
+    company_id: UUID,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[FiscalDocumentStorageService, Depends(get_fiscal_storage)],
+) -> BinaryResponse:
+    artifact = await service.xml(context, company_id, document_id)
+    return BinaryResponse(
+        artifact.content,
+        media_type=artifact.content_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{artifact.filename}"',
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+            "Digest": f"sha-256={artifact.sha256}",
+        },
+    )
 
 
 def _version_headers(response: Response, version: int) -> None:

@@ -43,7 +43,12 @@ from erp.modules.customer.infrastructure.customer_duplicates import PostgresCust
 from erp.modules.customer.infrastructure.customer_groups import PostgresCustomerGroups
 from erp.modules.customer.infrastructure.customer_updates import PostgresCustomerUpdates
 from erp.modules.fiscal.api import router as fiscal_router
-from erp.modules.fiscal.application import FiscalAuthorization, FiscalDocumentService
+from erp.modules.fiscal.application import (
+    FiscalArtifactStoragePort,
+    FiscalAuthorization,
+    FiscalDocumentService,
+    FiscalDocumentStorageService,
+)
 from erp.modules.fiscal.infrastructure import PostgresFiscalDocumentStore
 from erp.modules.governance.api import router as import_router
 from erp.modules.governance.application.imports import ImportService
@@ -143,6 +148,7 @@ from erp.platform.config import Settings, get_settings
 from erp.platform.database import Database, ManagedDatabase
 from erp.platform.errors import register_error_handlers
 from erp.platform.observability import configure_logging
+from erp.platform.storage.minio import MinioStorage
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +177,7 @@ def create_app(
     procurement_purchasing: PurchasingService | None = None,
     procurement_goods_receipts: GoodsReceiptService | None = None,
     fiscal_documents: FiscalDocumentService | None = None,
+    fiscal_artifact_storage: FiscalArtifactStoragePort | None = None,
     inventory_queries: InventoryQueries | None = None,
     inventory_creation: InventoryCatalogService | None = None,
     inventory_adjustments: InventoryAdjustmentService | None = None,
@@ -225,6 +232,7 @@ def create_app(
     resolved_procurement_purchasing = procurement_purchasing
     resolved_procurement_goods_receipts = procurement_goods_receipts
     resolved_fiscal_documents = fiscal_documents
+    resolved_fiscal_document_storage: FiscalDocumentStorageService | None = None
     resolved_inventory_queries = inventory_queries
     resolved_inventory_creation = inventory_creation
     resolved_inventory_adjustments = inventory_adjustments
@@ -506,6 +514,13 @@ def create_app(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
             ),
         )
+    if fiscal_artifact_storage is None and resolved_settings.import_storage_access_key:
+        fiscal_artifact_storage = MinioStorage(resolved_settings)
+    if resolved_fiscal_documents is not None and fiscal_artifact_storage is not None:
+        resolved_fiscal_document_storage = FiscalDocumentStorageService(
+            resolved_fiscal_documents,
+            fiscal_artifact_storage,
+        )
     if product_barcodes is None and isinstance(resolved_database, Database):
         product_barcodes = ProductBarcodeService(
             PostgresProductBarcodes(
@@ -605,6 +620,7 @@ def create_app(
     application.state.procurement_purchasing = resolved_procurement_purchasing
     application.state.procurement_goods_receipts = resolved_procurement_goods_receipts
     application.state.fiscal_documents = resolved_fiscal_documents
+    application.state.fiscal_document_storage = resolved_fiscal_document_storage
     application.state.inventory_queries = resolved_inventory_queries
     application.state.inventory_creation = resolved_inventory_creation
     application.state.inventory_adjustments = resolved_inventory_adjustments

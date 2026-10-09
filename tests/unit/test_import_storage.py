@@ -23,6 +23,9 @@ def test_minio_private_policy_limits_and_response_cleanup(monkeypatch: pytest.Mo
         storage._private_bucket()
     private = S3Error(MagicMock(), "NoSuchBucketPolicy", "Private", "resource", "request", "host")
     client.get_bucket_policy.side_effect = private
+    stored = asyncio.run(storage.put("document.pdf", b"pdf", content_type="application/pdf"))
+    assert stored.size == 3
+    assert client.put_object.call_args.kwargs["content_type"] == "application/pdf"
     for content in (b"", b"x" * (MAX_OBJECT_BYTES + 1)):
         with pytest.raises(ValueError, match="10 MiB"):
             asyncio.run(storage.put("key", content))
@@ -35,6 +38,10 @@ def test_minio_private_policy_limits_and_response_cleanup(monkeypatch: pytest.Mo
     response.release_conn.assert_called_once()
     asyncio.run(storage.delete("key"))
     client.remove_object.assert_called_once()
+    assert asyncio.run(storage.exists("document.pdf")) is True
+    missing = S3Error(MagicMock(), "NoSuchKey", "Missing", "resource", "request", "host")
+    client.stat_object.side_effect = missing
+    assert asyncio.run(storage.exists("missing")) is False
 
 
 def test_storage_requires_secret_and_production_tls() -> None:
