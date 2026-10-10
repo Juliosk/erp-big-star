@@ -1185,7 +1185,7 @@
           <div>
             <p class="eyebrow">DOCUMENTOS ELETRÔNICOS / M11</p>
             <h1 id="fiscal-title">Cockpit fiscal</h1>
-            <p>Emissão assistida, retorno SEFAZ, contingência e custódia dos artefatos oficiais.</p>
+            <p>Saídas autorizadas e entradas de fornecedores, da SEFAZ ao estoque disponível.</p>
           </div>
           <button id="fiscal-refresh" class="secondary">Atualizar documentos</button>
         </div>
@@ -1195,7 +1195,11 @@
           <span data-fiscal-stage="AUTHORIZED"><small>03</small> Autorização</span><i>→</i>
           <span data-fiscal-stage="CANCELLED"><small>04</small> Evento 110111</span>
         </div>
-        <div class="fiscal-grid">
+        <div class="fiscal-view-tabs" role="tablist" aria-label="Operações fiscais">
+          <button id="fiscal-outbound-tab" role="tab" aria-selected="true">Emissão e saída</button>
+          <button id="fiscal-inbound-tab" role="tab" aria-selected="false" class="secondary">Entradas e conciliação</button>
+        </div>
+        <div id="fiscal-outbound-view" class="fiscal-grid">
           <section class="panel fiscal-create">
             <div class="workflow-section-heading">
               <div><p class="eyebrow">EMISSÃO MANUAL</p><h2>Novo documento</h2></div>
@@ -1238,6 +1242,90 @@
             <ol id="fiscal-history" class="workflow-rail"></ol>
             <iframe id="fiscal-danfe-preview" title="Pré-visualização da DANFE" hidden></iframe>
           </section>
+        </div>
+        <div id="fiscal-inbound-view" hidden>
+          <div class="inbound-lane" aria-label="Fluxo de entrada fiscal e física">
+            <span><small>XML</small><strong>Nota do fornecedor</strong><em>Documento autorizado</em></span>
+            <i aria-hidden="true">→</i>
+            <span><small>MDE</small><strong>Manifestação</strong><em>Confirmação 210200</em></span>
+            <i aria-hidden="true">→</i>
+            <span><small>M6 · M17</small><strong>Conferência física</strong><em>Recebido e inspecionado</em></span>
+            <i aria-hidden="true">→</i>
+            <span><small>M5</small><strong>Saldo disponível</strong><em>Somente após conciliar</em></span>
+          </div>
+          <div class="inbound-grid">
+            <section class="panel inbound-intake">
+              <div class="workflow-section-heading">
+                <div><p class="eyebrow">CAIXA DE ENTRADA</p><h2>Notas de fornecedores</h2></div>
+                <span id="fiscal-inbound-count" class="workflow-count">0</span>
+              </div>
+              <form id="fiscal-inbound-upload-form" class="inbound-upload">
+                <label for="fiscal-inbound-file">XML autorizado <small>nfeProc · até 5 MB</small></label>
+                <input id="fiscal-inbound-file" type="file" accept="application/xml,text/xml,.xml" required />
+                <button type="submit">Importar XML</button>
+              </form>
+              <div class="mde-matrix" aria-label="Matriz de manifestação do destinatário">
+                <span><small>Pendentes</small><strong id="fiscal-mde-pending">0</strong></span>
+                <span><small>Com ciência</small><strong id="fiscal-mde-acknowledged">0</strong></span>
+                <span><small>Confirmadas</small><strong id="fiscal-mde-confirmed">0</strong></span>
+                <span><small>Com exceção</small><strong id="fiscal-mde-exception">0</strong></span>
+              </div>
+              <div class="table-wrap compact-table">
+                <table>
+                  <thead><tr><th>NF-e</th><th>Fornecedor</th><th>MDE</th><th>Total</th></tr></thead>
+                  <tbody id="fiscal-inbound-rows"></tbody>
+                </table>
+                <div id="fiscal-inbound-empty" class="empty" hidden><span aria-hidden="true">⇩</span><h2>Nenhuma entrada</h2><p>Importe o XML autorizado recebido do fornecedor.</p></div>
+              </div>
+            </section>
+            <section class="panel inbound-dossier" aria-live="polite">
+              <div class="workflow-section-heading">
+                <div><p class="eyebrow">DOSSIÊ FISCAL</p><h2 id="fiscal-inbound-title">Selecione uma NF-e</h2></div>
+                <span id="fiscal-inbound-status" class="status">—</span>
+              </div>
+              <p id="fiscal-inbound-meta" class="hint">Itens, chave e manifestações aparecerão aqui.</p>
+              <div id="fiscal-inbound-detail" hidden>
+                <div class="inbound-facts">
+                  <span><small>Fornecedor</small><strong id="fiscal-inbound-supplier">—</strong></span>
+                  <span><small>Produtos</small><strong id="fiscal-inbound-products-total">—</strong></span>
+                  <span><small>Total NF-e</small><strong id="fiscal-inbound-total">—</strong></span>
+                </div>
+                <div class="table-wrap compact-table">
+                  <table><thead><tr><th>Linha</th><th>Item</th><th>Qtd.</th><th>Unitário</th></tr></thead><tbody id="fiscal-inbound-item-rows"></tbody></table>
+                </div>
+                <form id="fiscal-mde-form" class="mde-form">
+                  <div><label for="fiscal-mde-event">Manifestação</label><select id="fiscal-mde-event"><option value="210200">Confirmar operação · 210200</option><option value="210210">Ciência da operação · 210210</option><option value="210220">Desconhecer operação · 210220</option><option value="210240">Operação não realizada · 210240</option></select></div>
+                  <div><label for="fiscal-mde-reason">Justificativa <small>somente 210240</small></label><input id="fiscal-mde-reason" minlength="15" maxlength="255" disabled /></div>
+                  <button type="submit">Transmitir manifestação</button>
+                </form>
+                <ol id="fiscal-mde-history" class="workflow-rail"></ol>
+              </div>
+            </section>
+            <section class="panel inbound-reconciliation" aria-live="polite">
+              <div class="workflow-section-heading">
+                <div><p class="eyebrow">AMARRAÇÃO FÍSICO-FISCAL</p><h2>Conciliação com a doca</h2></div>
+                <span id="fiscal-reconciliation-status" class="reconciliation-signal">Aguardando seleção</span>
+              </div>
+              <p class="hint">Vincule cada linha fiscal ao item já conferido e aprovado pelo M17. Nenhum produto é associado por aproximação.</p>
+              <form id="fiscal-reconciliation-form" hidden>
+                <label for="fiscal-receipt">Recebimento inspecionado</label>
+                <select id="fiscal-receipt" required><option value="">Selecione um recebimento</option></select>
+                <div id="fiscal-line-mappings" class="line-mappings"></div>
+                <div class="reconciliation-actions">
+                  <label for="fiscal-price-tolerance">Tolerância monetária</label><input id="fiscal-price-tolerance" type="number" min="0" max="1" step="0.01" value="0.01" />
+                  <button type="submit">Conciliar e liberar estoque</button>
+                </div>
+              </form>
+              <div id="fiscal-reconciliation-report" hidden>
+                <div class="reconciliation-flags">
+                  <span id="fiscal-financial-flag">Financeiro liberado</span>
+                  <span id="fiscal-physical-flag">Físico conciliado</span>
+                </div>
+                <ul id="fiscal-reconciliation-issues" class="issue-list"></ul>
+                <p id="fiscal-reconciliation-meta" class="hint"></p>
+              </div>
+            </section>
+          </div>
         </div>
       </section>
       <section id="sales" hidden aria-labelledby="sales-title">

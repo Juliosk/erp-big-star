@@ -88,6 +88,15 @@ const errors = {
     "O documento ainda não possui artefato fiscal oficial para exportação.",
   FISCAL_STORAGE_UNAVAILABLE:
     "O armazenamento fiscal está temporariamente indisponível.",
+  FISCAL_INBOUND_CONFLICT:
+    "Este XML de entrada já foi registrado para a empresa selecionada.",
+  GOODS_RECEIPT_NOT_INSPECTED:
+    "O recebimento precisa concluir a inspeção M17 antes da conciliação.",
+  RECONCILIATION_ALREADY_EXISTS:
+    "Esta nota fiscal já possui uma conciliação registrada.",
+  RECONCILIATION_POSTING_INCOMPLETE:
+    "Todos os itens conciliados precisam estar aprovados para saldo disponível.",
+  UNSUPPORTED_MEDIA_TYPE: "Selecione um arquivo XML válido do fornecedor.",
 };
 let token = "",
   permissions = new Set(),
@@ -418,13 +427,22 @@ function reset() {
 }
 async function api(
   path,
-  { method = "GET", body, version, key, raw, binary = false } = {},
+  {
+    method = "GET",
+    body,
+    version,
+    key,
+    raw,
+    binary = false,
+    contentType,
+  } = {},
 ) {
   const requestToken = token;
   const headers = { Authorization: `Bearer ${requestToken}` };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (raw !== undefined)
     headers["Content-Type"] =
+      contentType ||
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
   if (version !== undefined) headers["If-Match"] = `"${version}"`;
   if (key) headers["Idempotency-Key"] = key;
@@ -515,7 +533,9 @@ async function connect() {
     !permissions.has("procurement.supplier.read") &&
     !permissions.has("procurement.requisition.read") &&
     !permissions.has("procurement.order.read");
-  $("fiscal-nav").hidden = !permissions.has("fiscal.nfe.read");
+  $("fiscal-nav").hidden =
+    !permissions.has("fiscal.nfe.read") &&
+    !permissions.has("fiscal.inbound.read");
   if (!company) {
     notice(
       "Nenhuma empresa ativa autorizada. Configure os escopos da identidade.",
