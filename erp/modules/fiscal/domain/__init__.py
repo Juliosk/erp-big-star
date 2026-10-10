@@ -33,6 +33,7 @@ from erp.modules.fiscal.domain.inbound import (
     InboundFiscalItem,
     InboundFiscalParty,
     RecipientManifestation,
+    RecipientManifestationStatus,
     RecipientManifestationType,
 )
 from erp.modules.fiscal.domain.tax_snapshot import (
@@ -66,6 +67,7 @@ __all__ = [
     "InvalidTaxSnapshotError",
     "NFeAccessKey",
     "RecipientManifestation",
+    "RecipientManifestationStatus",
     "RecipientManifestationType",
     "SefazResponseSnapshot",
     "TaxComponentSnapshot",

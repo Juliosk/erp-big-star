@@ -15,6 +15,13 @@ from erp.modules.fiscal.infrastructure.fiscal_document_repository import (
 from erp.modules.fiscal.infrastructure.fiscal_document_store import (
     PostgresFiscalDocumentStore,
 )
+from erp.modules.fiscal.infrastructure.inbound_model import (
+    InboundFiscalDocumentItemModel,
+    InboundFiscalDocumentModel,
+    MdeEventModel,
+)
+from erp.modules.fiscal.infrastructure.inbound_repository import InboundFiscalDocumentRepository
+from erp.modules.fiscal.infrastructure.inbound_store import PostgresInboundFiscalOperations
 from erp.modules.fiscal.infrastructure.issuance_store import PostgresFiscalIssuanceStore
 from erp.modules.fiscal.infrastructure.sefaz_gateway import (
     CertificateSefazGateway,
@@ -41,8 +48,13 @@ __all__ = [
     "FiscalDocumentItemModel",
     "FiscalDocumentModel",
     "FiscalDocumentRepository",
+    "InboundFiscalDocumentItemModel",
+    "InboundFiscalDocumentModel",
+    "InboundFiscalDocumentRepository",
+    "MdeEventModel",
     "PostgresFiscalDocumentStore",
     "PostgresFiscalIssuanceStore",
+    "PostgresInboundFiscalOperations",
     "ResilientSefazGateway",
     "RetryPolicy",
     "SefazCircuitOpenError",

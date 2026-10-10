@@ -25,6 +25,14 @@ class RecipientManifestationType(StrEnum):
         return self is not RecipientManifestationType.ACKNOWLEDGEMENT
 
 
+class RecipientManifestationStatus(StrEnum):
+    PENDING = "PENDING"
+    ACKNOWLEDGED = "ACKNOWLEDGED"
+    CONFIRMED = "CONFIRMED"
+    UNKNOWN_OPERATION = "UNKNOWN_OPERATION"
+    OPERATION_NOT_PERFORMED = "OPERATION_NOT_PERFORMED"
+
+
 @dataclass(frozen=True, slots=True)
 class InboundFiscalParty:
     tax_id: str
@@ -176,6 +184,18 @@ class InboundFiscalDocument:
             (event for event in self.manifestations if event.event_type.is_conclusive), None
         )
 
+    @property
+    def manifestation_status(self) -> RecipientManifestationStatus:
+        event = self.manifestations[-1] if self.manifestations else None
+        if event is None:
+            return RecipientManifestationStatus.PENDING
+        return {
+            RecipientManifestationType.ACKNOWLEDGEMENT: RecipientManifestationStatus.ACKNOWLEDGED,
+            RecipientManifestationType.CONFIRMATION: RecipientManifestationStatus.CONFIRMED,
+            RecipientManifestationType.UNKNOWN_OPERATION: RecipientManifestationStatus.UNKNOWN_OPERATION,
+            RecipientManifestationType.OPERATION_NOT_PERFORMED: RecipientManifestationStatus.OPERATION_NOT_PERFORMED,
+        }[event.event_type]
+
     def next_manifestation_sequence(
         self, event_type: RecipientManifestationType, reason: str | None = None
     ) -> int:
@@ -211,5 +231,6 @@ __all__ = [
     "InboundFiscalItem",
     "InboundFiscalParty",
     "RecipientManifestation",
+    "RecipientManifestationStatus",
     "RecipientManifestationType",
 ]

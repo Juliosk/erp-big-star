@@ -37,6 +37,12 @@ from erp.modules.fiscal.application.inbound import (
     ManifestInboundDocument,
     purchase_match_reference,
 )
+from erp.modules.fiscal.application.inbound_documents import (
+    InboundFiscalDocumentService,
+    InboundFiscalOperations,
+    InboundPage,
+    InboundResult,
+)
 from erp.modules.fiscal.application.issuance import (
     CancelFiscalDocument,
     FiscalIssuanceStore,
@@ -50,6 +56,8 @@ from erp.modules.fiscal.application.operations import (
     ProcessFiscalDocument,
 )
 from erp.modules.fiscal.application.permissions import (
+    FISCAL_INBOUND_MANAGE,
+    FISCAL_INBOUND_READ,
     FISCAL_NFE_CANCEL,
     FISCAL_NFE_CORRECT,
     FISCAL_NFE_ISSUE,
@@ -78,6 +86,8 @@ __all__ = [
     "FISCAL_DOCUMENT_CANCELLED",
     "FISCAL_DOCUMENT_DENIED",
     "FISCAL_DOCUMENT_REJECTED",
+    "FISCAL_INBOUND_MANAGE",
+    "FISCAL_INBOUND_READ",
     "FISCAL_NFE_CANCEL",
     "FISCAL_NFE_CORRECT",
     "FISCAL_NFE_ISSUE",
@@ -108,9 +118,13 @@ __all__ = [
     "FiscalOperationsService",
     "FiscalWorkerMetadata",
     "FiscalXmlPackager",
+    "InboundFiscalDocumentService",
     "InboundFiscalDocumentStore",
+    "InboundFiscalOperations",
     "InboundFiscalService",
     "InboundNFeParser",
+    "InboundPage",
+    "InboundResult",
     "IssueFiscalDocument",
     "ManifestInboundDocument",
     "ProcessFiscalDocument",

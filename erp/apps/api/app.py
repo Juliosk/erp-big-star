@@ -50,10 +50,12 @@ from erp.modules.fiscal.application import (
     FiscalDocumentStorageService,
     FiscalIssuanceWorker,
     FiscalOperationsService,
+    InboundFiscalDocumentService,
 )
 from erp.modules.fiscal.infrastructure import (
     PostgresFiscalDocumentStore,
     PostgresFiscalIssuanceStore,
+    PostgresInboundFiscalOperations,
     SefazMockAdapter,
 )
 from erp.modules.governance.api import router as import_router
@@ -184,6 +186,7 @@ def create_app(
     procurement_goods_receipts: GoodsReceiptService | None = None,
     fiscal_documents: FiscalDocumentService | None = None,
     fiscal_operations: FiscalOperationsService | None = None,
+    inbound_fiscal_documents: InboundFiscalDocumentService | None = None,
     fiscal_artifact_storage: FiscalArtifactStoragePort | None = None,
     inventory_queries: InventoryQueries | None = None,
     inventory_creation: InventoryCatalogService | None = None,
@@ -240,6 +243,7 @@ def create_app(
     resolved_procurement_goods_receipts = procurement_goods_receipts
     resolved_fiscal_documents = fiscal_documents
     resolved_fiscal_operations = fiscal_operations
+    resolved_inbound_fiscal_documents = inbound_fiscal_documents
     resolved_fiscal_document_storage: FiscalDocumentStorageService | None = None
     resolved_inventory_queries = inventory_queries
     resolved_inventory_creation = inventory_creation
@@ -529,6 +533,22 @@ def create_app(
             ),
             authorization,
         )
+    if (
+        resolved_inbound_fiscal_documents is None
+        and isinstance(resolved_database, Database)
+        and resolved_settings.dev_auth_enabled
+        and resolved_settings.environment in {Environment.LOCAL, Environment.TEST}
+    ):
+        resolved_inbound_fiscal_documents = InboundFiscalDocumentService(
+            PostgresInboundFiscalOperations(
+                resolved_database,
+                SefazMockAdapter(),
+                ttl_seconds=resolved_settings.idempotency_ttl_seconds,
+            ),
+            FiscalAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
     if fiscal_artifact_storage is None and resolved_settings.import_storage_access_key:
         fiscal_artifact_storage = MinioStorage(resolved_settings)
     if resolved_fiscal_documents is not None and fiscal_artifact_storage is not None:
@@ -636,6 +656,7 @@ def create_app(
     application.state.procurement_goods_receipts = resolved_procurement_goods_receipts
     application.state.fiscal_documents = resolved_fiscal_documents
     application.state.fiscal_operations = resolved_fiscal_operations
+    application.state.inbound_fiscal_documents = resolved_inbound_fiscal_documents
     application.state.fiscal_document_storage = resolved_fiscal_document_storage
     application.state.inventory_queries = resolved_inventory_queries
     application.state.inventory_creation = resolved_inventory_creation

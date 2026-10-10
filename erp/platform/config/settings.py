@@ -93,6 +93,8 @@ class Settings(BaseSettings):
         "procurement.receipt.read",
         "procurement.receipt.manage",
         "fiscal.nfe.read",
+        "fiscal.inbound.read",
+        "fiscal.inbound.manage",
         "fiscal.nfe.issue",
         "fiscal.nfe.cancel",
         "fiscal.nfe.correct",
