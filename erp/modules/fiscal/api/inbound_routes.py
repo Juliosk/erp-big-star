@@ -12,8 +12,17 @@ from erp.modules.fiscal.api.inbound_schemas import (
     InboundFiscalListResponse,
     ManifestInboundRequest,
 )
+from erp.modules.fiscal.api.reconciliation_schemas import (
+    FiscalReceivingReconciliationResponse,
+    ReconcileFiscalReceivingRequest,
+)
 from erp.modules.fiscal.api.routes import resolve_security_context
 from erp.modules.fiscal.api.versioning import require_version
+from erp.modules.fiscal.application import (
+    FiscalReceivingReconciliationService,
+    ReconcileFiscalReceiving,
+    ReconciliationMetadata,
+)
 from erp.modules.fiscal.application.inbound_documents import InboundFiscalDocumentService
 from erp.modules.fiscal.domain import RecipientManifestationStatus
 from erp.platform.errors import ApplicationError
@@ -28,6 +37,17 @@ def get_service(request: Request) -> InboundFiscalDocumentService:
         raise ApplicationError(
             code="FISCAL_INBOUND_UNAVAILABLE",
             message="Inbound fiscal services unavailable.",
+            status_code=503,
+        )
+    return service
+
+
+def get_reconciliation_service(request: Request) -> FiscalReceivingReconciliationService:
+    service = getattr(request.app.state, "fiscal_receiving_reconciliation", None)
+    if not isinstance(service, FiscalReceivingReconciliationService):
+        raise ApplicationError(
+            code="FISCAL_RECONCILIATION_UNAVAILABLE",
+            message="Fiscal receiving reconciliation is unavailable.",
             status_code=503,
         )
     return service
@@ -80,6 +100,65 @@ async def manifest(
     _headers(response, result.document.version)
     response.headers["Idempotency-Replayed"] = str(result.idempotency_replayed).lower()
     return InboundFiscalDocumentResponse.from_domain(result.document)
+
+
+@router.post(
+    "/{document_id}/reconcile",
+    response_model=FiscalReceivingReconciliationResponse,
+)
+async def reconcile(
+    document_id: UUID,
+    company_id: UUID,
+    body: ReconcileFiscalReceivingRequest,
+    request: Request,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[FiscalReceivingReconciliationService, Depends(get_reconciliation_service)],
+    version: Annotated[int, Depends(require_version)],
+    key: Annotated[str, Depends(require_idempotency_key)],
+) -> FiscalReceivingReconciliationResponse:
+    result = await service.reconcile(
+        context,
+        ReconcileFiscalReceiving(
+            company_id=company_id,
+            inbound_fiscal_document_id=document_id,
+            goods_receipt_id=body.goods_receipt_id,
+            expected_inbound_version=version,
+            line_mappings=body.mappings(),
+            price_tolerance=body.price_tolerance,
+            idempotency_key=key,
+            metadata=ReconciliationMetadata(
+                request_id=UUID(request.state.request_id),
+                correlation_id=UUID(request.state.correlation_id),
+                source_ip=None if request.client is None else request.client.host,
+            ),
+        ),
+    )
+    _headers(response, result.reconciliation.version)
+    response.headers["Idempotency-Replayed"] = str(result.idempotency_replayed).lower()
+    return FiscalReceivingReconciliationResponse.from_domain(result.reconciliation)
+
+
+@router.get(
+    "/{document_id}/reconcile",
+    response_model=FiscalReceivingReconciliationResponse,
+)
+async def get_reconciliation(
+    document_id: UUID,
+    company_id: UUID,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[FiscalReceivingReconciliationService, Depends(get_reconciliation_service)],
+) -> FiscalReceivingReconciliationResponse:
+    value = await service.get(context, company_id, document_id)
+    if value is None:
+        raise ApplicationError(
+            code="RESOURCE_NOT_FOUND",
+            message="Fiscal receiving reconciliation not found.",
+            status_code=404,
+        )
+    _headers(response, value.version)
+    return FiscalReceivingReconciliationResponse.from_domain(value)
 
 
 @router.get("", response_model=InboundFiscalListResponse)

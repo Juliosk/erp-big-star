@@ -53,12 +53,8 @@ def receipt_browser_server() -> Iterator[ReceiptBrowserServer]:
             security_context_resolver=fixture.resolver,
         )
         listener.bind(("127.0.0.1", 0))
-        server = uvicorn.Server(
-            uvicorn.Config(application, log_config=None, log_level="warning")
-        )
-        thread = threading.Thread(
-            target=server.run, kwargs={"sockets": [listener]}, daemon=True
-        )
+        server = uvicorn.Server(uvicorn.Config(application, log_config=None, log_level="warning"))
+        thread = threading.Thread(target=server.run, kwargs={"sockets": [listener]}, daemon=True)
         thread.start()
         try:
             deadline = time.monotonic() + 15
@@ -93,9 +89,7 @@ def test_goods_receipt_cockpit_full_physical_journey() -> None:
         page.locator("#procurement-nav").click()
         expect(page.get_by_role("heading", name="Conferência física")).to_be_visible()
         page.locator("#procurement-receipt-number").fill("REC-E2E-0143")
-        page.locator("#procurement-receipt-order").select_option(
-            label=server.order_number
-        )
+        page.locator("#procurement-receipt-order").select_option(label=server.order_number)
         page.locator("#procurement-receipt-warehouse").fill(server.warehouse_id)
         page.locator("#procurement-receipt-quantity").fill("10")
         page.get_by_role("button", name="Registrar conferência cega").click()
@@ -107,8 +101,10 @@ def test_goods_receipt_cockpit_full_physical_journey() -> None:
         card.get_by_role("button", name="Aprovar inspeção M17").click()
         expect(card).to_contain_text("Inspecionado")
         card.get_by_role("button", name="Postar no estoque M5").click()
-        expect(page.locator("#notice")).to_contain_text("Saldo físico atualizado no M5")
-        expect(card).to_contain_text("Lançado no estoque")
+        expect(page.locator("#notice")).to_contain_text(
+            "controlled by fiscal receiving reconciliation"
+        )
+        expect(card).to_contain_text("Inspecionado")
 
         artifacts = Path("test-results")
         artifacts.mkdir(exist_ok=True)

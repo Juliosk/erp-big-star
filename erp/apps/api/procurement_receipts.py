@@ -7,6 +7,9 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from erp.modules.fiscal.infrastructure.reconciliation_model import (
+    FiscalReceivingReconciliationModel,
+)
 from erp.modules.inventory.application.ledger import InventoryLedgerEntry
 from erp.modules.inventory.domain import (
     InventoryPosting,
@@ -50,9 +53,16 @@ from erp.platform.idempotency import IdempotencyDecision, IdempotencyService
 class PostgresGoodsReceiptOperations:
     """Own each command transaction across M6, idempotency and M5 ledger/balance."""
 
-    def __init__(self, database: Database, *, ttl_seconds: int) -> None:
+    def __init__(
+        self,
+        database: Database,
+        *,
+        ttl_seconds: int,
+        require_fiscal_reconciliation: bool = False,
+    ) -> None:
         self._database = database
         self._idempotency = IdempotencyService(ttl_seconds=ttl_seconds)
+        self._require_fiscal_reconciliation = require_fiscal_reconciliation
 
     async def create(self, command: CreateGoodsReceipt, *, actor_id: UUID) -> GoodsReceipt:
         async with self._database.session() as session, session.begin():
@@ -178,6 +188,8 @@ class PostgresGoodsReceiptOperations:
             repository = GoodsReceiptRepository(session, company_id=command.company_id)
             current = await _required(repository, command.receipt_id)
             _version(current.version, command.expected_version)
+            if self._require_fiscal_reconciliation:
+                await _require_reconciliation(session, command.company_id, current.id)
             confirmations = []
             ledger = InventoryLedgerRepository(session, company_id=command.company_id)
             balances = InventoryBalanceRepository(session, company_id=command.company_id)
@@ -338,6 +350,23 @@ async def _lot_id(
 
 def _scope(company_id: UUID, actor_id: UUID) -> str:
     return f"procurement-receipt:{company_id}:{actor_id}"
+
+
+async def _require_reconciliation(
+    session: AsyncSession, company_id: UUID, receipt_id: UUID
+) -> None:
+    status = await session.scalar(
+        select(FiscalReceivingReconciliationModel.status).where(
+            FiscalReceivingReconciliationModel.company_id == company_id,
+            FiscalReceivingReconciliationModel.goods_receipt_id == receipt_id,
+        )
+    )
+    if status != "POSTED":
+        raise ApplicationError(
+            code="FISCAL_RECONCILIATION_REQUIRED",
+            message="AVAILABLE posting is controlled by fiscal receiving reconciliation.",
+            status_code=409,
+        )
 
 
 def _version(actual: int, expected: int) -> None:

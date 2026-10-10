@@ -23,6 +23,12 @@ from erp.modules.fiscal.infrastructure.inbound_model import (
 from erp.modules.fiscal.infrastructure.inbound_repository import InboundFiscalDocumentRepository
 from erp.modules.fiscal.infrastructure.inbound_store import PostgresInboundFiscalOperations
 from erp.modules.fiscal.infrastructure.issuance_store import PostgresFiscalIssuanceStore
+from erp.modules.fiscal.infrastructure.reconciliation_model import (
+    FiscalReceivingReconciliationModel,
+)
+from erp.modules.fiscal.infrastructure.reconciliation_repository import (
+    FiscalReceivingReconciliationRepository,
+)
 from erp.modules.fiscal.infrastructure.sefaz_gateway import (
     CertificateSefazGateway,
     CircuitBreaker,
@@ -48,6 +54,8 @@ __all__ = [
     "FiscalDocumentItemModel",
     "FiscalDocumentModel",
     "FiscalDocumentRepository",
+    "FiscalReceivingReconciliationModel",
+    "FiscalReceivingReconciliationRepository",
     "InboundFiscalDocumentItemModel",
     "InboundFiscalDocumentModel",
     "InboundFiscalDocumentRepository",

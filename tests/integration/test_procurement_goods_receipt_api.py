@@ -222,10 +222,9 @@ def test_complete_goods_receipt_m17_m5_flow_and_filters() -> None:
             "AVAILABLE",
             "QUARANTINE",
         ]
-        posted = _mutate(api, inspected, "post-to-inventory", None)
-        assert posted.status_code == 200
-        assert posted.json()["status"] == "POSTED"
-        assert len(posted.json()["inventory_transaction_ids"]) == 2
+        blocked = _mutate(api, inspected, "post-to-inventory", None)
+        assert blocked.status_code == 409
+        assert blocked.json()["error"]["code"] == "FISCAL_RECONCILIATION_REQUIRED"
 
         listing = api.client.get(
             "/api/v1/procurement/goods-receipts",
@@ -234,11 +233,11 @@ def test_complete_goods_receipt_m17_m5_flow_and_filters() -> None:
                 "company_id": str(api.data.company_id),
                 "purchase_order_id": issued.json()["id"],
                 "supplier_id": issued.json()["supplier_id"],
-                "status": "POSTED",
+                "status": "INSPECTED",
             },
         )
         assert listing.status_code == 200
-        assert [value["id"] for value in listing.json()["data"]] == [posted.json()["id"]]
+        assert [value["id"] for value in listing.json()["data"]] == [inspected.json()["id"]]
 
         async def balances() -> list[tuple[str, str]]:
             async with api.data.database.session() as session:
@@ -252,10 +251,7 @@ def test_complete_goods_receipt_m17_m5_flow_and_filters() -> None:
 
         portal = api.client.portal
         assert portal is not None
-        assert portal.call(balances) == [
-            ("AVAILABLE", "7.000000"),
-            ("QUARANTINE", "3.000000"),
-        ]
+        assert portal.call(balances) == []
 
 
 def test_receipt_idempotency_etag_rbac_and_tenant_scope() -> None:
@@ -325,15 +321,16 @@ def test_receipt_events_are_transactional_and_consumed_exactly_once() -> None:
                 ]
             },
         )
-        posted = _mutate(api, inspected, "post-to-inventory", None)
-        assert posted.status_code == 200
+        blocked = _mutate(api, inspected, "post-to-inventory", None)
+        assert blocked.status_code == 409
+        assert blocked.json()["error"]["code"] == "FISCAL_RECONCILIATION_REQUIRED"
 
         async def verify() -> tuple[list[str], list[tuple[bool, bool]]]:
             async with api.data.database.session() as session:
                 models = list(
                     await session.scalars(
                         select(OutboxEventModel)
-                        .where(OutboxEventModel.aggregate_id == UUID(posted.json()["id"]))
+                        .where(OutboxEventModel.aggregate_id == UUID(inspected.json()["id"]))
                         .order_by(OutboxEventModel.occurred_at)
                     )
                 )
@@ -343,7 +340,9 @@ def test_receipt_events_are_transactional_and_consumed_exactly_once() -> None:
             for envelope in envelopes:
                 first = await consumer.consume(envelope)
                 replay = await consumer.consume(envelope)
-                outcomes.extend([(first.processed, first.duplicate), (replay.processed, replay.duplicate)])
+                outcomes.extend(
+                    [(first.processed, first.duplicate), (replay.processed, replay.duplicate)]
+                )
             return [value.event_type for value in models], outcomes
 
         portal = api.client.portal
@@ -353,6 +352,5 @@ def test_receipt_events_are_transactional_and_consumed_exactly_once() -> None:
             "GoodsReceiptCreated",
             "GoodsReceiptReceived",
             "GoodsReceiptInspected",
-            "GoodsReceiptPosted",
         ]
-        assert outcomes == [(True, False), (False, True)] * 4
+        assert outcomes == [(True, False), (False, True)] * 3

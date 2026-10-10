@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from erp.apps.api.fiscal_receiving import PostgresFiscalReceivingReconciliation
 from erp.apps.api.import_composition import compose_imports
 from erp.apps.api.middleware import CorrelationIdMiddleware, RequestIdMiddleware
 from erp.apps.api.procurement_receipts import PostgresGoodsReceiptOperations
@@ -50,6 +51,7 @@ from erp.modules.fiscal.application import (
     FiscalDocumentStorageService,
     FiscalIssuanceWorker,
     FiscalOperationsService,
+    FiscalReceivingReconciliationService,
     InboundFiscalDocumentService,
 )
 from erp.modules.fiscal.infrastructure import (
@@ -186,6 +188,7 @@ def create_app(
     procurement_goods_receipts: GoodsReceiptService | None = None,
     fiscal_documents: FiscalDocumentService | None = None,
     fiscal_operations: FiscalOperationsService | None = None,
+    fiscal_receiving_reconciliation: FiscalReceivingReconciliationService | None = None,
     inbound_fiscal_documents: InboundFiscalDocumentService | None = None,
     fiscal_artifact_storage: FiscalArtifactStoragePort | None = None,
     inventory_queries: InventoryQueries | None = None,
@@ -243,6 +246,7 @@ def create_app(
     resolved_procurement_goods_receipts = procurement_goods_receipts
     resolved_fiscal_documents = fiscal_documents
     resolved_fiscal_operations = fiscal_operations
+    resolved_fiscal_receiving_reconciliation = fiscal_receiving_reconciliation
     resolved_inbound_fiscal_documents = inbound_fiscal_documents
     resolved_fiscal_document_storage: FiscalDocumentStorageService | None = None
     resolved_inventory_queries = inventory_queries
@@ -503,7 +507,9 @@ def create_app(
     if resolved_procurement_goods_receipts is None and isinstance(resolved_database, Database):
         resolved_procurement_goods_receipts = GoodsReceiptService(
             PostgresGoodsReceiptOperations(
-                resolved_database, ttl_seconds=resolved_settings.idempotency_ttl_seconds
+                resolved_database,
+                ttl_seconds=resolved_settings.idempotency_ttl_seconds,
+                require_fiscal_reconciliation=True,
             ),
             ProcurementAuthorization(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
@@ -543,6 +549,16 @@ def create_app(
             PostgresInboundFiscalOperations(
                 resolved_database,
                 SefazMockAdapter(),
+                ttl_seconds=resolved_settings.idempotency_ttl_seconds,
+            ),
+            FiscalAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
+    if resolved_fiscal_receiving_reconciliation is None and isinstance(resolved_database, Database):
+        resolved_fiscal_receiving_reconciliation = FiscalReceivingReconciliationService(
+            PostgresFiscalReceivingReconciliation(
+                resolved_database,
                 ttl_seconds=resolved_settings.idempotency_ttl_seconds,
             ),
             FiscalAuthorization(
@@ -656,6 +672,7 @@ def create_app(
     application.state.procurement_goods_receipts = resolved_procurement_goods_receipts
     application.state.fiscal_documents = resolved_fiscal_documents
     application.state.fiscal_operations = resolved_fiscal_operations
+    application.state.fiscal_receiving_reconciliation = resolved_fiscal_receiving_reconciliation
     application.state.inbound_fiscal_documents = resolved_inbound_fiscal_documents
     application.state.fiscal_document_storage = resolved_fiscal_document_storage
     application.state.inventory_queries = resolved_inventory_queries
