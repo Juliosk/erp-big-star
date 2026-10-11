@@ -53,14 +53,35 @@ class SegregationOfDutiesViolation(SodViolationError):
     """Backward-compatible explicit name for the M12 SoD violation."""
 
 
+class PayableConflictError(FinanceDomainError):
+    """A payable or provisional entry conflicts with an existing identity."""
+
+    code = "PAYABLE_CONFLICT"
+
+
+class FinanceVersionConflictError(FinanceDomainError):
+    """A persisted M12 aggregate was changed by another transaction."""
+
+    code = "VERSION_CONFLICT"
+
+
+class FinanceScopeError(FinanceDomainError):
+    """An aggregate does not belong to the repository company boundary."""
+
+    code = "FINANCE_SCOPE_ERROR"
+
+
 __all__ = [
     "FinanceDomainError",
+    "FinanceScopeError",
+    "FinanceVersionConflictError",
     "InstallmentMismatchError",
     "InvalidFinanceContractError",
     "InvalidPayableError",
     "InvalidPayableStateError",
     "InvalidProvisionalEntryError",
     "InvalidSegregationPolicyError",
+    "PayableConflictError",
     "SegregationOfDutiesViolation",
     "SodViolationError",
 ]

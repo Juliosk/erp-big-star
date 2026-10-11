@@ -2,12 +2,15 @@
 
 from erp.modules.finance.domain.exceptions import (
     FinanceDomainError,
+    FinanceScopeError,
+    FinanceVersionConflictError,
     InstallmentMismatchError,
     InvalidFinanceContractError,
     InvalidPayableError,
     InvalidPayableStateError,
     InvalidProvisionalEntryError,
     InvalidSegregationPolicyError,
+    PayableConflictError,
     SegregationOfDutiesViolation,
     SodViolationError,
 )
@@ -26,6 +29,8 @@ from erp.modules.finance.domain.segregation import PayableSegregationPolicy
 
 __all__ = [
     "FinanceDomainError",
+    "FinanceScopeError",
+    "FinanceVersionConflictError",
     "InstallmentMismatchError",
     "InvalidFinanceContractError",
     "InvalidPayableError",
@@ -33,6 +38,7 @@ __all__ = [
     "InvalidProvisionalEntryError",
     "InvalidSegregationPolicyError",
     "Payable",
+    "PayableConflictError",
     "PayableInstallment",
     "PayableInstallmentStatus",
     "PayableSegregationPolicy",
