@@ -98,6 +98,10 @@ class Settings(BaseSettings):
         "fiscal.nfe.issue",
         "fiscal.nfe.cancel",
         "fiscal.nfe.correct",
+        "finance.payable.read",
+        "finance.payable.create",
+        "finance.payable.approve",
+        "finance.payable.adjust",
         "workflow.definition.manage",
     )
 
