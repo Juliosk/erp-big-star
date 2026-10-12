@@ -39,6 +39,9 @@
           >Compras <span>M6</span></a
         >
         <a id="fiscal-nav" href="#fiscal" hidden>Fiscal <span>M11</span></a>
+        <a id="finance-nav" href="#finance" hidden
+          >Contas a pagar <span>M12</span></a
+        >
       </nav>
       <div class="company-context">
         <label for="company">Empresa de trabalho</label
@@ -1326,6 +1329,81 @@
               </div>
             </section>
           </div>
+        </div>
+      </section>
+      <section id="finance" hidden aria-labelledby="finance-title">
+        <div class="page-heading finance-heading">
+          <div>
+            <p class="eyebrow">GOVERNANÇA FINANCEIRA / M12</p>
+            <h1 id="finance-title">Cockpit de contas a pagar</h1>
+            <p>Provisões, vencimentos e alçadas reunidos em uma única fila operacional.</p>
+          </div>
+          <button id="finance-refresh" class="secondary">Atualizar títulos</button>
+        </div>
+        <div class="finance-metrics" aria-label="Resumo da carteira visível">
+          <article><small>Títulos na seleção</small><strong id="finance-count">0</strong><span>carteira filtrada</span></article>
+          <article><small>Saldo em aberto</small><strong id="finance-outstanding">R$ 0,00</strong><span>valor ainda exigível</span></article>
+          <article><small>Pendente de alçada</small><strong id="finance-pending">0</strong><span>decisão M22</span></article>
+          <article><small>Próximos 30 dias</small><strong id="finance-due">0</strong><span>parcelas a vencer</span></article>
+        </div>
+        <div class="finance-grid">
+          <section class="panel finance-queue">
+            <div class="workflow-section-heading">
+              <div><p class="eyebrow">FILA FINANCEIRA</p><h2>Títulos e provisões</h2></div>
+              <label class="finance-filter" for="finance-status-filter">Situação
+                <select id="finance-status-filter">
+                  <option value="">Todas</option>
+                  <option value="DRAFT">Rascunho</option>
+                  <option value="PENDING_APPROVAL">Pendente de aprovação</option>
+                  <option value="APPROVED">Aprovado</option>
+                  <option value="REJECTED">Rejeitado</option>
+                  <option value="SCHEDULED">Agendado</option>
+                  <option value="PAID">Pago</option>
+                </select>
+              </label>
+            </div>
+            <div class="table-wrap compact-table finance-table">
+              <table>
+                <caption class="sr-only">Títulos a pagar da empresa selecionada</caption>
+                <thead><tr><th>Título / Fornecedor</th><th>Próximo vencimento / Saldo</th><th>Status / Ação</th></tr></thead>
+                <tbody id="finance-payable-rows"></tbody>
+              </table>
+              <div id="finance-empty" class="empty" hidden><span aria-hidden="true">◇</span><h2>Nenhum título nesta seleção</h2><p>Altere o filtro ou aguarde uma provisão fiscal.</p></div>
+            </div>
+          </section>
+          <section class="panel finance-dossier" aria-live="polite">
+            <div class="finance-detail-header">
+              <div><p class="eyebrow">DOSSIÊ DO TÍTULO</p><h2 id="finance-selected-title">Selecione um título</h2><p id="finance-selected-meta" class="hint">A trilha financeira e a governança aparecerão aqui.</p></div>
+              <span id="finance-selected-version" class="version">—</span>
+            </div>
+            <div id="finance-detail" hidden>
+              <div id="finance-governance-alert" class="finance-alert" role="alert" hidden></div>
+              <div class="governance-circuit" aria-label="Circuito de liberação do título">
+                <article id="finance-gate-fiscal"><small>01 · Fiscal M11</small><strong>Sem bloqueio</strong><span>documento autorizado</span></article>
+                <article id="finance-gate-purchasing"><small>02 · Compras M6</small><strong>Sem bloqueio</strong><span>recebimento conciliado</span></article>
+                <article id="finance-gate-approval"><small>03 · Alçada M22</small><strong>Não solicitada</strong><span>governança</span></article>
+                <article id="finance-gate-payment"><small>04 · Pagamento</small><strong>Rascunho</strong><span>estado financeiro</span></article>
+              </div>
+              <div class="finance-origin">
+                <div><small>Origem da provisão</small><strong id="finance-origin">Manual</strong><span id="finance-origin-meta">Sem provisão vinculada</span></div>
+                <div><small>Total atualizado</small><strong id="finance-total">R$ 0,00</strong><span id="finance-adjustment-summary">Sem ajustes</span></div>
+                <div><small>Regra de alçada</small><strong id="finance-authority">Não configurada</strong><span id="finance-sod-rule">SoD aplicada na decisão</span></div>
+              </div>
+              <div class="finance-actions" aria-label="Ações do título">
+                <button id="finance-submit" hidden>Submeter para aprovação</button>
+                <button id="finance-schedule" class="secondary" hidden>Agendar parcelas</button>
+              </div>
+              <form id="finance-adjustment-form" class="finance-adjustments" hidden>
+                <div><label for="finance-discount">Desconto</label><input id="finance-discount" type="number" min="0" step="0.01" required /></div>
+                <div><label for="finance-surcharge">Acréscimo</label><input id="finance-surcharge" type="number" min="0" step="0.01" required /></div>
+                <button type="submit" class="secondary">Aplicar ajustes</button>
+              </form>
+              <div class="workflow-section-heading finance-subheading"><div><p class="eyebrow">VENCIMENTOS</p><h3>Parcelas</h3></div></div>
+              <div class="table-wrap compact-table"><table><thead><tr><th>Parcela</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody id="finance-installment-rows"></tbody></table></div>
+              <div class="workflow-section-heading finance-subheading"><div><p class="eyebrow">RASTREABILIDADE</p><h3>Histórico de auditoria</h3></div></div>
+              <ol id="finance-audit" class="finance-audit"></ol>
+            </div>
+          </section>
         </div>
       </section>
       <section id="sales" hidden aria-labelledby="sales-title">

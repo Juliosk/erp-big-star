@@ -13,7 +13,12 @@ from erp.modules.finance.application.permissions import (
     FINANCE_PAYABLE_READ,
     FinanceAuthorization,
 )
-from erp.modules.finance.domain import Payable, PayableStatus, ProvisionalFinancialEntry
+from erp.modules.finance.domain import (
+    Payable,
+    PayableGovernance,
+    PayableStatus,
+    ProvisionalFinancialEntry,
+)
 from erp.platform.errors import ApplicationError
 
 
@@ -116,6 +121,7 @@ class PayableAuditEntry:
 class PayableDetail:
     payable: Payable
     provisional_entry: ProvisionalFinancialEntry | None
+    governance: PayableGovernance | None
     audit_history: tuple[PayableAuditEntry, ...]
 
 

@@ -194,6 +194,7 @@ def test_create_adjust_submit_query_filters_and_audit_history() -> None:
         assert detail.status_code == 200
         assert detail.headers["etag"] == '"2"'
         assert detail.json()["provisional_entry"] is None
+        assert detail.json()["governance"] is None
         assert [item["operation"] for item in detail.json()["audit_history"]] == [
             "PAYABLE_CREATED",
             "PAYABLE_ADJUSTED",
@@ -207,6 +208,13 @@ def test_create_adjust_submit_query_filters_and_audit_history() -> None:
         assert submitted.status_code == 200
         assert submitted.json()["status"] == "PENDING_APPROVAL"
         assert submitted.headers["etag"] == '"3"'
+        governed = client.get(
+            f"/api/v1/finance/payables/{payable_id}?company_id={data.company_id}",
+            headers=_headers(),
+        )
+        assert governed.status_code == 200
+        assert governed.json()["governance"]["approval_status"] == "PENDING"
+        assert governed.json()["governance"]["blocked"] is False
         invalid_transition = client.post(
             f"/api/v1/finance/payables/{payable_id}/submit-for-approval"
             f"?company_id={data.company_id}",

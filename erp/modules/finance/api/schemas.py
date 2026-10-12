@@ -8,7 +8,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from erp.modules.finance.application import PayableAuditEntry, PayableDetail, PayablePage
-from erp.modules.finance.domain import Payable, ProvisionalFinancialEntry
+from erp.modules.finance.domain import Payable, PayableGovernance, ProvisionalFinancialEntry
 
 
 class InstallmentRequest(BaseModel):
@@ -157,8 +157,33 @@ class AuditEntryResponse(BaseModel):
         )
 
 
+class PayableGovernanceResponse(BaseModel):
+    fiscal_blocked: bool
+    purchasing_blocked: bool
+    blocked: bool
+    approval_status: str
+    workflow_instance_id: UUID | None
+    authority_limit: Decimal | None
+    sod_threshold: Decimal
+    version: int
+
+    @classmethod
+    def from_domain(cls, value: PayableGovernance) -> PayableGovernanceResponse:
+        return cls(
+            fiscal_blocked=value.fiscal_blocked,
+            purchasing_blocked=value.purchasing_blocked,
+            blocked=value.blocked,
+            approval_status=value.approval_status.value,
+            workflow_instance_id=value.workflow_instance_id,
+            authority_limit=value.authority_limit,
+            sod_threshold=value.sod_threshold,
+            version=value.version,
+        )
+
+
 class PayableDetailResponse(PayableResponse):
     provisional_entry: ProvisionalEntryResponse | None
+    governance: PayableGovernanceResponse | None
     audit_history: list[AuditEntryResponse]
 
     @classmethod
@@ -170,6 +195,11 @@ class PayableDetailResponse(PayableResponse):
                 None
                 if value.provisional_entry is None
                 else ProvisionalEntryResponse.from_domain(value.provisional_entry)
+            ),
+            governance=(
+                None
+                if value.governance is None
+                else PayableGovernanceResponse.from_domain(value.governance)
             ),
             audit_history=[
                 AuditEntryResponse.from_application(item) for item in value.audit_history

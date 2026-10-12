@@ -7,6 +7,7 @@ import { mountWorkflow } from "./workflow.js";
 import { mountSales } from "./sales.js";
 import { mountProcurement } from "./procurement.js";
 import { mountFiscal } from "./fiscal.js";
+import { mountFinance } from "./finance.js";
 const $ = (id) => document.getElementById(id);
 const labels = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -77,7 +78,16 @@ const errors = {
   VALIDATION_ERROR: "Confira os campos obrigatórios e seus formatos.",
   BUSINESS_VALIDATION_ERROR: "Os dados não atendem às regras do cadastro.",
   SUPPLIER_CONFLICT: "Já existe um fornecedor com este documento na empresa.",
-  SOD_VIOLATION: "O solicitante não pode aprovar a própria compra.",
+  SOD_VIOLATION:
+    "A segregação de funções impede a autoaprovação desta solicitação.",
+  PAYABLE_DIVERGENCE_BLOCKED:
+    "Divergências fiscais ou de compras precisam ser resolvidas antes desta ação.",
+  PAYABLE_APPROVAL_REQUIRED:
+    "Este título ainda depende da aprovação de alçada no M22.",
+  PAYABLE_APPROVAL_POLICY_NOT_CONFIGURED:
+    "A política de alçada financeira não está configurada para esta empresa.",
+  FINANCE_PAYABLE_UNAVAILABLE:
+    "O serviço de contas a pagar está indisponível nesta inicialização.",
   FISCAL_SEFAZ_UNAVAILABLE:
     "O gateway SEFAZ não está configurado para este ambiente.",
   FISCAL_CANCELLATION_WINDOW_EXPIRED:
@@ -107,7 +117,7 @@ let token = "",
   area = "products";
 let lastCreation = { body: "", key: "" };
 const can = (action) => permissions.has(`product.product.${action}`);
-let customers, inventory, pricing, wms, workflow, sales, procurement, fiscal;
+let customers, inventory, pricing, wms, workflow, sales, procurement, fiscal, finance;
 const imports = mountImports({
   api,
   context: () => ({ company, permissions }),
@@ -138,6 +148,7 @@ const imports = mountImports({
     sales?.hide();
     procurement?.hide();
     fiscal?.hide();
+    finance?.hide();
   },
 });
 customers = mountCustomers({
@@ -167,6 +178,7 @@ customers = mountCustomers({
     sales?.hide();
     procurement?.hide();
     fiscal?.hide();
+    finance?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -199,6 +211,7 @@ inventory = mountInventory({
     sales?.hide();
     procurement?.hide();
     fiscal?.hide();
+    finance?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -230,6 +243,7 @@ pricing = mountPricing({
     sales?.hide();
     procurement?.hide();
     fiscal?.hide();
+    finance?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -262,6 +276,7 @@ wms = mountWms({
     sales?.hide();
     procurement?.hide();
     fiscal?.hide();
+    finance?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -294,6 +309,7 @@ workflow = mountWorkflow({
     sales?.hide();
     procurement?.hide();
     fiscal?.hide();
+    finance?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -320,6 +336,7 @@ sales = mountSales({
     workflow.hide();
     procurement?.hide();
     fiscal?.hide();
+    finance?.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -347,6 +364,7 @@ procurement = mountProcurement({
     $("catalog").hidden = true;
     $("detail").hidden = true;
     fiscal?.hide();
+    finance?.hide();
   },
 });
 fiscal = mountFiscal({
@@ -370,6 +388,43 @@ fiscal = mountFiscal({
     workflow.hide();
     sales.hide();
     procurement.hide();
+    finance?.hide();
+    $("catalog").hidden = true;
+    $("detail").hidden = true;
+  },
+});
+finance = mountFinance({
+  api,
+  context: () => ({ company, permissions }),
+  notice,
+  enter: () => {
+    area = "finance";
+    $("finance-nav").setAttribute("aria-current", "page");
+    [
+      "products",
+      "imports",
+      "customers",
+      "inventory",
+      "pricing",
+      "wms",
+      "workflow",
+      "sales",
+      "procurement",
+      "fiscal",
+    ].forEach((name) => $(`${name}-nav`)?.removeAttribute("aria-current"));
+    document.querySelector(".topbar > span").textContent =
+      "Financeiro / Contas a pagar";
+    generation++;
+    current = null;
+    imports.reset();
+    customers.hide();
+    inventory.hide();
+    pricing.hide();
+    wms.hide();
+    workflow.hide();
+    sales.hide();
+    procurement.hide();
+    fiscal.hide();
     $("catalog").hidden = true;
     $("detail").hidden = true;
   },
@@ -388,6 +443,7 @@ function reset() {
   sales.reset();
   procurement.reset();
   fiscal.reset();
+  finance.reset();
   $("imports-nav").hidden = true;
   $("customers-nav").hidden = true;
   $("inventory-nav").hidden = true;
@@ -397,6 +453,7 @@ function reset() {
   $("sales-nav").hidden = true;
   $("procurement-nav").hidden = true;
   $("fiscal-nav").hidden = true;
+  $("finance-nav").hidden = true;
   token = "";
   permissions.clear();
   current = null;
@@ -536,6 +593,7 @@ async function connect() {
   $("fiscal-nav").hidden =
     !permissions.has("fiscal.nfe.read") &&
     !permissions.has("fiscal.inbound.read");
+  $("finance-nav").hidden = !permissions.has("finance.payable.read");
   if (!company) {
     notice(
       "Nenhuma empresa ativa autorizada. Configure os escopos da identidade.",
@@ -558,6 +616,7 @@ async function loadList() {
   $("sales-nav").removeAttribute("aria-current");
   $("procurement-nav").removeAttribute("aria-current");
   $("fiscal-nav").removeAttribute("aria-current");
+  $("finance-nav").removeAttribute("aria-current");
   document.querySelector(".topbar > span").textContent = "Cadastros / Produtos";
   imports.reset();
   customers.hide();
@@ -568,6 +627,7 @@ async function loadList() {
   sales.hide();
   procurement.hide();
   fiscal.hide();
+  finance.hide();
   const epoch = ++generation;
   current = null;
   $("detail").hidden = true;
@@ -730,6 +790,7 @@ bind(
     if (area === "sales") return sales.show();
     if (area === "procurement") return procurement.show();
     if (area === "fiscal") return fiscal.show();
+    if (area === "finance") return finance.show();
     await loadList();
   },
   "change",
@@ -767,6 +828,9 @@ bind("procurement-nav", () => {
 });
 bind("fiscal-nav", () => {
   if (company) return fiscal.show();
+});
+bind("finance-nav", () => {
+  if (company) return finance.show();
 });
 bind("products-nav", () => {
   if (company) return loadList();

@@ -273,6 +273,9 @@ class PostgresPayableStore:
                 provision = await ProvisionalEntryRepository(session, company_id=company_id).get(
                     payable.provisional_entry_id
                 )
+            governance = await PayableGovernanceRepository(session, company_id=company_id).get(
+                payable_id
+            )
             models = tuple(
                 await session.scalars(
                     select(AuditEventModel)
@@ -288,6 +291,7 @@ class PostgresPayableStore:
             return PayableDetail(
                 payable,
                 provision,
+                governance,
                 tuple(
                     PayableAuditEntry(
                         id=value.id,
