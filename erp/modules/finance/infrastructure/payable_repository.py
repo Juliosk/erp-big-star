@@ -1,6 +1,6 @@
 """Tenant-bound persistence adapter for the M12 Payable aggregate."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any, cast
 from uuid import UUID
 
@@ -60,6 +60,10 @@ class PayableRepository:
         *,
         status: PayableStatus | None = None,
         supplier_id: UUID | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+        due_from: date | None = None,
+        due_to: date | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[Payable, ...]:
@@ -76,6 +80,19 @@ class PayableRepository:
             if not isinstance(supplier_id, UUID):
                 raise ValueError("supplier_id must be a UUID.")
             statement = statement.where(PayableModel.supplier_id == supplier_id)
+        if created_from is not None:
+            statement = statement.where(PayableModel.created_at >= created_from)
+        if created_to is not None:
+            statement = statement.where(PayableModel.created_at <= created_to)
+        if due_from is not None or due_to is not None:
+            due_statement = select(PayableInstallmentModel.payable_id).where(
+                PayableInstallmentModel.company_id == self._company_id
+            )
+            if due_from is not None:
+                due_statement = due_statement.where(PayableInstallmentModel.due_date >= due_from)
+            if due_to is not None:
+                due_statement = due_statement.where(PayableInstallmentModel.due_date <= due_to)
+            statement = statement.where(PayableModel.id.in_(due_statement))
         roots = await self._session.scalars(
             statement.order_by(PayableModel.document_number, PayableModel.id)
             .limit(limit)

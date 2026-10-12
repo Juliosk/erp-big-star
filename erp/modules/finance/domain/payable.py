@@ -305,6 +305,38 @@ class Payable:
             version=self.version + 1,
         )
 
+    def adjust_amounts(
+        self,
+        *,
+        discount_amount: Decimal,
+        surcharge_amount: Decimal,
+    ) -> Payable:
+        """Adjust a draft while keeping the installment plan fully reconciled."""
+        if self.status is not PayableStatus.DRAFT:
+            raise InvalidPayableStateError("only draft payables can be adjusted.")
+        discount = _money(discount_amount, "discount_amount")
+        surcharge = _money(surcharge_amount, "surcharge_amount")
+        adjusted_total = (
+            self.nominal_amount + self.interest_amount + surcharge - discount
+        ).quantize(_CENT)
+        if adjusted_total <= 0:
+            raise InvalidPayableError("payable total_amount must be positive after adjustments.")
+        difference = adjusted_total - self.total_amount
+        last = self.installments[-1]
+        adjusted_last_amount = last.amount + difference
+        if adjusted_last_amount <= 0:
+            raise InstallmentMismatchError(
+                "the adjustment would make the final installment non-positive."
+            )
+        installments = (*self.installments[:-1], replace(last, amount=adjusted_last_amount))
+        return replace(
+            self,
+            discount_amount=discount,
+            surcharge_amount=surcharge,
+            installments=installments,
+            version=self.version + 1,
+        )
+
     def approve(
         self,
         *,

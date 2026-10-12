@@ -116,6 +116,27 @@ def test_payable_creation_normalizes_totals_and_installments() -> None:
         title.status = PayableStatus.APPROVED  # type: ignore[misc]
 
 
+def test_draft_adjustment_reconciles_the_final_installment() -> None:
+    title = payable()
+    adjusted = title.adjust_amounts(
+        discount_amount=Decimal("8.00"),
+        surcharge_amount=Decimal("13.00"),
+    )
+
+    assert adjusted.total_amount == Decimal("115.00")
+    assert adjusted.installments[0] == title.installments[0]
+    assert adjusted.installments[-1].amount == Decimal("65.00")
+    assert adjusted.version == 2
+    with pytest.raises(InvalidPayableStateError, match="draft"):
+        title.submit_for_approval().adjust_amounts(
+            discount_amount=Decimal("0.00"), surcharge_amount=Decimal("0.00")
+        )
+    with pytest.raises(InstallmentMismatchError, match="final installment"):
+        title.adjust_amounts(discount_amount=Decimal("65.00"), surcharge_amount=Decimal("0.00"))
+    with pytest.raises(InvalidPayableError, match="positive after adjustments"):
+        title.adjust_amounts(discount_amount=Decimal("110.00"), surcharge_amount=Decimal("0.00"))
+
+
 def test_payable_full_lifecycle_supports_partial_installment_payment() -> None:
     draft = payable()
     pending = draft.submit_for_approval()

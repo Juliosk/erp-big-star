@@ -6,6 +6,7 @@ from erp.modules.finance.infrastructure.payable_model import (
     ProvisionalEntryModel,
 )
 from erp.modules.finance.infrastructure.payable_repository import PayableRepository
+from erp.modules.finance.infrastructure.payable_store import PostgresPayableStore
 from erp.modules.finance.infrastructure.provisional_repository import (
     ProvisionalEntryRepository,
 )
@@ -30,6 +31,7 @@ __all__ = [
     "PayableProvisioningConsumer",
     "PayableProvisioningService",
     "PayableRepository",
+    "PostgresPayableStore",
     "ProvisionalEntryModel",
     "ProvisionalEntryRepository",
 ]

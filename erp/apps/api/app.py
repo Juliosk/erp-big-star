@@ -43,6 +43,9 @@ from erp.modules.customer.infrastructure.customer_directory import PostgresCusto
 from erp.modules.customer.infrastructure.customer_duplicates import PostgresCustomerDuplicates
 from erp.modules.customer.infrastructure.customer_groups import PostgresCustomerGroups
 from erp.modules.customer.infrastructure.customer_updates import PostgresCustomerUpdates
+from erp.modules.finance.api import router as finance_router
+from erp.modules.finance.application import FinanceAuthorization, PayableApplicationService
+from erp.modules.finance.infrastructure import PostgresPayableStore
 from erp.modules.fiscal.api import router as fiscal_router
 from erp.modules.fiscal.application import (
     FiscalArtifactStoragePort,
@@ -191,6 +194,7 @@ def create_app(
     fiscal_receiving_reconciliation: FiscalReceivingReconciliationService | None = None,
     inbound_fiscal_documents: InboundFiscalDocumentService | None = None,
     fiscal_artifact_storage: FiscalArtifactStoragePort | None = None,
+    finance_payables: PayableApplicationService | None = None,
     inventory_queries: InventoryQueries | None = None,
     inventory_creation: InventoryCatalogService | None = None,
     inventory_adjustments: InventoryAdjustmentService | None = None,
@@ -249,6 +253,7 @@ def create_app(
     resolved_fiscal_receiving_reconciliation = fiscal_receiving_reconciliation
     resolved_inbound_fiscal_documents = inbound_fiscal_documents
     resolved_fiscal_document_storage: FiscalDocumentStorageService | None = None
+    resolved_finance_payables = finance_payables
     resolved_inventory_queries = inventory_queries
     resolved_inventory_creation = inventory_creation
     resolved_inventory_adjustments = inventory_adjustments
@@ -565,6 +570,16 @@ def create_app(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
             ),
         )
+    if resolved_finance_payables is None and isinstance(resolved_database, Database):
+        resolved_finance_payables = PayableApplicationService(
+            PostgresPayableStore(
+                resolved_database,
+                ttl_seconds=resolved_settings.idempotency_ttl_seconds,
+            ),
+            FinanceAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
     if fiscal_artifact_storage is None and resolved_settings.import_storage_access_key:
         fiscal_artifact_storage = MinioStorage(resolved_settings)
     if resolved_fiscal_documents is not None and fiscal_artifact_storage is not None:
@@ -675,6 +690,7 @@ def create_app(
     application.state.fiscal_receiving_reconciliation = resolved_fiscal_receiving_reconciliation
     application.state.inbound_fiscal_documents = resolved_inbound_fiscal_documents
     application.state.fiscal_document_storage = resolved_fiscal_document_storage
+    application.state.finance_payables = resolved_finance_payables
     application.state.inventory_queries = resolved_inventory_queries
     application.state.inventory_creation = resolved_inventory_creation
     application.state.inventory_adjustments = resolved_inventory_adjustments
@@ -706,6 +722,7 @@ def create_app(
     application.include_router(customer_router)
     application.include_router(procurement_router)
     application.include_router(fiscal_router)
+    application.include_router(finance_router)
     application.include_router(inventory_router)
     application.include_router(pricing_router)
     application.include_router(wms_router)
