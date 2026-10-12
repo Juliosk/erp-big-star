@@ -236,6 +236,14 @@ class PostgresPurchasingStore:
                 PurchaseOrderAction.ISSUE: "PurchaseOrderIssued",
                 PurchaseOrderAction.CANCEL: PURCHASE_ORDER_CANCELLED,
             }[command.action]
+            supplier_tax_id = None
+            if event_type == PURCHASE_ORDER_APPROVED:
+                supplier = await SupplierRepository(session, company_id=command.company_id).get(
+                    current.supplier_id
+                )
+                if supplier is None:
+                    raise _not_found("Supplier")
+                supplier_tax_id = supplier.tax_identity.value
             await record_purchasing_effect(
                 session,
                 before=current,
@@ -243,6 +251,7 @@ class PostgresPurchasingStore:
                 event_type=event_type,
                 actor_id=actor_id,
                 metadata=command.metadata,
+                supplier_tax_id=supplier_tax_id,
             )
             return changed
 

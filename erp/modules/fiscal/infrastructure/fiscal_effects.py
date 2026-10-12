@@ -8,7 +8,11 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from erp.modules.fiscal.application.events import FiscalDomainEvent, integration_effects
+from erp.modules.fiscal.application.events import (
+    FiscalDocumentAuthorized,
+    FiscalDomainEvent,
+    integration_effects,
+)
 from erp.modules.fiscal.application.issuance import FiscalWorkerMetadata
 from erp.modules.fiscal.domain import FiscalDocument, NFeAccessKey
 from erp.platform.audit import AuditEvent, AuditService
@@ -47,6 +51,21 @@ async def record_fiscal_effect(
     )
     payload = _event_payload(event)
     payload["integration_effects"] = [str(effect) for effect in integration_effects(event)]
+    payload.update(
+        {
+            "document_number": f"{after.model.value}-{after.series}-{after.number}",
+            "supplier_tax_id": after.issuer.tax_id,
+            "currency": "BRL",
+            "requested_by": str(actor_id),
+        }
+    )
+    if isinstance(event, FiscalDocumentAuthorized):
+        payload["installments"] = [
+            {
+                "due_date": event.authorized_at.date().isoformat(),
+                "amount": str(event.total_amount),
+            }
+        ]
     envelope = MessageEnvelope.new(
         message_kind=MessageKind.DOMAIN_EVENT,
         message_type=event_type,

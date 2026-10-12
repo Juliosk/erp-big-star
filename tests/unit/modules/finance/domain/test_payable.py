@@ -176,6 +176,35 @@ def test_rejection_records_reason_and_is_terminal() -> None:
         rejected.schedule((uuid4(), uuid4()))
 
 
+def test_source_cancellation_releases_unpaid_schedules_and_blocks_paid_titles() -> None:
+    actor_id = uuid4()
+    approved = approved_payable()
+    scheduled = approved.schedule((uuid4(), uuid4()))
+    cancelled = scheduled.cancel_from_source(
+        cancelled_by=actor_id,
+        reason="  documento fiscal cancelado  ",
+    )
+
+    assert cancelled.status is PayableStatus.REJECTED
+    assert cancelled.decision_by == actor_id
+    assert cancelled.decision_reason == "documento fiscal cancelado"
+    assert all(item.status is PayableInstallmentStatus.OPEN for item in cancelled.installments)
+    assert all(item.schedule_id is None for item in cancelled.installments)
+    assert approved.installments[0].release_schedule() is approved.installments[0]
+    with pytest.raises(InvalidPayableStateError, match="rejected"):
+        cancelled.cancel_from_source(cancelled_by=actor_id, reason="again")
+
+    partially_paid = scheduled.mark_installment_paid(
+        installment_number=1,
+        paid_on=FIRST_DUE_DATE,
+        payment_reference="PAID-1",
+    )
+    with pytest.raises(InvalidPayableStateError, match="paid"):
+        partially_paid.cancel_from_source(cancelled_by=actor_id, reason="too late")
+    with pytest.raises(InvalidPayableStateError, match="paid installments"):
+        partially_paid.installments[0].release_schedule()
+
+
 @pytest.mark.parametrize(
     ("method", "title"),
     [
@@ -350,7 +379,7 @@ def test_provisional_entry_lifecycle_preserves_source_fingerprint() -> None:
     entry = provisional()
     payable_id = uuid4()
     converted = entry.convert(payable_id)
-    voided = provisional().void("  documento cancelado  ")
+    voided = converted.void("  documento cancelado  ")
 
     assert entry.status is ProvisionalEntryStatus.OPEN
     assert entry.currency == "BRL"
@@ -361,6 +390,8 @@ def test_provisional_entry_lifecycle_preserves_source_fingerprint() -> None:
     assert converted.version == 2
     assert voided.status is ProvisionalEntryStatus.VOIDED
     assert voided.void_reason == "documento cancelado"
+    assert voided.payable_id == payable_id
+    assert voided.version == 3
     with pytest.raises(FrozenInstanceError):
         entry.status = ProvisionalEntryStatus.CONVERTED  # type: ignore[misc]
 
@@ -370,7 +401,7 @@ def test_provisional_entry_rejects_replayed_transitions_and_invalid_reason() -> 
     voided = provisional().void("cancelado")
     with pytest.raises(InvalidProvisionalEntryError, match="only open"):
         converted.convert(uuid4())
-    with pytest.raises(InvalidProvisionalEntryError, match="only open"):
+    with pytest.raises(InvalidProvisionalEntryError, match="voided provisional"):
         voided.void("again")
     with pytest.raises(InvalidProvisionalEntryError, match="void_reason"):
         provisional().void(" ")
@@ -404,7 +435,7 @@ def test_provisional_entry_validates_identity_values_and_state_metadata() -> Non
         replace(entry, status=ProvisionalEntryStatus.CONVERTED)
     with pytest.raises(InvalidProvisionalEntryError, match="cannot contain void_reason"):
         replace(entry.convert(uuid4()), void_reason="bad")
-    with pytest.raises(InvalidProvisionalEntryError, match="cannot contain payable_id"):
-        replace(entry.void("bad"), payable_id=uuid4())
+    with pytest.raises(InvalidProvisionalEntryError, match="non-zero UUID"):
+        replace(entry.void("bad"), payable_id=UUID(int=0))
     with pytest.raises(InvalidProvisionalEntryError, match="valid void_reason"):
         replace(entry, status=ProvisionalEntryStatus.VOIDED)

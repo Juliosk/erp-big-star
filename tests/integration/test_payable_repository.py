@@ -248,6 +248,37 @@ def test_stale_payable_and_provisional_updates_raise_version_conflict() -> None:
     asyncio.run(scenario())
 
 
+def test_provisional_lookup_rejects_ambiguous_source_and_purchase_matches() -> None:
+    async def scenario() -> None:
+        async with (
+            finance_fixture() as data,
+            data.database.session() as session,
+            session.begin(),
+        ):
+            source_id = uuid4()
+            first = replace(
+                _provision(data, source_id=source_id),
+                origin=ProvisionalEntryOrigin.APPROVED_PURCHASE_ORDER,
+            )
+            second = replace(first, id=uuid4(), source_version=2)
+            repository = ProvisionalEntryRepository(session, company_id=data.company_id)
+            await repository.add(first, actor_id=data.actor_id)
+            await repository.add(second, actor_id=data.actor_id)
+
+            with pytest.raises(PayableConflictError, match="same source"):
+                await repository.get_by_source_id(
+                    origin=ProvisionalEntryOrigin.APPROVED_PURCHASE_ORDER,
+                    source_id=source_id,
+                )
+            with pytest.raises(PayableConflictError, match="supplier and amount"):
+                await repository.find_purchase_order_match(
+                    supplier_tax_id=first.supplier_tax_id,
+                    amount=first.amount,
+                )
+
+    asyncio.run(scenario())
+
+
 def test_repository_contract_requires_explicit_scope_actor_version_and_filters() -> None:
     async def scenario() -> None:
         async with (

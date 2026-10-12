@@ -138,8 +138,8 @@ class ProvisionalFinancialEntry:
         )
 
     def void(self, reason: str) -> ProvisionalFinancialEntry:
-        if self.status is not ProvisionalEntryStatus.OPEN:
-            raise InvalidProvisionalEntryError("only open provisional entries can be voided.")
+        if self.status is ProvisionalEntryStatus.VOIDED:
+            raise InvalidProvisionalEntryError("voided provisional entries cannot be voided again.")
         normalized_reason = reason.strip() if isinstance(reason, str) else ""
         if not normalized_reason or len(normalized_reason) > 500:
             raise InvalidProvisionalEntryError(
@@ -170,9 +170,7 @@ class ProvisionalFinancialEntry:
                 )
         else:
             if self.payable_id is not None:
-                raise InvalidProvisionalEntryError(
-                    "voided provisional entries cannot contain payable_id."
-                )
+                _uuid(self.payable_id, "payable_id")
             normalized_reason = (
                 self.void_reason.strip() if isinstance(self.void_reason, str) else ""
             )

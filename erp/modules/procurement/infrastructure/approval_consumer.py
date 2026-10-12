@@ -15,6 +15,7 @@ from erp.modules.procurement.infrastructure.purchasing_effects import (
     record_purchasing_effect,
 )
 from erp.modules.procurement.infrastructure.purchasing_repository import PurchaseOrderRepository
+from erp.modules.procurement.infrastructure.supplier_repository import SupplierRepository
 from erp.platform.database import Database
 from erp.platform.inbox import InboxProcessResult, InboxService
 from erp.platform.messaging import MessageEnvelope
@@ -66,6 +67,12 @@ class ProcurementApprovalDecisionConsumer:
             changed = await repository.save(
                 changed, actor_id=actor_id, expected_version=current.version
             )
+            supplier = await SupplierRepository(
+                session,
+                company_id=message.company_id,  # type: ignore[arg-type]
+            ).get(current.supplier_id)
+            if supplier is None:
+                raise ValueError("Purchase order supplier was not found.")
             await record_purchasing_effect(
                 session,
                 before=current,
@@ -77,6 +84,7 @@ class ProcurementApprovalDecisionConsumer:
                     correlation_id=message.correlation_id,
                 ),
                 causation_id=message.message_id,
+                supplier_tax_id=supplier.tax_identity.value,
             )
 
         async with self._database.session() as session, session.begin():

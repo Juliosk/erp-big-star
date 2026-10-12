@@ -164,6 +164,18 @@ class PayableInstallment:
             payment_reference=payment_reference,
         )
 
+    def release_schedule(self) -> PayableInstallment:
+        """Return an unpaid installment to OPEN after its source is cancelled."""
+        if self.status is PayableInstallmentStatus.PAID:
+            raise InvalidPayableStateError("paid installments cannot release their schedule.")
+        if self.status is PayableInstallmentStatus.OPEN:
+            return self
+        return replace(
+            self,
+            status=PayableInstallmentStatus.OPEN,
+            schedule_id=None,
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class Payable:
@@ -388,6 +400,21 @@ class Payable:
             self,
             status=status,
             installments=installments,
+            version=self.version + 1,
+        )
+
+    def cancel_from_source(self, *, cancelled_by: UUID, reason: str) -> Payable:
+        """Reject an unpaid obligation and release pending payment schedules."""
+        if self.status in {PayableStatus.REJECTED, PayableStatus.PAID} or any(
+            item.status is PayableInstallmentStatus.PAID for item in self.installments
+        ):
+            raise InvalidPayableStateError("paid or rejected payables cannot be source-cancelled.")
+        return replace(
+            self,
+            status=PayableStatus.REJECTED,
+            installments=tuple(item.release_schedule() for item in self.installments),
+            decision_by=_uuid(cancelled_by, "cancelled_by"),
+            decision_reason=_text(reason, "decision_reason", maximum=500),
             version=self.version + 1,
         )
 

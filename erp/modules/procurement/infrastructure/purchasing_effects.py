@@ -25,6 +25,7 @@ async def record_purchasing_effect(
     actor_id: UUID,
     metadata: ProcurementCommandMetadata,
     causation_id: UUID | None = None,
+    supplier_tax_id: str | None = None,
 ) -> tuple[UUID, UUID]:
     aggregate_type = (
         "purchase_order" if isinstance(after, PurchaseOrder) else "purchase_requisition"
@@ -48,6 +49,32 @@ async def record_purchasing_effect(
             after_snapshot=after_snapshot,
         ),
     )
+    if (
+        event_type == PURCHASE_ORDER_APPROVED
+        and isinstance(after, PurchaseOrder)
+        and supplier_tax_id is None
+    ):
+        raise ValueError("PurchaseOrderApproved requires the supplier tax ID snapshot.")
+    payload: dict[str, object] = {
+        "company_id": str(after.company_id),
+        "source_module": "procurement",
+        "source_type": aggregate_type.upper(),
+        "source_id": str(after.id),
+        "status": str(after.status),
+        "requested_by": str(_owner(after)),
+        "amount": str(after.total_amount) if isinstance(after, PurchaseOrder) else "0.00",
+        "currency": after.currency if isinstance(after, PurchaseOrder) else "BRL",
+        "aggregate_version": after.version,
+    }
+    if isinstance(after, PurchaseOrder):
+        payload.update(
+            {
+                "document_number": after.number,
+                "supplier_id": str(after.supplier_id),
+                "supplier_tax_id": supplier_tax_id,
+                "installment_days": list(after.payment_terms.installment_days),
+            }
+        )
     envelope = MessageEnvelope.new(
         message_kind=MessageKind.DOMAIN_EVENT,
         message_type=event_type,
@@ -62,17 +89,7 @@ async def record_purchasing_effect(
         correlation_id=metadata.correlation_id,
         request_id=metadata.request_id,
         causation_id=causation_id,
-        payload={
-            "company_id": str(after.company_id),
-            "source_module": "procurement",
-            "source_type": aggregate_type.upper(),
-            "source_id": str(after.id),
-            "status": str(after.status),
-            "requested_by": str(_owner(after)),
-            "amount": str(after.total_amount) if isinstance(after, PurchaseOrder) else "0.00",
-            "currency": after.currency if isinstance(after, PurchaseOrder) else "BRL",
-            "aggregate_version": after.version,
-        },
+        payload=payload,
     )
     await OutboxService().enqueue(session, envelope)
     return envelope.message_id, audit_id

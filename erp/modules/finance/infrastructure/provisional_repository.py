@@ -1,6 +1,7 @@
 """Tenant-bound persistence adapter for M12 provisional financial entries."""
 
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID
 
@@ -65,6 +66,56 @@ class ProvisionalEntryRepository:
             .execution_options(populate_existing=True)
         )
         return None if model is None else _entry(model)
+
+    async def get_by_source_id(
+        self,
+        *,
+        origin: ProvisionalEntryOrigin,
+        source_id: UUID,
+    ) -> ProvisionalFinancialEntry | None:
+        models = tuple(
+            await self._session.scalars(
+                select(ProvisionalEntryModel)
+                .where(
+                    ProvisionalEntryModel.company_id == self._company_id,
+                    ProvisionalEntryModel.origin == origin.value,
+                    ProvisionalEntryModel.source_id == source_id,
+                )
+                .order_by(ProvisionalEntryModel.source_version.desc())
+                .limit(2)
+                .execution_options(populate_existing=True)
+            )
+        )
+        if len(models) > 1:
+            raise PayableConflictError("Multiple provisions exist for the same source aggregate.")
+        return None if not models else _entry(models[0])
+
+    async def find_purchase_order_match(
+        self,
+        *,
+        supplier_tax_id: str,
+        amount: Decimal,
+    ) -> ProvisionalFinancialEntry | None:
+        models = tuple(
+            await self._session.scalars(
+                select(ProvisionalEntryModel)
+                .where(
+                    ProvisionalEntryModel.company_id == self._company_id,
+                    ProvisionalEntryModel.origin
+                    == ProvisionalEntryOrigin.APPROVED_PURCHASE_ORDER.value,
+                    ProvisionalEntryModel.supplier_tax_id == supplier_tax_id,
+                    ProvisionalEntryModel.amount == amount,
+                )
+                .order_by(ProvisionalEntryModel.created_at.desc())
+                .limit(2)
+                .execution_options(populate_existing=True)
+            )
+        )
+        if len(models) > 1:
+            raise PayableConflictError(
+                "Multiple purchase-order provisions match this supplier and amount."
+            )
+        return None if not models else _entry(models[0])
 
     async def save(
         self,
