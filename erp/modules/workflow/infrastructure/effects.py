@@ -84,7 +84,7 @@ class WorkflowEffects:
             },
         )
         await OutboxService().enqueue(session, envelope)
-        if result.detail.instance.source_module == "PROCUREMENT" and event_type in {
+        if result.detail.instance.source_module in {"PROCUREMENT", "FINANCE"} and event_type in {
             WORKFLOW_INSTANCE_APPROVED,
             WORKFLOW_INSTANCE_REJECTED,
         }:
@@ -103,7 +103,7 @@ class WorkflowEffects:
                 request_id=command.metadata.request_id,
                 causation_id=envelope.message_id,
                 payload={
-                    "source_module": "procurement",
+                    "source_module": result.detail.instance.source_module.lower(),
                     "source_type": result.detail.instance.source_type,
                     "source_id": str(result.detail.instance.source_id),
                     "decision": str(result.decision.decision),

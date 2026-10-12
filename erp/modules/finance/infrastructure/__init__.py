@@ -1,5 +1,15 @@
 """M12 persistence adapters."""
 
+from erp.modules.finance.infrastructure.governance_consumer import (
+    FINANCE_APPROVAL_CONSUMER,
+    FINANCE_DIVERGENCE_CONSUMER,
+    PayableApprovalDecisionConsumer,
+    PayableDivergenceConsumer,
+)
+from erp.modules.finance.infrastructure.payable_governance_model import PayableGovernanceModel
+from erp.modules.finance.infrastructure.payable_governance_repository import (
+    PayableGovernanceRepository,
+)
 from erp.modules.finance.infrastructure.payable_model import (
     PayableInstallmentModel,
     PayableModel,
@@ -21,11 +31,17 @@ from erp.modules.finance.infrastructure.provisioning_consumer import (
 )
 
 __all__ = [
+    "FINANCE_APPROVAL_CONSUMER",
+    "FINANCE_DIVERGENCE_CONSUMER",
     "FINANCE_PAYABLE_PROVISIONING_CONSUMER",
     "FISCAL_DOCUMENT_AUTHORIZED",
     "FISCAL_DOCUMENT_CANCELLED",
     "PURCHASE_ORDER_APPROVED",
     "FiscalEventConsumer",
+    "PayableApprovalDecisionConsumer",
+    "PayableDivergenceConsumer",
+    "PayableGovernanceModel",
+    "PayableGovernanceRepository",
     "PayableInstallmentModel",
     "PayableModel",
     "PayableProvisioningConsumer",

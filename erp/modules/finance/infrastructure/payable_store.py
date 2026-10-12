@@ -23,7 +23,16 @@ from erp.modules.finance.domain import (
     FinanceVersionConflictError,
     Payable,
     PayableConflictError,
+    PayableDivergenceBlockedError,
+    PayableSegregationPolicy,
     PayableStatus,
+)
+from erp.modules.finance.infrastructure.approval_gateway import (
+    OutboxOnlyApprovalGateway,
+    PayableApprovalGateway,
+)
+from erp.modules.finance.infrastructure.payable_governance_repository import (
+    PayableGovernanceRepository,
 )
 from erp.modules.finance.infrastructure.payable_repository import PayableRepository
 from erp.modules.finance.infrastructure.provisional_repository import (
@@ -33,15 +42,24 @@ from erp.platform.audit import AuditEvent, AuditEventModel, AuditService
 from erp.platform.database import Database
 from erp.platform.errors import ApplicationError, ErrorDetail
 from erp.platform.idempotency import IdempotencyDecision, IdempotencyService
+from erp.platform.messaging import MessageEnvelope, MessageKind
+from erp.platform.outbox import OutboxService
 
 
 class PostgresPayableStore:
     """Own transactions across payables, idempotency and immutable audit."""
 
-    def __init__(self, database: Database, *, ttl_seconds: int) -> None:
+    def __init__(
+        self,
+        database: Database,
+        *,
+        ttl_seconds: int,
+        approval_gateway: PayableApprovalGateway | None = None,
+    ) -> None:
         self._database = database
         self._idempotency = IdempotencyService(ttl_seconds=ttl_seconds)
         self._audit = AuditService()
+        self._approval_gateway = approval_gateway or OutboxOnlyApprovalGateway()
 
     async def create(self, command: CreatePayable, *, actor_id: UUID) -> PayableMutationResult:
         async with self._database.session() as session, session.begin():
@@ -89,13 +107,101 @@ class PostgresPayableStore:
             await _complete(self._idempotency, session, decision, payable, status=201)
             return PayableMutationResult(payable)
 
-    async def submit(self, command: ChangePayable, *, actor_id: UUID) -> Payable:
-        return await self._change(
-            command,
-            actor_id=actor_id,
-            operation="PAYABLE_APPROVAL_REQUESTED",
-            transform=lambda value: value.submit_for_approval(),
-        )
+    async def submit(
+        self,
+        command: ChangePayable,
+        *,
+        actor_id: UUID,
+        granted_permissions: frozenset[str],
+    ) -> Payable:
+        async with self._database.session() as session, session.begin():
+            repository = PayableRepository(session, company_id=command.company_id)
+            current = await _required(repository, command.payable_id)
+            _require_version(current.version, command.expected_version)
+            governance_repository = PayableGovernanceRepository(
+                session, company_id=command.company_id
+            )
+            governance = await governance_repository.get_or_create(current.id, actor_id=actor_id)
+            try:
+                governance.require_unblocked()
+                plan = await self._approval_gateway.plan(
+                    session,
+                    payable=current,
+                    actor_id=actor_id,
+                    granted_permissions=granted_permissions,
+                )
+                pending = current.submit_for_approval()
+                await repository.save(
+                    pending, actor_id=actor_id, expected_version=command.expected_version
+                )
+                changed = pending
+                if plan.workflow_instance_id is None:
+                    changed = pending.approve(
+                        approver_id=actor_id,
+                        policy=PayableSegregationPolicy(plan.sod_threshold),
+                    )
+                    await repository.save(
+                        changed, actor_id=actor_id, expected_version=pending.version
+                    )
+                governed = governance.request_approval(
+                    workflow_instance_id=plan.workflow_instance_id,
+                    authority_limit=plan.authority_limit,
+                    sod_threshold=plan.sod_threshold,
+                )
+                await governance_repository.save(
+                    governed, actor_id=actor_id, expected_version=governance.version
+                )
+            except FinanceVersionConflictError as error:
+                raise _version_error() from error
+            except FinanceDomainError as error:
+                raise _domain_error(error) from error
+            operation = (
+                "PAYABLE_APPROVAL_REQUESTED"
+                if plan.workflow_instance_id is not None
+                else "PAYABLE_APPROVED"
+            )
+            await self._record(
+                session,
+                payable=changed,
+                actor_id=actor_id,
+                operation=operation,
+                before=_snapshot(current),
+                after={
+                    **_snapshot(changed),
+                    "workflow_instance_id": (
+                        None
+                        if plan.workflow_instance_id is None
+                        else str(plan.workflow_instance_id)
+                    ),
+                    "authority_limit": (
+                        None if plan.authority_limit is None else str(plan.authority_limit)
+                    ),
+                    "sod_threshold": str(plan.sod_threshold),
+                },
+                command=command,
+            )
+            await _enqueue(
+                session,
+                payable=changed,
+                event_type=(
+                    "PayableApprovalRequested"
+                    if plan.workflow_instance_id is not None
+                    else "PayableApproved"
+                ),
+                command=command,
+                causation_id=None,
+                extra={
+                    "workflow_instance_id": (
+                        None
+                        if plan.workflow_instance_id is None
+                        else str(plan.workflow_instance_id)
+                    ),
+                    "authority_limit": (
+                        None if plan.authority_limit is None else str(plan.authority_limit)
+                    ),
+                },
+            )
+            return changed
 
     async def adjust(self, command: AdjustPayable, *, actor_id: UUID) -> Payable:
         return await self._change(
@@ -125,6 +231,10 @@ class PostgresPayableStore:
             current = await _required(repository, command.payable_id)
             _require_version(current.version, command.expected_version)
             try:
+                governance = await PayableGovernanceRepository(
+                    session, company_id=command.company_id
+                ).get_or_create(current.id, actor_id=actor_id)
+                governance.require_unblocked()
                 changed = current.schedule(command.schedule_ids)
                 await repository.save(
                     changed, actor_id=actor_id, expected_version=command.expected_version
@@ -141,6 +251,14 @@ class PostgresPayableStore:
                 before=_snapshot(current),
                 after=_snapshot(changed),
                 command=command,
+            )
+            await _enqueue(
+                session,
+                payable=changed,
+                event_type="PayableScheduled",
+                command=command,
+                causation_id=None,
+                extra={},
             )
             await _complete(self._idempotency, session, decision, changed)
             return PayableMutationResult(changed)
@@ -335,7 +453,7 @@ def _version_error() -> ApplicationError:
 
 
 def _domain_error(error: FinanceDomainError) -> ApplicationError:
-    if isinstance(error, PayableConflictError):
+    if isinstance(error, (PayableConflictError, PayableDivergenceBlockedError)):
         return ApplicationError(code=error.code, message=str(error), status_code=409)
     return ApplicationError(
         code="BUSINESS_VALIDATION_ERROR",
@@ -371,6 +489,41 @@ def _snapshot(payable: Payable) -> dict[str, object]:
             for item in payable.installments
         ],
     }
+
+
+async def _enqueue(
+    session: AsyncSession,
+    *,
+    payable: Payable,
+    event_type: str,
+    command: CreatePayable | ChangePayable,
+    causation_id: UUID | None,
+    extra: dict[str, object],
+) -> UUID:
+    envelope = MessageEnvelope.new(
+        message_kind=MessageKind.DOMAIN_EVENT,
+        message_type=event_type,
+        event_version=1,
+        producer_module="finance",
+        producer_domain="finance",
+        aggregate_type="payable",
+        aggregate_id=payable.id,
+        aggregate_version=payable.version,
+        company_id=payable.company_id,
+        branch_id=None,
+        correlation_id=command.metadata.correlation_id,
+        request_id=command.metadata.request_id,
+        causation_id=causation_id,
+        payload={
+            "payable_id": str(payable.id),
+            "status": payable.status.value,
+            "amount": str(payable.total_amount),
+            "currency": payable.currency,
+            **extra,
+        },
+    )
+    await OutboxService().enqueue(session, envelope)
+    return envelope.message_id
 
 
 __all__ = ["PostgresPayableStore"]

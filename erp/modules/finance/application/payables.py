@@ -129,7 +129,13 @@ class PayablePage:
 
 class PayableStore(Protocol):
     async def create(self, command: CreatePayable, *, actor_id: UUID) -> PayableMutationResult: ...
-    async def submit(self, command: ChangePayable, *, actor_id: UUID) -> Payable: ...
+    async def submit(
+        self,
+        command: ChangePayable,
+        *,
+        actor_id: UUID,
+        granted_permissions: frozenset[str],
+    ) -> Payable: ...
     async def adjust(self, command: AdjustPayable, *, actor_id: UUID) -> Payable: ...
     async def schedule(
         self, command: SchedulePayable, *, actor_id: UUID
@@ -167,7 +173,11 @@ class PayableApplicationService:
         await self._authorization.require(
             context, command.company_id, FINANCE_PAYABLE_CREATE, write=True
         )
-        return await self._store.submit(command, actor_id=context.principal.user_id)
+        return await self._store.submit(
+            command,
+            actor_id=context.principal.user_id,
+            granted_permissions=frozenset(str(value) for value in context.permissions),
+        )
 
     async def adjust(self, context: SecurityContext, command: AdjustPayable) -> Payable:
         await self._authorization.require(

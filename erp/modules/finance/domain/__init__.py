@@ -10,10 +10,13 @@ from erp.modules.finance.domain.exceptions import (
     InvalidPayableStateError,
     InvalidProvisionalEntryError,
     InvalidSegregationPolicyError,
+    PayableApprovalRequiredError,
     PayableConflictError,
+    PayableDivergenceBlockedError,
     SegregationOfDutiesViolation,
     SodViolationError,
 )
+from erp.modules.finance.domain.governance import PayableApprovalStatus, PayableGovernance
 from erp.modules.finance.domain.payable import (
     Payable,
     PayableInstallment,
@@ -38,7 +41,11 @@ __all__ = [
     "InvalidProvisionalEntryError",
     "InvalidSegregationPolicyError",
     "Payable",
+    "PayableApprovalRequiredError",
+    "PayableApprovalStatus",
     "PayableConflictError",
+    "PayableDivergenceBlockedError",
+    "PayableGovernance",
     "PayableInstallment",
     "PayableInstallmentStatus",
     "PayableSegregationPolicy",

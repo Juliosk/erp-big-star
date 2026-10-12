@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from erp.apps.api.finance_workflow import M22PayableApprovalGateway
 from erp.apps.api.fiscal_receiving import PostgresFiscalReceivingReconciliation
 from erp.apps.api.import_composition import compose_imports
 from erp.apps.api.middleware import CorrelationIdMiddleware, RequestIdMiddleware
@@ -575,6 +576,7 @@ def create_app(
             PostgresPayableStore(
                 resolved_database,
                 ttl_seconds=resolved_settings.idempotency_ttl_seconds,
+                approval_gateway=M22PayableApprovalGateway(),
             ),
             FinanceAuthorization(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))

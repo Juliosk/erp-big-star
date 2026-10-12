@@ -59,6 +59,18 @@ class PayableConflictError(FinanceDomainError):
     code = "PAYABLE_CONFLICT"
 
 
+class PayableDivergenceBlockedError(FinanceDomainError):
+    """An unresolved fiscal or purchasing divergence blocks the title."""
+
+    code = "PAYABLE_DIVERGENCE_BLOCKED"
+
+
+class PayableApprovalRequiredError(FinanceDomainError):
+    """The title still requires a valid M22 approval decision."""
+
+    code = "PAYABLE_APPROVAL_REQUIRED"
+
+
 class FinanceVersionConflictError(FinanceDomainError):
     """A persisted M12 aggregate was changed by another transaction."""
 
@@ -81,7 +93,9 @@ __all__ = [
     "InvalidPayableStateError",
     "InvalidProvisionalEntryError",
     "InvalidSegregationPolicyError",
+    "PayableApprovalRequiredError",
     "PayableConflictError",
+    "PayableDivergenceBlockedError",
     "SegregationOfDutiesViolation",
     "SodViolationError",
 ]
