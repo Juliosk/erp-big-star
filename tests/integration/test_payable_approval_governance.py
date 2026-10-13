@@ -184,9 +184,7 @@ def test_high_value_self_submission_opens_m22_and_decision_is_idempotent() -> No
                 workflow_id = governance.workflow_instance_id
             consumer = PayableApprovalDecisionConsumer(data.database)
             with pytest.raises(SegregationOfDutiesViolation):
-                await consumer.consume(
-                    _approval_event(data, title.id, workflow_id, data.actor_id)
-                )
+                await consumer.consume(_approval_event(data, title.id, workflow_id, data.actor_id))
             approver = uuid4()
             envelope = _approval_event(data, title.id, workflow_id, approver)
             first = await consumer.consume(envelope)
@@ -210,8 +208,10 @@ def test_high_value_self_submission_opens_m22_and_decision_is_idempotent() -> No
                         select(func.count())
                         .select_from(OutboxEventModel)
                         .where(
+                            OutboxEventModel.aggregate_id == title.id,
+                            OutboxEventModel.source_module == "finance",
                             OutboxEventModel.payload["message_type"].as_string()
-                            == "PayableApproved"
+                            == "PayableApproved",
                         )
                     )
                     == 1
