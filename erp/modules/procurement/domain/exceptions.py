@@ -33,6 +33,18 @@ class InvalidGoodsReceiptError(ProcurementDomainError):
     """A physical goods receipt invariant was violated."""
 
 
+class InvalidMatchingToleranceError(ProcurementDomainError):
+    """A three-way matching tolerance policy is invalid."""
+
+
+class InvalidMatchingLineError(ProcurementDomainError):
+    """A three-way matching line or line combination is invalid."""
+
+
+class MatchingScopeError(ProcurementDomainError):
+    """Three-way matching inputs cross the configured company boundary."""
+
+
 class InvalidProcurementTransitionError(ProcurementDomainError):
     """A requisition or purchase order lifecycle transition is not allowed."""
 
@@ -40,11 +52,14 @@ class InvalidProcurementTransitionError(ProcurementDomainError):
 __all__ = [
     "DuplicateSupplierSiteError",
     "InvalidGoodsReceiptError",
+    "InvalidMatchingLineError",
+    "InvalidMatchingToleranceError",
     "InvalidProcurementTransitionError",
     "InvalidPurchaseOrderError",
     "InvalidRequisitionError",
     "InvalidSupplierDataError",
     "InvalidSupplierIdentityError",
     "InvalidSupplierTransitionError",
+    "MatchingScopeError",
     "ProcurementDomainError",
 ]

@@ -10,12 +10,15 @@ from erp.modules.procurement.domain.approval import (
 from erp.modules.procurement.domain.exceptions import (
     DuplicateSupplierSiteError,
     InvalidGoodsReceiptError,
+    InvalidMatchingLineError,
+    InvalidMatchingToleranceError,
     InvalidProcurementTransitionError,
     InvalidPurchaseOrderError,
     InvalidRequisitionError,
     InvalidSupplierDataError,
     InvalidSupplierIdentityError,
     InvalidSupplierTransitionError,
+    MatchingScopeError,
     ProcurementDomainError,
 )
 from erp.modules.procurement.domain.goods_receipt import (
@@ -34,6 +37,16 @@ from erp.modules.procurement.domain.goods_receipt import (
 from erp.modules.procurement.domain.identity import (
     SupplierIdentityKind,
     SupplierTaxIdentity,
+)
+from erp.modules.procurement.domain.matching import (
+    LineMatchResult,
+    MatchingTolerancePolicy,
+    MatchStatus,
+    ThreeWayMatchLine,
+    ThreeWayMatchReferences,
+    ThreeWayMatchReport,
+    compare_line,
+    compare_lines,
 )
 from erp.modules.procurement.domain.purchase_order import (
     PaymentTerms,
@@ -60,6 +73,8 @@ __all__ = [
     "IncomingInspectionRequest",
     "InspectionDisposition",
     "InvalidGoodsReceiptError",
+    "InvalidMatchingLineError",
+    "InvalidMatchingToleranceError",
     "InvalidProcurementTransitionError",
     "InvalidPurchaseOrderError",
     "InvalidRequisitionError",
@@ -69,6 +84,10 @@ __all__ = [
     "InventoryPostingConfirmation",
     "InventoryReceiptPostingRequest",
     "InventoryReceiptState",
+    "LineMatchResult",
+    "MatchStatus",
+    "MatchingScopeError",
+    "MatchingTolerancePolicy",
     "PaymentTerms",
     "ProcurementApprovalLinked",
     "ProcurementApprovalRequested",
@@ -91,4 +110,9 @@ __all__ = [
     "SupplierSite",
     "SupplierStatus",
     "SupplierTaxIdentity",
+    "ThreeWayMatchLine",
+    "ThreeWayMatchReferences",
+    "ThreeWayMatchReport",
+    "compare_line",
+    "compare_lines",
 ]
