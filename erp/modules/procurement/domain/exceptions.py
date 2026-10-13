@@ -41,6 +41,18 @@ class InvalidMatchingLineError(ProcurementDomainError):
     """A three-way matching line or line combination is invalid."""
 
 
+class InvalidMatchingSnapshotError(ProcurementDomainError):
+    """An immutable matching source snapshot is invalid."""
+
+
+class InvalidMatchingSessionError(ProcurementDomainError):
+    """A three-way matching session violates an aggregate invariant."""
+
+
+class InvalidMatchingTransitionError(ProcurementDomainError):
+    """A three-way matching session lifecycle transition is not allowed."""
+
+
 class MatchingScopeError(ProcurementDomainError):
     """Three-way matching inputs cross the configured company boundary."""
 
@@ -53,7 +65,10 @@ __all__ = [
     "DuplicateSupplierSiteError",
     "InvalidGoodsReceiptError",
     "InvalidMatchingLineError",
+    "InvalidMatchingSessionError",
+    "InvalidMatchingSnapshotError",
     "InvalidMatchingToleranceError",
+    "InvalidMatchingTransitionError",
     "InvalidProcurementTransitionError",
     "InvalidPurchaseOrderError",
     "InvalidRequisitionError",
