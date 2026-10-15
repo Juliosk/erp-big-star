@@ -22,6 +22,8 @@ from erp.modules.procurement.domain.exceptions import (
     InvalidSupplierIdentityError,
     InvalidSupplierTransitionError,
     MatchingScopeError,
+    MatchingSessionConflictError,
+    MatchingVersionConflictError,
     ProcurementDomainError,
 )
 from erp.modules.procurement.domain.goods_receipt import (
@@ -104,7 +106,9 @@ __all__ = [
     "LineMatchResult",
     "MatchStatus",
     "MatchingScopeError",
+    "MatchingSessionConflictError",
     "MatchingTolerancePolicy",
+    "MatchingVersionConflictError",
     "PaymentTerms",
     "ProcurementApprovalLinked",
     "ProcurementApprovalRequested",

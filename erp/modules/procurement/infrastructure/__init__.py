@@ -22,6 +22,12 @@ from erp.modules.procurement.infrastructure.goods_receipt_repository import (
     GoodsReceiptConflictError,
     GoodsReceiptRepository,
 )
+from erp.modules.procurement.infrastructure.matching_model import (
+    MatchingAuditLogModel,
+    MatchingSessionItemModel,
+    MatchingSessionModel,
+)
+from erp.modules.procurement.infrastructure.matching_repository import ThreeWayMatchRepository
 from erp.modules.procurement.infrastructure.purchasing_effects import (
     PURCHASE_APPROVAL_REQUESTED,
     PURCHASE_ORDER_APPROVED,
@@ -68,6 +74,9 @@ __all__ = [
     "GoodsReceiptLifecycleConsumer",
     "GoodsReceiptModel",
     "GoodsReceiptRepository",
+    "MatchingAuditLogModel",
+    "MatchingSessionItemModel",
+    "MatchingSessionModel",
     "PostgresPurchasingStore",
     "PostgresSupplierStore",
     "ProcurementApprovalDecisionConsumer",
@@ -84,4 +93,5 @@ __all__ = [
     "SupplierModel",
     "SupplierRepository",
     "SupplierSiteModel",
+    "ThreeWayMatchRepository",
 ]

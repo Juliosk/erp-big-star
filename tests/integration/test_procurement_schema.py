@@ -9,8 +9,13 @@ from alembic.migration import MigrationContext
 from sqlalchemy import Connection, inspect
 
 from erp.modules.admin.infrastructure import CompanyModel
+from erp.modules.finance.infrastructure import PayableModel, ProvisionalEntryModel
+from erp.modules.fiscal.infrastructure import InboundFiscalDocumentItemModel
 from erp.modules.procurement.infrastructure import (
     GoodsReceiptModel,
+    MatchingAuditLogModel,
+    MatchingSessionItemModel,
+    MatchingSessionModel,
     PurchaseOrderItemModel,
     PurchaseOrderModel,
     PurchaseRequisitionModel,
@@ -19,6 +24,7 @@ from erp.modules.procurement.infrastructure import (
     SupplierModel,
     SupplierSiteModel,
 )
+from erp.modules.product.infrastructure import ProductModel
 from erp.platform.config import get_settings
 from erp.platform.database import Base, Database
 
@@ -33,12 +39,19 @@ def _only_procurement(
 def test_procurement_migration_matches_orm_and_tenant_constraints() -> None:
     def verify(connection: Connection) -> None:
         assert CompanyModel.__table__.schema == "admin"
+        assert ProvisionalEntryModel.__table__.schema == "finance"
+        assert PayableModel.__table__.schema == "finance"
+        assert InboundFiscalDocumentItemModel.__table__.schema == "fiscal"
+        assert ProductModel.__table__.schema == "product"
         inspector = inspect(connection)
         assert set(inspector.get_table_names(schema="procurement")) == {
             "purchase_order",
             "purchase_order_item",
             "purchase_requisition",
             "goods_receipt",
+            "matching_audit_log",
+            "matching_session",
+            "matching_session_item",
             "receipt_item",
             "requisition_item",
             "supplier",
@@ -53,6 +66,9 @@ def test_procurement_migration_matches_orm_and_tenant_constraints() -> None:
             ("purchase_order_item", PurchaseOrderItemModel),
             ("goods_receipt", GoodsReceiptModel),
             ("receipt_item", ReceiptItemModel),
+            ("matching_session", MatchingSessionModel),
+            ("matching_session_item", MatchingSessionItemModel),
+            ("matching_audit_log", MatchingAuditLogModel),
         ):
             columns = {
                 column["name"] for column in inspector.get_columns(table, schema="procurement")

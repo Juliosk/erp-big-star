@@ -53,6 +53,14 @@ class InvalidMatchingTransitionError(ProcurementDomainError):
     """A three-way matching session lifecycle transition is not allowed."""
 
 
+class MatchingSessionConflictError(ProcurementDomainError):
+    """A persisted matching session conflicts with an existing identity."""
+
+
+class MatchingVersionConflictError(ProcurementDomainError):
+    """A persisted matching session was changed by another transaction."""
+
+
 class MatchingScopeError(ProcurementDomainError):
     """Three-way matching inputs cross the configured company boundary."""
 
@@ -76,5 +84,7 @@ __all__ = [
     "InvalidSupplierIdentityError",
     "InvalidSupplierTransitionError",
     "MatchingScopeError",
+    "MatchingSessionConflictError",
+    "MatchingVersionConflictError",
     "ProcurementDomainError",
 ]
