@@ -11,6 +11,10 @@ from erp.apps.api.fiscal_receiving import PostgresFiscalReceivingReconciliation
 from erp.apps.api.import_composition import compose_imports
 from erp.apps.api.middleware import CorrelationIdMiddleware, RequestIdMiddleware
 from erp.apps.api.procurement_matching import PostgresMatchingOperations
+from erp.apps.api.procurement_matching_governance import (
+    MatchingWorkflowAuthorization,
+    PostgresMatchingGovernanceOperations,
+)
 from erp.apps.api.procurement_receipts import PostgresGoodsReceiptOperations
 from erp.apps.api.routes import health_router
 from erp.apps.api.sales_workflow import WorkflowDiscountGateway
@@ -97,6 +101,7 @@ from erp.modules.procurement.api import router as procurement_router
 from erp.modules.procurement.application import (
     GoodsReceiptService,
     MatchingCommandService,
+    MatchingGovernanceService,
     MatchingQueryService,
     ProcurementAuthorization,
     PurchasingService,
@@ -195,6 +200,7 @@ def create_app(
     procurement_goods_receipts: GoodsReceiptService | None = None,
     procurement_matching_commands: MatchingCommandService | None = None,
     procurement_matching_queries: MatchingQueryService | None = None,
+    procurement_matching_governance: MatchingGovernanceService | None = None,
     fiscal_documents: FiscalDocumentService | None = None,
     fiscal_operations: FiscalOperationsService | None = None,
     fiscal_receiving_reconciliation: FiscalReceivingReconciliationService | None = None,
@@ -256,6 +262,7 @@ def create_app(
     resolved_procurement_goods_receipts = procurement_goods_receipts
     resolved_procurement_matching_commands = procurement_matching_commands
     resolved_procurement_matching_queries = procurement_matching_queries
+    resolved_procurement_matching_governance = procurement_matching_governance
     resolved_fiscal_documents = fiscal_documents
     resolved_fiscal_operations = fiscal_operations
     resolved_fiscal_receiving_reconciliation = fiscal_receiving_reconciliation
@@ -549,6 +556,18 @@ def create_app(
                 matching_operations,
                 matching_authorization,
             )
+    if resolved_procurement_matching_governance is None and isinstance(resolved_database, Database):
+        companies = CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+        resolved_procurement_matching_governance = MatchingGovernanceService(
+            PostgresMatchingGovernanceOperations(
+                resolved_database,
+                ttl_seconds=resolved_settings.idempotency_ttl_seconds,
+            ),
+            MatchingWorkflowAuthorization(
+                ProcurementAuthorization(companies),
+                WorkflowAuthorization(companies),
+            ),
+        )
     if resolved_fiscal_documents is None and isinstance(resolved_database, Database):
         resolved_fiscal_documents = FiscalDocumentService(
             PostgresFiscalDocumentStore(
@@ -717,6 +736,7 @@ def create_app(
     application.state.procurement_goods_receipts = resolved_procurement_goods_receipts
     application.state.procurement_matching_commands = resolved_procurement_matching_commands
     application.state.procurement_matching_queries = resolved_procurement_matching_queries
+    application.state.procurement_matching_governance = resolved_procurement_matching_governance
     application.state.fiscal_documents = resolved_fiscal_documents
     application.state.fiscal_operations = resolved_fiscal_operations
     application.state.fiscal_receiving_reconciliation = resolved_fiscal_receiving_reconciliation

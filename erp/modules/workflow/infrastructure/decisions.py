@@ -2,6 +2,8 @@
 
 from uuid import UUID
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from erp.modules.workflow.application.decisions import (
     DecideWorkflowInstance,
     WorkflowDecisionResult,
@@ -38,69 +40,83 @@ class PostgresWorkflowDecisions(WorkflowDecisionStore):
         actor_permissions: frozenset[str],
     ) -> WorkflowDecisionResult:
         async with self._database.session() as session, session.begin():
-            repository = WorkflowRepository(session, company_id=command.company_id)
-            instance = await repository.get_instance_for_update(command.workflow_instance_id)
-            if instance is None:
-                raise ApplicationError(
-                    code="RESOURCE_NOT_FOUND",
-                    message="Workflow instance not found.",
-                    status_code=404,
-                )
-            if instance.version != command.expected_version:
-                raise OptimisticLockError(expected_version=command.expected_version)
-            before_steps = await repository.list_step_instances(
-                workflow_instance_id=instance.id
-            )
-            before = WorkflowInstanceDetail(instance, before_steps)
-            definition = await repository.get_definition(instance.definition_id)
-            if definition is None:
-                raise ApplicationError(
-                    code="RESOURCE_NOT_FOUND",
-                    message="Workflow definition not found.",
-                    status_code=404,
-                )
-            steps = before_steps
-            step = _selected_active_step(command, steps, actor_permissions)
-            decided_step = _decide_step(command, step, actor_id)
-            updated_step = await repository.update_step_instance(
-                decided_step,
-                actor_id=actor_id,
-                expected_version=step.version,
-            )
-            updated_steps = tuple(
-                updated_step if candidate.id == updated_step.id else candidate
-                for candidate in steps
-            )
-            advanced_instance, advanced_steps = await _advance_workflow(
-                repository,
-                instance,
-                updated_steps,
-                mode=definition.approval_mode,
-                decision=command.decision,
-                actor_id=actor_id,
-            )
-            decision = ApprovalDecision.create(
-                company_id=command.company_id,
-                workflow_instance_id=instance.id,
-                step_instance_id=updated_step.id,
-                decision=command.decision,
-                decided_by=actor_id,
-                reason_code=command.reason_code,
-                comment=command.comment,
-                now=updated_step.decided_at,
-            )
-            await repository.add_decision(decision)
-            result = WorkflowDecisionResult(
-                detail=WorkflowInstanceDetail(advanced_instance, advanced_steps),
-                decision=decision,
-            )
-            return await self._effects.record_decision(
+            return await apply_workflow_decision(
                 session,
-                result,
+                command,
                 actor_id=actor_id,
-                command=command,
-                before=before,
+                actor_permissions=actor_permissions,
+                effects=self._effects,
             )
+
+
+async def apply_workflow_decision(
+    session: AsyncSession,
+    command: DecideWorkflowInstance,
+    *,
+    actor_id: UUID,
+    actor_permissions: frozenset[str],
+    effects: WorkflowEffects | None = None,
+) -> WorkflowDecisionResult:
+    """Apply an M22 decision inside a caller-owned transaction."""
+    repository = WorkflowRepository(session, company_id=command.company_id)
+    instance = await repository.get_instance_for_update(command.workflow_instance_id)
+    if instance is None:
+        raise ApplicationError(
+            code="RESOURCE_NOT_FOUND",
+            message="Workflow instance not found.",
+            status_code=404,
+        )
+    if instance.version != command.expected_version:
+        raise OptimisticLockError(expected_version=command.expected_version)
+    before_steps = await repository.list_step_instances(workflow_instance_id=instance.id)
+    before = WorkflowInstanceDetail(instance, before_steps)
+    definition = await repository.get_definition(instance.definition_id)
+    if definition is None:
+        raise ApplicationError(
+            code="RESOURCE_NOT_FOUND",
+            message="Workflow definition not found.",
+            status_code=404,
+        )
+    step = _selected_active_step(command, before_steps, actor_permissions)
+    decided_step = _decide_step(command, step, actor_id)
+    updated_step = await repository.update_step_instance(
+        decided_step,
+        actor_id=actor_id,
+        expected_version=step.version,
+    )
+    updated_steps = tuple(
+        updated_step if candidate.id == updated_step.id else candidate for candidate in before_steps
+    )
+    advanced_instance, advanced_steps = await _advance_workflow(
+        repository,
+        instance,
+        updated_steps,
+        mode=definition.approval_mode,
+        decision=command.decision,
+        actor_id=actor_id,
+    )
+    decision = ApprovalDecision.create(
+        company_id=command.company_id,
+        workflow_instance_id=instance.id,
+        step_instance_id=updated_step.id,
+        decision=command.decision,
+        decided_by=actor_id,
+        reason_code=command.reason_code,
+        comment=command.comment,
+        now=updated_step.decided_at,
+    )
+    await repository.add_decision(decision)
+    result = WorkflowDecisionResult(
+        detail=WorkflowInstanceDetail(advanced_instance, advanced_steps),
+        decision=decision,
+    )
+    return await (effects or WorkflowEffects()).record_decision(
+        session,
+        result,
+        actor_id=actor_id,
+        command=command,
+        before=before,
+    )
 
 
 def _selected_active_step(
@@ -192,9 +208,7 @@ async def _advance_sequential(
     updated_instance = await repository.update_instance(
         advanced, actor_id=actor_id, expected_version=instance.version
     )
-    updated_steps = tuple(
-        updated_next if step.id == updated_next.id else step for step in steps
-    )
+    updated_steps = tuple(updated_next if step.id == updated_next.id else step for step in steps)
     return updated_instance, updated_steps
 
 
@@ -219,4 +233,4 @@ async def _advance_parallel_mode(
     return updated, steps
 
 
-__all__ = ["PostgresWorkflowDecisions"]
+__all__ = ["PostgresWorkflowDecisions", "apply_workflow_decision"]

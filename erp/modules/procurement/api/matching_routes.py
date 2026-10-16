@@ -8,20 +8,26 @@ from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from erp.modules.admin.contracts import SecurityContext
 from erp.modules.procurement.api.matching_schemas import (
     CreateMatchingSessionRequest,
+    DecideMatchingOverrideBody,
     MatchingExecutionResponse,
+    MatchingGovernanceResponse,
     MatchingSessionDetailResponse,
     MatchingSessionListResponse,
     MatchingSessionResponse,
+    RequestMatchingOverrideBody,
 )
 from erp.modules.procurement.api.routes import resolve_security_context
 from erp.modules.procurement.api.versioning import require_version
 from erp.modules.procurement.application import (
     CreateMatchingSession,
+    DecideMatchingOverride,
     ExecuteMatchingSession,
     MatchingCommandService,
+    MatchingGovernanceService,
     MatchingLineReferenceInput,
     MatchingQueryService,
     ProcurementCommandMetadata,
+    RequestMatchingOverride,
 )
 from erp.modules.procurement.domain import ThreeWayMatchSessionStatus
 from erp.platform.errors import ApplicationError
@@ -49,6 +55,17 @@ def get_matching_queries(request: Request) -> MatchingQueryService:
         raise ApplicationError(
             code="PROCUREMENT_MATCHING_UNAVAILABLE",
             message="Three-way matching query services unavailable.",
+            status_code=503,
+        )
+    return service
+
+
+def get_matching_governance(request: Request) -> MatchingGovernanceService:
+    service = getattr(request.app.state, "procurement_matching_governance", None)
+    if not isinstance(service, MatchingGovernanceService):
+        raise ApplicationError(
+            code="PROCUREMENT_MATCHING_GOVERNANCE_UNAVAILABLE",
+            message="Three-way matching governance services unavailable.",
             status_code=503,
         )
     return service
@@ -194,6 +211,70 @@ async def execute_matching_session(
         session=MatchingSessionResponse.from_domain(value.session),
         event_ids=list(value.event_ids),
     )
+
+
+@router.post(
+    "/{matching_session_id}/override",
+    response_model=MatchingGovernanceResponse,
+)
+async def request_matching_override(
+    matching_session_id: UUID,
+    company_id: UUID,
+    body: RequestMatchingOverrideBody,
+    request: Request,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[MatchingGovernanceService, Depends(get_matching_governance)],
+    version: Annotated[int, Depends(require_version)],
+    idempotency_key: Annotated[str, Depends(require_idempotency_key)],
+) -> MatchingGovernanceResponse:
+    value = await service.request_override(
+        context,
+        RequestMatchingOverride(
+            company_id=company_id,
+            matching_session_id=matching_session_id,
+            expected_version=version,
+            justification=body.justification,
+            idempotency_key=idempotency_key,
+            metadata=_metadata(request),
+        ),
+    )
+    _etag(response, value.session.version)
+    return MatchingGovernanceResponse.from_result(value)
+
+
+@router.post(
+    "/{matching_session_id}/override/decide",
+    response_model=MatchingGovernanceResponse,
+)
+async def decide_matching_override(
+    matching_session_id: UUID,
+    company_id: UUID,
+    body: DecideMatchingOverrideBody,
+    request: Request,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[MatchingGovernanceService, Depends(get_matching_governance)],
+    version: Annotated[int, Depends(require_version)],
+    idempotency_key: Annotated[str, Depends(require_idempotency_key)],
+) -> MatchingGovernanceResponse:
+    value = await service.decide_override(
+        context,
+        DecideMatchingOverride(
+            company_id=company_id,
+            matching_session_id=matching_session_id,
+            expected_version=version,
+            workflow_instance_id=body.workflow_instance_id,
+            workflow_step_instance_id=body.workflow_step_instance_id,
+            workflow_expected_version=body.workflow_expected_version,
+            decision=body.decision,
+            reason=body.reason,
+            idempotency_key=idempotency_key,
+            metadata=_metadata(request),
+        ),
+    )
+    _etag(response, value.session.version)
+    return MatchingGovernanceResponse.from_result(value)
 
 
 __all__ = ["router"]

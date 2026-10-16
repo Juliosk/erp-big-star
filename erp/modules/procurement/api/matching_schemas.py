@@ -6,6 +6,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from erp.modules.procurement.application.matching_governance import (
+    MatchingGovernanceResult,
+    MatchingOverrideDecision,
+)
 from erp.modules.procurement.application.matching_sessions import (
     MatchingAuditEntry,
     MatchingSessionDetail,
@@ -44,6 +48,20 @@ class CreateMatchingSessionRequest(BaseModel):
     payable_id: UUID | None = None
     tolerance: MatchingToleranceRequest = Field(default_factory=MatchingToleranceRequest)
     lines: list[MatchingLineReferenceRequest] = Field(min_length=1, max_length=500)
+
+
+class RequestMatchingOverrideBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    justification: str = Field(min_length=10, max_length=500)
+
+
+class DecideMatchingOverrideBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    workflow_instance_id: UUID
+    workflow_step_instance_id: UUID
+    workflow_expected_version: int = Field(ge=1)
+    decision: MatchingOverrideDecision
+    reason: str = Field(min_length=10, max_length=500)
 
 
 class ArtifactReferenceResponse(BaseModel):
@@ -208,6 +226,57 @@ class MatchingSessionDetailResponse(BaseModel):
 class MatchingExecutionResponse(BaseModel):
     session: MatchingSessionResponse
     event_ids: list[UUID]
+
+
+class MatchingWorkflowStepResponse(BaseModel):
+    id: UUID
+    sequence: int
+    code: str
+    name: str
+    required_permission: str
+    status: str
+    version: int
+
+
+class MatchingWorkflowResponse(BaseModel):
+    id: UUID
+    status: str
+    version: int
+    discrepancy_amount: Decimal
+    requested_by: UUID
+    steps: list[MatchingWorkflowStepResponse]
+
+
+class MatchingGovernanceResponse(BaseModel):
+    session: MatchingSessionResponse
+    workflow: MatchingWorkflowResponse
+    event_ids: list[UUID]
+
+    @classmethod
+    def from_result(cls, value: MatchingGovernanceResult) -> MatchingGovernanceResponse:
+        return cls(
+            session=MatchingSessionResponse.from_domain(value.session),
+            workflow=MatchingWorkflowResponse(
+                id=value.workflow.id,
+                status=value.workflow.status,
+                version=value.workflow.version,
+                discrepancy_amount=value.workflow.discrepancy_amount,
+                requested_by=value.workflow.requested_by,
+                steps=[
+                    MatchingWorkflowStepResponse(
+                        id=step.id,
+                        sequence=step.sequence,
+                        code=step.code,
+                        name=step.name,
+                        required_permission=step.required_permission,
+                        status=step.status,
+                        version=step.version,
+                    )
+                    for step in value.workflow.steps
+                ],
+            ),
+            event_ids=list(value.event_ids),
+        )
 
 
 class MatchingPageMeta(BaseModel):
