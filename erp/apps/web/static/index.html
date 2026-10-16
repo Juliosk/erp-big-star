@@ -1181,6 +1181,118 @@
             <div id="procurement-receipt-cards" class="receipt-cards" aria-live="polite"></div>
             <div id="procurement-receipt-empty" class="empty" hidden><span aria-hidden="true">◇</span><h2>Doca livre</h2><p>Pedidos emitidos aparecerão como candidatos ao recebimento.</p></div>
           </section>
+          <section id="matching-cockpit" class="panel matching-cockpit" hidden>
+            <div class="matching-masthead">
+              <div>
+                <p class="eyebrow">CONTROLE DE TRÊS VIAS / M6 · M11 · M12</p>
+                <h2>Three-Way Match</h2>
+                <p class="hint">
+                  Evidências congeladas de pedido, nota fiscal e obrigação financeira,
+                  com deltas explicáveis e governança M22.
+                </p>
+              </div>
+              <div class="matching-health" aria-live="polite">
+                <span id="matching-session-count">0</span>
+                <small>sessões no recorte</small>
+              </div>
+            </div>
+
+            <div class="matching-evidence-legend" aria-label="Fontes do three-way match">
+              <span data-source="purchase"><small>01 · M6</small> Pedido de compra</span>
+              <i aria-hidden="true">→</i>
+              <span data-source="fiscal"><small>02 · M11</small> Nota e recebimento</span>
+              <i aria-hidden="true">→</i>
+              <span data-source="finance"><small>03 · M12</small> Obrigação financeira</span>
+            </div>
+
+            <details id="matching-create-disclosure" class="matching-create">
+              <summary>Nova sessão de conferência</summary>
+              <form id="matching-create-form" class="matching-create-grid">
+                <div><label for="matching-purchase-order-id">Pedido de compra ID</label><input id="matching-purchase-order-id" required autocomplete="off" /></div>
+                <div><label for="matching-goods-receipt-id">Recebimento físico ID</label><input id="matching-goods-receipt-id" required autocomplete="off" /></div>
+                <div><label for="matching-inbound-document-id">NF-e de entrada ID</label><input id="matching-inbound-document-id" required autocomplete="off" /></div>
+                <div><label for="matching-provisional-entry-id">Provisão financeira ID</label><input id="matching-provisional-entry-id" required autocomplete="off" /></div>
+                <div><label for="matching-purchase-item-id">Item do pedido ID</label><input id="matching-purchase-item-id" required autocomplete="off" /></div>
+                <div><label for="matching-receipt-item-id">Item recebido ID</label><input id="matching-receipt-item-id" required autocomplete="off" /></div>
+                <div><label for="matching-fiscal-item-id">Item fiscal ID</label><input id="matching-fiscal-item-id" required autocomplete="off" /></div>
+                <div><label for="matching-match-key">Chave de comparação</label><input id="matching-match-key" required maxlength="64" value="ITEM-001" /></div>
+                <fieldset class="matching-tolerances">
+                  <legend>Tolerâncias da empresa</legend>
+                  <label for="matching-price-tolerance">Preço (%)<input id="matching-price-tolerance" type="number" min="0" max="100" step="0.01" value="1" required /></label>
+                  <label for="matching-quantity-tolerance">Quantidade (%)<input id="matching-quantity-tolerance" type="number" min="0" max="100" step="0.01" value="1" required /></label>
+                  <label for="matching-rounding-tolerance">Arredondamento<input id="matching-rounding-tolerance" type="number" min="0" max="1" step="0.01" value="0.01" required /></label>
+                </fieldset>
+                <button type="submit">Criar sessão</button>
+              </form>
+            </details>
+
+            <div class="matching-workspace">
+              <aside class="matching-queue" aria-label="Fila de sessões">
+                <div class="matching-queue-heading">
+                  <div><p class="eyebrow">FILA EXPLICÁVEL</p><h3>Sessões e exceções</h3></div>
+                  <button id="matching-exceptions-toggle" class="quiet" aria-pressed="false">Só divergências</button>
+                </div>
+                <label for="matching-status-filter" class="sr-only">Filtrar por status</label>
+                <select id="matching-status-filter">
+                  <option value="">Todos os status</option>
+                  <option value="PENDING">Pendente</option>
+                  <option value="RUNNING">Em execução</option>
+                  <option value="MATCHED">Conciliado</option>
+                  <option value="DISCREPANCY_DETECTED">Com divergência</option>
+                  <option value="OVERRIDDEN">Override aprovado</option>
+                  <option value="REJECTED">Rejeitado</option>
+                </select>
+                <div id="matching-session-list" class="matching-session-list"></div>
+                <div id="matching-session-empty" class="matching-empty">
+                  <span aria-hidden="true">◇</span>
+                  <strong>Nenhuma sessão neste recorte</strong>
+                  <small>Crie uma sessão ou altere o filtro.</small>
+                </div>
+              </aside>
+
+              <article id="matching-dossier" class="matching-dossier" aria-live="polite">
+                <div id="matching-dossier-empty" class="matching-dossier-empty">
+                  <span aria-hidden="true">↗</span>
+                  <h3>Selecione uma evidência</h3>
+                  <p>Abra uma sessão para ver valores congelados, deltas e trilha de decisão.</p>
+                </div>
+                <div id="matching-dossier-content" hidden>
+                  <div class="matching-dossier-heading">
+                    <div><p class="eyebrow">DOSSIÊ IMUTÁVEL</p><h3 id="matching-dossier-title">Sessão</h3><p id="matching-dossier-meta" class="mono hint"></p></div>
+                    <span id="matching-dossier-status" class="status">—</span>
+                  </div>
+                  <div id="matching-triad" class="matching-triad"></div>
+                  <div id="matching-delta-summary" class="matching-delta-summary"></div>
+                  <div class="matching-detail-grid">
+                    <section>
+                      <h4>Comparação item a item</h4>
+                      <div id="matching-line-cards" class="matching-line-cards"></div>
+                    </section>
+                    <section>
+                      <h4>Trilha de evidências</h4>
+                      <ol id="matching-audit-list" class="matching-audit-list"></ol>
+                    </section>
+                  </div>
+                  <div id="matching-actions" class="matching-actions">
+                    <button id="matching-execute">Executar conferência</button>
+                  </div>
+                  <form id="matching-override-form" class="matching-override" hidden>
+                    <label for="matching-override-justification">Justificativa do override</label>
+                    <textarea id="matching-override-justification" minlength="10" maxlength="500" required>Exceção comercial analisada com evidências anexas.</textarea>
+                    <button type="submit">Solicitar alçada M22</button>
+                  </form>
+                  <section id="matching-workflow-card" class="matching-workflow-card" hidden>
+                    <div><p class="eyebrow">GOVERNANÇA M22</p><h4 id="matching-workflow-title">Alçada pendente</h4></div>
+                    <p id="matching-workflow-meta" class="hint"></p>
+                    <div id="matching-workflow-actions" class="matching-workflow-actions">
+                      <button id="matching-override-approve">Aprovar override</button>
+                      <button id="matching-override-reject" class="danger">Rejeitar override</button>
+                    </div>
+                  </section>
+                </div>
+              </article>
+            </div>
+          </section>
         </div>
       </section>
       <section id="fiscal" hidden aria-labelledby="fiscal-title">

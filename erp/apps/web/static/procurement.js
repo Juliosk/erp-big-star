@@ -1,3 +1,5 @@
+import { mountMatching } from "./matching.js";
+
 const $ = (id) => document.getElementById(id);
 
 const statusLabels = {
@@ -39,6 +41,7 @@ function badge(status) {
 
 export function mountProcurement({ api, context, notice, enter }) {
   let suppliers = [], requisitions = [], orders = [], receipts = [];
+  const matching = mountMatching({ api, context, notice });
 
   const can = (permission) => context().permissions.has(permission);
 
@@ -53,6 +56,7 @@ export function mountProcurement({ api, context, notice, enter }) {
     requisitions = [];
     orders = [];
     receipts = [];
+    matching.reset();
     ["procurement-supplier-rows", "procurement-requisition-rows", "procurement-order-rows", "procurement-receipt-cards"].forEach(
       (id) => $(id).replaceChildren(),
     );
@@ -198,11 +202,12 @@ export function mountProcurement({ api, context, notice, enter }) {
   async function load() {
     const { company } = context();
     if (!company) return;
+    const empty = { data: [] };
     const [supplierPage, requisitionPage, orderPage, receiptPage] = await Promise.all([
-      api(`procurement/suppliers?company_id=${company}&page_size=100`),
-      api(`procurement/requisitions?company_id=${company}&page_size=100`),
-      api(`procurement/purchase-orders?company_id=${company}&page_size=100`),
-      api(`procurement/goods-receipts?company_id=${company}&page_size=100`),
+      can("procurement.supplier.read") ? api(`procurement/suppliers?company_id=${company}&page_size=100`) : empty,
+      can("procurement.requisition.read") ? api(`procurement/requisitions?company_id=${company}&page_size=100`) : empty,
+      can("procurement.order.read") ? api(`procurement/purchase-orders?company_id=${company}&page_size=100`) : empty,
+      can("procurement.receipt.read") ? api(`procurement/goods-receipts?company_id=${company}&page_size=100`) : empty,
     ]);
     suppliers = supplierPage.data;
     requisitions = requisitionPage.data;
@@ -212,6 +217,7 @@ export function mountProcurement({ api, context, notice, enter }) {
     renderRequisitions();
     renderOrders();
     renderReceipts();
+    await matching.show();
   }
 
   async function show() {

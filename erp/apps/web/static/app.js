@@ -589,7 +589,8 @@ async function connect() {
   $("procurement-nav").hidden =
     !permissions.has("procurement.supplier.read") &&
     !permissions.has("procurement.requisition.read") &&
-    !permissions.has("procurement.order.read");
+    !permissions.has("procurement.order.read") &&
+    !permissions.has("procurement.matching.read");
   $("fiscal-nav").hidden =
     !permissions.has("fiscal.nfe.read") &&
     !permissions.has("fiscal.inbound.read");
