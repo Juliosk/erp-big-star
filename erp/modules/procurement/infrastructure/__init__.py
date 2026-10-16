@@ -22,13 +22,23 @@ from erp.modules.procurement.infrastructure.goods_receipt_repository import (
     GoodsReceiptConflictError,
     GoodsReceiptRepository,
 )
+from erp.modules.procurement.infrastructure.matching_event_consumer import (
+    MATCHING_EVENT_CONSUMER,
+    MatchingEventConsumer,
+)
+from erp.modules.procurement.infrastructure.matching_event_state import (
+    MATCHING_REEVALUATION_REQUESTED,
+    flag_matching_from_source_cursors,
+)
 from erp.modules.procurement.infrastructure.matching_events import (
     PostgresMatchingEventPublisher,
 )
 from erp.modules.procurement.infrastructure.matching_model import (
     MatchingAuditLogModel,
+    MatchingReevaluationModel,
     MatchingSessionItemModel,
     MatchingSessionModel,
+    MatchingSourceCursorModel,
 )
 from erp.modules.procurement.infrastructure.matching_repository import ThreeWayMatchRepository
 from erp.modules.procurement.infrastructure.purchasing_effects import (
@@ -68,6 +78,8 @@ __all__ = [
     "GOODS_RECEIPT_LIFECYCLE_CONSUMER",
     "GOODS_RECEIPT_POSTED",
     "GOODS_RECEIPT_RECEIVED",
+    "MATCHING_EVENT_CONSUMER",
+    "MATCHING_REEVALUATION_REQUESTED",
     "PROCUREMENT_APPROVAL_CONSUMER",
     "PURCHASE_APPROVAL_REQUESTED",
     "PURCHASE_ORDER_APPROVED",
@@ -78,8 +90,11 @@ __all__ = [
     "GoodsReceiptModel",
     "GoodsReceiptRepository",
     "MatchingAuditLogModel",
+    "MatchingEventConsumer",
+    "MatchingReevaluationModel",
     "MatchingSessionItemModel",
     "MatchingSessionModel",
+    "MatchingSourceCursorModel",
     "PostgresMatchingEventPublisher",
     "PostgresPurchasingStore",
     "PostgresSupplierStore",
@@ -98,4 +113,5 @@ __all__ = [
     "SupplierRepository",
     "SupplierSiteModel",
     "ThreeWayMatchRepository",
+    "flag_matching_from_source_cursors",
 ]

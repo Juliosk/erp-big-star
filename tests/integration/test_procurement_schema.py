@@ -14,8 +14,10 @@ from erp.modules.fiscal.infrastructure import InboundFiscalDocumentItemModel
 from erp.modules.procurement.infrastructure import (
     GoodsReceiptModel,
     MatchingAuditLogModel,
+    MatchingReevaluationModel,
     MatchingSessionItemModel,
     MatchingSessionModel,
+    MatchingSourceCursorModel,
     PurchaseOrderItemModel,
     PurchaseOrderModel,
     PurchaseRequisitionModel,
@@ -50,8 +52,10 @@ def test_procurement_migration_matches_orm_and_tenant_constraints() -> None:
             "purchase_requisition",
             "goods_receipt",
             "matching_audit_log",
+            "matching_reevaluation",
             "matching_session",
             "matching_session_item",
+            "matching_source_cursor",
             "receipt_item",
             "requisition_item",
             "supplier",
@@ -69,6 +73,8 @@ def test_procurement_migration_matches_orm_and_tenant_constraints() -> None:
             ("matching_session", MatchingSessionModel),
             ("matching_session_item", MatchingSessionItemModel),
             ("matching_audit_log", MatchingAuditLogModel),
+            ("matching_source_cursor", MatchingSourceCursorModel),
+            ("matching_reevaluation", MatchingReevaluationModel),
         ):
             columns = {
                 column["name"] for column in inspector.get_columns(table, schema="procurement")
@@ -110,6 +116,23 @@ def test_procurement_migration_matches_orm_and_tenant_constraints() -> None:
             "company_id",
             "purchase_order_id",
         ) in {tuple(item["constrained_columns"]) for item in receipt_fks}
+        reevaluation_fks = inspector.get_foreign_keys(
+            "matching_reevaluation", "procurement"
+        )
+        assert (
+            "company_id",
+            "matching_session_id",
+        ) in {tuple(item["constrained_columns"]) for item in reevaluation_fks}
+        assert tuple(
+            inspector.get_pk_constraint(
+                "matching_source_cursor", "procurement"
+            )["constrained_columns"]
+        ) == (
+            "company_id",
+            "producer_module",
+            "aggregate_type",
+            "aggregate_id",
+        )
         site_fks = inspector.get_foreign_keys("supplier_site", "procurement")
         assert {
             tuple(item["constrained_columns"]): (

@@ -38,6 +38,7 @@ from erp.modules.procurement.infrastructure import (
     PostgresMatchingEventPublisher,
     PurchaseOrderRepository,
     ThreeWayMatchRepository,
+    flag_matching_from_source_cursors,
 )
 from erp.platform.database import Database
 from erp.platform.errors import ApplicationError, ErrorDetail
@@ -77,6 +78,7 @@ class PostgresMatchingOperations:
             await ThreeWayMatchRepository(session, company_id=command.company_id).add(
                 aggregate, actor_id=actor_id
             )
+            await flag_matching_from_source_cursors(session, aggregate)
             await self._idempotency.complete(
                 session,
                 decision,

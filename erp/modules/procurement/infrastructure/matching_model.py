@@ -3,14 +3,16 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Integer,
     Numeric,
     String,
     UniqueConstraint,
@@ -260,4 +262,91 @@ class MatchingAuditLogModel(Base):
     details: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
 
 
-__all__ = ["MatchingAuditLogModel", "MatchingSessionItemModel", "MatchingSessionModel"]
+class MatchingSourceCursorModel(Base):
+    """Latest accepted upstream version for one tenant-bound matching source."""
+
+    __tablename__ = "matching_source_cursor"
+    __table_args__ = (
+        CheckConstraint("aggregate_version >= 1", name="version"),
+        CheckConstraint(
+            "producer_module IN ('procurement', 'fiscal', 'finance')",
+            name="producer_module",
+        ),
+        Index(
+            "ix_matching_source_cursor_company_source",
+            "company_id",
+            "producer_module",
+            "aggregate_type",
+            "aggregate_id",
+        ),
+        {"schema": "procurement"},
+    )
+
+    company_id: Mapped[UUID] = mapped_column(
+        ForeignKey("admin.company.id", ondelete="RESTRICT"), primary_key=True
+    )
+    producer_module: Mapped[str] = mapped_column(String(32), primary_key=True)
+    aggregate_type: Mapped[str] = mapped_column(String(64), primary_key=True)
+    aggregate_id: Mapped[UUID] = mapped_column(primary_key=True)
+    aggregate_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_id: Mapped[UUID] = mapped_column(nullable=False)
+    request_id: Mapped[UUID] = mapped_column(nullable=False)
+    correlation_id: Mapped[UUID] = mapped_column(nullable=False)
+    event_type: Mapped[str] = mapped_column(String(150), nullable=False)
+    event_occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    invalidates_snapshot: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class MatchingReevaluationModel(Base):
+    """Durable, mergeable work item for refreshing one immutable match session."""
+
+    __tablename__ = "matching_reevaluation"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["company_id", "matching_session_id"],
+            ["procurement.matching_session.company_id", "procurement.matching_session.id"],
+            name="fk_matching_reevaluation_company_session",
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint(
+            "company_id",
+            "matching_session_id",
+            name="uq_matching_reevaluation_company_session",
+        ),
+        CheckConstraint("status IN ('PENDING', 'PROCESSED')", name="status"),
+        CheckConstraint("revision >= 1", name="revision"),
+        Index(
+            "ix_matching_reevaluation_company_status",
+            "company_id",
+            "status",
+            "last_event_at",
+        ),
+        {"schema": "procurement"},
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    company_id: Mapped[UUID] = mapped_column(nullable=False)
+    matching_session_id: Mapped[UUID] = mapped_column(nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="PENDING", server_default="PENDING"
+    )
+    required_since: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_event_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    source_watermarks: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    reasons: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+    revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1"
+    )
+
+
+__all__ = [
+    "MatchingAuditLogModel",
+    "MatchingReevaluationModel",
+    "MatchingSessionItemModel",
+    "MatchingSessionModel",
+    "MatchingSourceCursorModel",
+]
