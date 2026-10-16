@@ -11,6 +11,17 @@ from erp.modules.procurement.application.goods_receipts import (
     PostGoodsReceiptToInventory,
     ReceiveGoodsReceipt,
 )
+from erp.modules.procurement.application.matching import (
+    MATCHING_DISCREPANCY_DETECTED,
+    MATCHING_SESSION_COMPLETED,
+    ExecuteThreeWayMatch,
+    MatchingEventPublisher,
+    MatchingExecutionEvent,
+    MatchingExecutionResult,
+    MatchingSessionRepository,
+    ThreeWayMatchingService,
+    matching_execution_events,
+)
 from erp.modules.procurement.application.permissions import (
     PROCUREMENT_ORDER_MANAGE,
     PROCUREMENT_ORDER_READ,
@@ -50,6 +61,8 @@ from erp.modules.procurement.application.suppliers import (
 )
 
 __all__ = [
+    "MATCHING_DISCREPANCY_DETECTED",
+    "MATCHING_SESSION_COMPLETED",
     "PROCUREMENT_ORDER_MANAGE",
     "PROCUREMENT_ORDER_READ",
     "PROCUREMENT_RECEIPT_MANAGE",
@@ -64,12 +77,17 @@ __all__ = [
     "CreatePurchaseOrder",
     "CreateRequisition",
     "CreateSupplier",
+    "ExecuteThreeWayMatch",
     "GoodsReceiptLineInput",
     "GoodsReceiptPage",
     "GoodsReceiptService",
     "GoodsReceiptStore",
     "InspectGoodsReceipt",
     "InspectionDecisionInput",
+    "MatchingEventPublisher",
+    "MatchingExecutionEvent",
+    "MatchingExecutionResult",
+    "MatchingSessionRepository",
     "PostGoodsReceiptToInventory",
     "ProcurementAuthorization",
     "ProcurementCommandMetadata",
@@ -87,7 +105,9 @@ __all__ = [
     "SupplierService",
     "SupplierSiteInput",
     "SupplierStore",
+    "ThreeWayMatchingService",
     "UpdateSupplier",
     "apply_supplier_update",
+    "matching_execution_events",
     "procurement_permission_registry",
 ]

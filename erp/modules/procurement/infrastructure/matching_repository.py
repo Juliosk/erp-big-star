@@ -308,6 +308,20 @@ def _audit_model(
             "report_status": aggregate.report.status.value
             if aggregate.report is not None
             else None,
+            "line_results": [
+                {
+                    "match_key": result.line.match_key,
+                    "status": result.status.value,
+                    "quantity_delta": str(result.quantity_delta),
+                    "unit_price_delta": str(result.unit_price_delta),
+                    "allowed_quantity_delta": str(result.allowed_quantity_delta),
+                    "allowed_unit_price_delta": str(result.allowed_unit_price_delta),
+                    "reasons": list(result.reasons),
+                }
+                for result in aggregate.report.lines
+            ]
+            if aggregate.report is not None
+            else [],
             "decision_workflow_instance_id": str(aggregate.decision_workflow_instance_id)
             if aggregate.decision_workflow_instance_id is not None
             else None,

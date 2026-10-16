@@ -22,6 +22,9 @@ from erp.modules.procurement.infrastructure.goods_receipt_repository import (
     GoodsReceiptConflictError,
     GoodsReceiptRepository,
 )
+from erp.modules.procurement.infrastructure.matching_events import (
+    PostgresMatchingEventPublisher,
+)
 from erp.modules.procurement.infrastructure.matching_model import (
     MatchingAuditLogModel,
     MatchingSessionItemModel,
@@ -77,6 +80,7 @@ __all__ = [
     "MatchingAuditLogModel",
     "MatchingSessionItemModel",
     "MatchingSessionModel",
+    "PostgresMatchingEventPublisher",
     "PostgresPurchasingStore",
     "PostgresSupplierStore",
     "ProcurementApprovalDecisionConsumer",
