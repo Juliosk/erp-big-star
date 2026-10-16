@@ -22,6 +22,8 @@ PROCUREMENT_ORDER_READ = PermissionCode("procurement.order.read")
 PROCUREMENT_ORDER_MANAGE = PermissionCode("procurement.order.manage")
 PROCUREMENT_RECEIPT_READ = PermissionCode("procurement.receipt.read")
 PROCUREMENT_RECEIPT_MANAGE = PermissionCode("procurement.receipt.manage")
+PROCUREMENT_MATCHING_READ = PermissionCode("procurement.matching.read")
+PROCUREMENT_MATCHING_EXECUTE = PermissionCode("procurement.matching.execute")
 
 
 def procurement_permission_registry() -> PermissionRegistry:
@@ -66,6 +68,16 @@ def procurement_permission_registry() -> PermissionRegistry:
             "Create and transition physical goods receipts",
             PermissionRiskLevel.HIGH,
         ),
+        (
+            PROCUREMENT_MATCHING_READ,
+            "Read three-way matching sessions and exception queues",
+            PermissionRiskLevel.HIGH,
+        ),
+        (
+            PROCUREMENT_MATCHING_EXECUTE,
+            "Create and execute three-way matching sessions",
+            PermissionRiskLevel.CRITICAL,
+        ),
     )
     return PermissionRegistry(
         Permission(
@@ -98,6 +110,8 @@ class ProcurementAuthorization:
 
 
 __all__ = [
+    "PROCUREMENT_MATCHING_EXECUTE",
+    "PROCUREMENT_MATCHING_READ",
     "PROCUREMENT_ORDER_MANAGE",
     "PROCUREMENT_ORDER_READ",
     "PROCUREMENT_RECEIPT_MANAGE",

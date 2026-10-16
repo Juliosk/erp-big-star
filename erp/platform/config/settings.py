@@ -92,6 +92,8 @@ class Settings(BaseSettings):
         "procurement.order.manage",
         "procurement.receipt.read",
         "procurement.receipt.manage",
+        "procurement.matching.read",
+        "procurement.matching.execute",
         "fiscal.nfe.read",
         "fiscal.inbound.read",
         "fiscal.inbound.manage",
