@@ -1,0 +1,1 @@
+"""Pure Treasury domain tests."""

@@ -18,6 +18,10 @@ FINANCE_PAYABLE_READ = PermissionCode("finance.payable.read")
 FINANCE_PAYABLE_CREATE = PermissionCode("finance.payable.create")
 FINANCE_PAYABLE_APPROVE = PermissionCode("finance.payable.approve")
 FINANCE_PAYABLE_ADJUST = PermissionCode("finance.payable.adjust")
+FINANCE_TREASURY_READ = PermissionCode("finance.treasury.read")
+FINANCE_TREASURY_BATCH_CREATE = PermissionCode("finance.treasury_batch.create")
+FINANCE_TREASURY_BATCH_APPROVE = PermissionCode("finance.treasury_batch.approve")
+FINANCE_TREASURY_BATCH_EXECUTE = PermissionCode("finance.treasury_batch.execute")
 
 
 def finance_permission_registry() -> PermissionRegistry:
@@ -32,6 +36,26 @@ def finance_permission_registry() -> PermissionRegistry:
         (
             FINANCE_PAYABLE_ADJUST,
             "Adjust payable amounts, due dates and blocks",
+            PermissionRiskLevel.CRITICAL,
+        ),
+        (
+            FINANCE_TREASURY_READ,
+            "Read treasury batches and payment execution status",
+            PermissionRiskLevel.HIGH,
+        ),
+        (
+            FINANCE_TREASURY_BATCH_CREATE,
+            "Create payment batches from eligible payable installments",
+            PermissionRiskLevel.CRITICAL,
+        ),
+        (
+            FINANCE_TREASURY_BATCH_APPROVE,
+            "Approve payment batches under treasury segregation rules",
+            PermissionRiskLevel.CRITICAL,
+        ),
+        (
+            FINANCE_TREASURY_BATCH_EXECUTE,
+            "Release approved payment batches to a bank adapter",
             PermissionRiskLevel.CRITICAL,
         ),
     )
@@ -70,6 +94,10 @@ __all__ = [
     "FINANCE_PAYABLE_APPROVE",
     "FINANCE_PAYABLE_CREATE",
     "FINANCE_PAYABLE_READ",
+    "FINANCE_TREASURY_BATCH_APPROVE",
+    "FINANCE_TREASURY_BATCH_CREATE",
+    "FINANCE_TREASURY_BATCH_EXECUTE",
+    "FINANCE_TREASURY_READ",
     "FinanceAuthorization",
     "finance_permission_registry",
 ]

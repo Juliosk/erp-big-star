@@ -83,6 +83,22 @@ class FinanceScopeError(FinanceDomainError):
     code = "FINANCE_SCOPE_ERROR"
 
 
+class InvalidTreasuryRuleError(FinanceDomainError):
+    """A treasury value object or payment-batch invariant is invalid."""
+
+    code = "INVALID_TREASURY_RULE"
+
+
+class PaymentInstallmentIneligibleError(FinanceDomainError):
+    """A payable installment cannot participate in payment execution."""
+
+    code = "PAYMENT_INSTALLMENT_INELIGIBLE"
+
+
+class TreasurySodViolationError(SodViolationError):
+    """A treasury actor conflicts with the payable or batch maker-checker rules."""
+
+
 __all__ = [
     "FinanceDomainError",
     "FinanceScopeError",
@@ -93,9 +109,12 @@ __all__ = [
     "InvalidPayableStateError",
     "InvalidProvisionalEntryError",
     "InvalidSegregationPolicyError",
+    "InvalidTreasuryRuleError",
     "PayableApprovalRequiredError",
     "PayableConflictError",
     "PayableDivergenceBlockedError",
+    "PaymentInstallmentIneligibleError",
     "SegregationOfDutiesViolation",
     "SodViolationError",
+    "TreasurySodViolationError",
 ]
