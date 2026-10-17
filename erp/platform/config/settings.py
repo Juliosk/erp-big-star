@@ -104,6 +104,10 @@ class Settings(BaseSettings):
         "finance.payable.create",
         "finance.payable.approve",
         "finance.payable.adjust",
+        "finance.treasury.read",
+        "finance.treasury_batch.create",
+        "finance.treasury_batch.approve",
+        "finance.treasury_batch.execute",
         "workflow.definition.manage",
     )
 

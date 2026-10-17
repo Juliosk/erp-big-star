@@ -18,6 +18,8 @@ from erp.apps.api.procurement_matching_governance import (
 from erp.apps.api.procurement_receipts import PostgresGoodsReceiptOperations
 from erp.apps.api.routes import health_router
 from erp.apps.api.sales_workflow import WorkflowDiscountGateway
+from erp.apps.api.treasury_candidates import PostgresTreasuryPaymentCandidateProvider
+from erp.apps.api.treasury_execution import M22PaymentBatchApprovalGateway
 from erp.apps.web.mount import mount_web
 from erp.modules.admin.api import router as admin_router
 from erp.modules.admin.api.session_context import router as session_router
@@ -50,8 +52,13 @@ from erp.modules.customer.infrastructure.customer_duplicates import PostgresCust
 from erp.modules.customer.infrastructure.customer_groups import PostgresCustomerGroups
 from erp.modules.customer.infrastructure.customer_updates import PostgresCustomerUpdates
 from erp.modules.finance.api import router as finance_router
-from erp.modules.finance.application import FinanceAuthorization, PayableApplicationService
-from erp.modules.finance.infrastructure import PostgresPayableStore
+from erp.modules.finance.application import (
+    FinanceAuthorization,
+    PayableApplicationService,
+    TreasuryApplicationService,
+    TreasuryQueryService,
+)
+from erp.modules.finance.infrastructure import PostgresPayableStore, PostgresTreasuryStore
 from erp.modules.fiscal.api import router as fiscal_router
 from erp.modules.fiscal.application import (
     FiscalArtifactStoragePort,
@@ -207,6 +214,8 @@ def create_app(
     inbound_fiscal_documents: InboundFiscalDocumentService | None = None,
     fiscal_artifact_storage: FiscalArtifactStoragePort | None = None,
     finance_payables: PayableApplicationService | None = None,
+    finance_treasury: TreasuryApplicationService | None = None,
+    finance_treasury_queries: TreasuryQueryService | None = None,
     inventory_queries: InventoryQueries | None = None,
     inventory_creation: InventoryCatalogService | None = None,
     inventory_adjustments: InventoryAdjustmentService | None = None,
@@ -269,6 +278,8 @@ def create_app(
     resolved_inbound_fiscal_documents = inbound_fiscal_documents
     resolved_fiscal_document_storage: FiscalDocumentStorageService | None = None
     resolved_finance_payables = finance_payables
+    resolved_finance_treasury = finance_treasury
+    resolved_finance_treasury_queries = finance_treasury_queries
     resolved_inventory_queries = inventory_queries
     resolved_inventory_creation = inventory_creation
     resolved_inventory_adjustments = inventory_adjustments
@@ -629,6 +640,28 @@ def create_app(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
             ),
         )
+    if (
+        resolved_finance_treasury is None or resolved_finance_treasury_queries is None
+    ) and isinstance(resolved_database, Database):
+        treasury_authorization = FinanceAuthorization(
+            CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+        )
+        treasury_store = PostgresTreasuryStore(
+            resolved_database,
+            ttl_seconds=resolved_settings.idempotency_ttl_seconds,
+            approval_gateway_factory=M22PaymentBatchApprovalGateway,
+            candidate_provider_factory=PostgresTreasuryPaymentCandidateProvider,
+        )
+        if resolved_finance_treasury is None:
+            resolved_finance_treasury = TreasuryApplicationService(
+                treasury_store,
+                treasury_authorization,
+            )
+        if resolved_finance_treasury_queries is None:
+            resolved_finance_treasury_queries = TreasuryQueryService(
+                treasury_store,
+                treasury_authorization,
+            )
     if fiscal_artifact_storage is None and resolved_settings.import_storage_access_key:
         fiscal_artifact_storage = MinioStorage(resolved_settings)
     if resolved_fiscal_documents is not None and fiscal_artifact_storage is not None:
@@ -743,6 +776,8 @@ def create_app(
     application.state.inbound_fiscal_documents = resolved_inbound_fiscal_documents
     application.state.fiscal_document_storage = resolved_fiscal_document_storage
     application.state.finance_payables = resolved_finance_payables
+    application.state.finance_treasury = resolved_finance_treasury
+    application.state.finance_treasury_queries = resolved_finance_treasury_queries
     application.state.inventory_queries = resolved_inventory_queries
     application.state.inventory_creation = resolved_inventory_creation
     application.state.inventory_adjustments = resolved_inventory_adjustments

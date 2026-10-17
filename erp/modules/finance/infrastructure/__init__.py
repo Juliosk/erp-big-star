@@ -50,6 +50,7 @@ from erp.modules.finance.infrastructure.treasury_model import (
     PaymentBatchModel,
 )
 from erp.modules.finance.infrastructure.treasury_repository import PaymentBatchRepository
+from erp.modules.finance.infrastructure.treasury_store import PostgresTreasuryStore
 
 __all__ = [
     "FINANCE_APPROVAL_CONSUMER",
@@ -81,6 +82,7 @@ __all__ = [
     "PixCallbackParser",
     "PostgresPayableStore",
     "PostgresPaymentBatchEventPublisher",
+    "PostgresTreasuryStore",
     "ProvisionalEntryModel",
     "ProvisionalEntryRepository",
     "RemittanceAdapterRegistry",
