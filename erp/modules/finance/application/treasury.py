@@ -341,6 +341,21 @@ def payment_batch_event(
             "record_count": remittance.record_count,
             "dry_run": remittance.dry_run,
         }
+    if batch.bank_confirmation is not None:
+        payload["bank_confirmation"] = {
+            "protocol": batch.bank_confirmation.protocol,
+            "status_code": batch.bank_confirmation.status_code,
+            "confirmed_at": batch.bank_confirmation.confirmed_at.isoformat(),
+            "confirmed_amount": str(batch.bank_confirmation.confirmed_amount),
+        }
+    if batch.bank_failure is not None:
+        payload["bank_failure"] = {
+            "kind": batch.bank_failure.kind.value,
+            "protocol": batch.bank_failure.protocol,
+            "status_code": batch.bank_failure.status_code,
+            "failed_at": batch.bank_failure.failed_at.isoformat(),
+            "reason": batch.bank_failure.reason,
+        }
     return PaymentBatchEvent(event_type, batch, payload)
 
 

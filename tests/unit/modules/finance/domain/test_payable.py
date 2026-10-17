@@ -65,6 +65,54 @@ def approved_payable(*, created_by: UUID | None = None) -> Payable:
     )
 
 
+def test_payment_batch_schedule_confirmation_and_rejection_are_explicit() -> None:
+    title = approved_payable()
+    first = title.installments[0]
+    batch_id = uuid4()
+
+    scheduled = title.schedule_installments_for_payment(
+        installment_numbers=(first.number,),
+        schedule_id=batch_id,
+    )
+    assert scheduled.status is PayableStatus.SCHEDULED
+    assert scheduled.installments[0].status is PayableInstallmentStatus.SCHEDULED
+
+    paid = scheduled.settle_installments(
+        installment_numbers=(first.number,),
+        schedule_id=batch_id,
+        paid_on=FIRST_DUE_DATE,
+        payment_reference="BANK-175",
+    )
+    assert paid.installments[0].status is PayableInstallmentStatus.PAID
+    assert paid.installments[0].payment_reference == "BANK-175"
+    assert paid.status is PayableStatus.APPROVED
+
+    released = scheduled.release_payment_schedule(
+        installment_numbers=(first.number,),
+        schedule_id=batch_id,
+    )
+    assert released.status is PayableStatus.APPROVED
+    assert released.installments[0].status is PayableInstallmentStatus.OPEN
+    assert released.installments[0].schedule_id is None
+
+
+def test_payment_batch_settlement_requires_matching_schedule() -> None:
+    title = approved_payable()
+    first = title.installments[0]
+    scheduled = title.schedule_installments_for_payment(
+        installment_numbers=(first.number,),
+        schedule_id=uuid4(),
+    )
+
+    with pytest.raises(InvalidPayableStateError, match="payment-batch"):
+        scheduled.settle_installments(
+            installment_numbers=(first.number,),
+            schedule_id=uuid4(),
+            paid_on=FIRST_DUE_DATE,
+            payment_reference="BANK-175",
+        )
+
+
 def provisional() -> ProvisionalFinancialEntry:
     return ProvisionalFinancialEntry.create(
         company_id=uuid4(),

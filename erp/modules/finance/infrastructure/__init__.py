@@ -1,5 +1,11 @@
 """M12 persistence adapters."""
 
+from erp.modules.finance.infrastructure.bank_returns import (
+    BankReturnAdapterRegistry,
+    Cnab240ReturnParser,
+    Cnab400ReturnParser,
+    PixCallbackParser,
+)
 from erp.modules.finance.infrastructure.governance_consumer import (
     FINANCE_APPROVAL_CONSUMER,
     FINANCE_DIVERGENCE_CONSUMER,
@@ -52,9 +58,12 @@ __all__ = [
     "FISCAL_DOCUMENT_AUTHORIZED",
     "FISCAL_DOCUMENT_CANCELLED",
     "PURCHASE_ORDER_APPROVED",
+    "BankReturnAdapterRegistry",
     "BatchAuditLogModel",
     "Cnab240RemittanceAdapter",
+    "Cnab240ReturnParser",
     "Cnab400RemittanceAdapter",
+    "Cnab400ReturnParser",
     "FiscalEventConsumer",
     "PayableApprovalDecisionConsumer",
     "PayableDivergenceConsumer",
@@ -69,6 +78,7 @@ __all__ = [
     "PaymentBatchModel",
     "PaymentBatchRepository",
     "PixApiRemittanceAdapter",
+    "PixCallbackParser",
     "PostgresPayableStore",
     "PostgresPaymentBatchEventPublisher",
     "ProvisionalEntryModel",

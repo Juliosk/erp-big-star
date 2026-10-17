@@ -25,7 +25,7 @@ from erp.platform.database import Base
 
 _STATUS_CHECK = (
     "status IN ('DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'RELEASED', "
-    "'SUBMITTED', 'CONFIRMED', 'REJECTED', 'CANCELLED')"
+    "'SUBMITTED', 'CONFIRMED', 'REJECTED', 'FAILED', 'CANCELLED')"
 )
 
 
@@ -47,16 +47,17 @@ class PaymentBatchModel(OptimisticLockMixin, Base):
             name="execution_mode",
         ),
         CheckConstraint(
-            "status NOT IN ('APPROVED', 'RELEASED', 'SUBMITTED', 'CONFIRMED') "
+            "status NOT IN ('APPROVED', 'RELEASED', 'SUBMITTED', 'CONFIRMED', 'FAILED') "
             "OR approved_by IS NOT NULL",
             name="approval_evidence",
         ),
         CheckConstraint(
-            "status NOT IN ('RELEASED', 'SUBMITTED', 'CONFIRMED') OR released_by IS NOT NULL",
+            "status NOT IN ('RELEASED', 'SUBMITTED', 'CONFIRMED', 'FAILED') "
+            "OR released_by IS NOT NULL",
             name="release_evidence",
         ),
         CheckConstraint(
-            "status NOT IN ('SUBMITTED', 'CONFIRMED') OR "
+            "status NOT IN ('SUBMITTED', 'CONFIRMED', 'FAILED') OR "
             "(submission_protocol IS NOT NULL AND submitted_at IS NOT NULL)",
             name="submission_evidence",
         ),
@@ -68,6 +69,15 @@ class PaymentBatchModel(OptimisticLockMixin, Base):
             "AND bank_confirmation_status IS NULL AND bank_confirmed_at IS NULL "
             "AND bank_confirmed_amount IS NULL)",
             name="bank_confirmation",
+        ),
+        CheckConstraint(
+            "(status = 'FAILED' AND bank_failure_kind IS NOT NULL "
+            "AND bank_failure_protocol IS NOT NULL AND bank_failure_status IS NOT NULL "
+            "AND bank_failed_at IS NOT NULL AND bank_failure_reason IS NOT NULL) OR "
+            "(status <> 'FAILED' AND bank_failure_kind IS NULL "
+            "AND bank_failure_protocol IS NULL AND bank_failure_status IS NULL "
+            "AND bank_failed_at IS NULL AND bank_failure_reason IS NULL)",
+            name="bank_failure",
         ),
         Index(
             "ix_payment_batch_company_status",
@@ -102,6 +112,11 @@ class PaymentBatchModel(OptimisticLockMixin, Base):
         DateTime(timezone=True), nullable=True
     )
     bank_confirmed_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    bank_failure_kind: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    bank_failure_protocol: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    bank_failure_status: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    bank_failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    bank_failure_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     created_by: Mapped[UUID] = mapped_column(nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

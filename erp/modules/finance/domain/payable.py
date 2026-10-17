@@ -435,6 +435,119 @@ class Payable:
             version=self.version + 1,
         )
 
+    def schedule_installments_for_payment(
+        self,
+        *,
+        installment_numbers: tuple[int, ...],
+        schedule_id: UUID,
+    ) -> Payable:
+        """Reserve selected open installments for one immutable payment batch."""
+        if self.status not in {PayableStatus.APPROVED, PayableStatus.SCHEDULED}:
+            raise InvalidPayableStateError(
+                "only approved or scheduled payables can enter a payment batch."
+            )
+        selected = _installment_number_set(installment_numbers)
+        found = tuple(item for item in self.installments if item.number in selected)
+        if len(found) != len(selected):
+            raise InstallmentMismatchError(
+                "installment_numbers contain an installment outside the payable."
+            )
+        if any(item.status is not PayableInstallmentStatus.OPEN for item in found):
+            raise InvalidPayableStateError(
+                "only open installments can be assigned to a payment batch."
+            )
+        installments = tuple(
+            item.schedule(schedule_id) if item.number in selected else item
+            for item in self.installments
+        )
+        return replace(
+            self,
+            status=PayableStatus.SCHEDULED,
+            installments=installments,
+            version=self.version + 1,
+        )
+
+    def settle_installments(
+        self,
+        *,
+        installment_numbers: tuple[int, ...],
+        schedule_id: UUID,
+        paid_on: date,
+        payment_reference: str,
+    ) -> Payable:
+        """Mark only bank-confirmed installments as paid."""
+        if self.status is not PayableStatus.SCHEDULED:
+            raise InvalidPayableStateError("only scheduled payables can register bank settlement.")
+        selected = self._payment_batch_installments(installment_numbers, schedule_id)
+        installments = tuple(
+            item.mark_paid(paid_on=paid_on, payment_reference=payment_reference)
+            if item.number in selected
+            else item
+            for item in self.installments
+        )
+        if all(item.status is PayableInstallmentStatus.PAID for item in installments):
+            status = PayableStatus.PAID
+        elif any(item.status is PayableInstallmentStatus.SCHEDULED for item in installments):
+            status = PayableStatus.SCHEDULED
+        else:
+            status = PayableStatus.APPROVED
+        return replace(
+            self,
+            status=status,
+            installments=installments,
+            version=self.version + 1,
+        )
+
+    def release_payment_schedule(
+        self,
+        *,
+        installment_numbers: tuple[int, ...],
+        schedule_id: UUID,
+    ) -> Payable:
+        """Return bank-rejected installments to an eligible OPEN state."""
+        if self.status is not PayableStatus.SCHEDULED:
+            raise InvalidPayableStateError(
+                "only scheduled payables can release a rejected payment batch."
+            )
+        selected = self._payment_batch_installments(installment_numbers, schedule_id)
+        installments = tuple(
+            item.release_schedule() if item.number in selected else item
+            for item in self.installments
+        )
+        status = (
+            PayableStatus.SCHEDULED
+            if any(item.status is PayableInstallmentStatus.SCHEDULED for item in installments)
+            else PayableStatus.APPROVED
+        )
+        return replace(
+            self,
+            status=status,
+            installments=installments,
+            version=self.version + 1,
+        )
+
+    def _payment_batch_installments(
+        self,
+        installment_numbers: tuple[int, ...],
+        schedule_id: UUID,
+    ) -> set[int]:
+        selected = _installment_number_set(installment_numbers)
+        expected_schedule = _uuid(schedule_id, "schedule_id")
+        found = tuple(item for item in self.installments if item.number in selected)
+        if len(found) != len(selected):
+            raise InstallmentMismatchError(
+                "installment_numbers contain an installment outside the payable."
+            )
+        if any(
+            item.status is not PayableInstallmentStatus.SCHEDULED
+            or item.schedule_id != expected_schedule
+            for item in found
+        ):
+            raise InvalidPayableStateError(
+                "payment-batch installments must be scheduled by the same batch."
+            )
+        return selected
+
     def cancel_from_source(self, *, cancelled_by: UUID, reason: str) -> Payable:
         """Reject an unpaid obligation and release pending payment schedules."""
         if self.status in {PayableStatus.REJECTED, PayableStatus.PAID} or any(
@@ -493,24 +606,41 @@ class Payable:
         if self.decision_reason is not None:
             raise InvalidPayableError("approved payables cannot contain a rejection reason.")
         if self.status is PayableStatus.APPROVED:
-            if any(item.status is not PayableInstallmentStatus.OPEN for item in self.installments):
-                raise InvalidPayableError("approved payables require open installments.")
+            if any(
+                item.status not in {PayableInstallmentStatus.OPEN, PayableInstallmentStatus.PAID}
+                for item in self.installments
+            ) or all(item.status is PayableInstallmentStatus.PAID for item in self.installments):
+                raise InvalidPayableError(
+                    "approved payables require at least one open unpaid installment."
+                )
             return
         if self.status is PayableStatus.SCHEDULED:
             if any(
                 item.status
                 not in {
+                    PayableInstallmentStatus.OPEN,
                     PayableInstallmentStatus.SCHEDULED,
                     PayableInstallmentStatus.PAID,
                 }
                 for item in self.installments
-            ) or all(item.status is PayableInstallmentStatus.PAID for item in self.installments):
+            ) or not any(
+                item.status is PayableInstallmentStatus.SCHEDULED for item in self.installments
+            ):
                 raise InvalidPayableError(
                     "scheduled payables require at least one scheduled installment."
                 )
             return
         if any(item.status is not PayableInstallmentStatus.PAID for item in self.installments):
             raise InvalidPayableError("paid payables require every installment to be paid.")
+
+
+def _installment_number_set(values: tuple[int, ...]) -> set[int]:
+    if not values or any(type(value) is not int or value < 1 for value in values):
+        raise InstallmentMismatchError("installment_numbers must contain positive integers.")
+    selected = set(values)
+    if len(selected) != len(values):
+        raise InstallmentMismatchError("installment_numbers must be unique.")
+    return selected
 
 
 __all__ = [

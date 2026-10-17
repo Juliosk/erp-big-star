@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,6 +49,20 @@ class PayableRepository:
                 PayableModel.company_id == self._company_id,
                 PayableModel.id == payable_id,
             )
+            .execution_options(populate_existing=True)
+        )
+        if root is None:
+            return None
+        return _payable(root, await self._installments(payable_id))
+
+    async def get_for_update(self, payable_id: UUID) -> Payable | None:
+        root = await self._session.scalar(
+            select(PayableModel)
+            .where(
+                PayableModel.company_id == self._company_id,
+                PayableModel.id == payable_id,
+            )
+            .with_for_update()
             .execution_options(populate_existing=True)
         )
         if root is None:
@@ -131,13 +145,24 @@ class PayableRepository:
         )
         if updated.rowcount != 1:
             raise FinanceVersionConflictError(f"Payable expected version {compare} is stale.")
-        await self._session.execute(
-            delete(PayableInstallmentModel).where(
-                PayableInstallmentModel.company_id == self._company_id,
-                PayableInstallmentModel.payable_id == payable.id,
+        for installment in payable.installments:
+            changed = cast(
+                CursorResult[Any],
+                await self._session.execute(
+                    update(PayableInstallmentModel)
+                    .where(
+                        PayableInstallmentModel.company_id == self._company_id,
+                        PayableInstallmentModel.payable_id == payable.id,
+                        PayableInstallmentModel.id == installment.id,
+                        PayableInstallmentModel.installment_number == installment.number,
+                    )
+                    .values(**_installment_values(installment, actor_id)),
+                ),
             )
-        )
-        self._session.add_all(_installment_models(payable, actor_id))
+            if changed.rowcount != 1:
+                raise FinanceVersionConflictError(
+                    "Payable installment set changed during persistence."
+                )
         await self._flush()
         return payable
 
@@ -221,6 +246,22 @@ def _installment_models(payable: Payable, actor_id: UUID) -> list[PayableInstall
         )
         for item in payable.installments
     ]
+
+
+def _installment_values(
+    installment: PayableInstallment,
+    actor_id: UUID,
+) -> dict[str, Any]:
+    return {
+        "due_date": installment.due_date,
+        "amount": installment.amount,
+        "status": installment.status.value,
+        "schedule_id": installment.schedule_id,
+        "paid_on": installment.paid_on,
+        "payment_reference": installment.payment_reference,
+        "updated_at": datetime.now(UTC),
+        "updated_by": actor_id,
+    }
 
 
 def _payable(

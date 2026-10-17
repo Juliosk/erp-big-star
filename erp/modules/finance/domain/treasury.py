@@ -94,7 +94,13 @@ class PaymentBatchStatus(StrEnum):
     SUBMITTED = "SUBMITTED"
     CONFIRMED = "CONFIRMED"
     REJECTED = "REJECTED"
+    FAILED = "FAILED"
     CANCELLED = "CANCELLED"
+
+
+class BankPaymentFailureKind(StrEnum):
+    REJECTED = "REJECTED"
+    FAILED = "FAILED"
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,6 +125,29 @@ class BankPaymentConfirmation:
             "confirmed_amount",
             _money(self.confirmed_amount, "confirmed_amount"),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class BankPaymentFailure:
+    """Immutable bank evidence for a rejected or failed payment instruction."""
+
+    kind: BankPaymentFailureKind
+    protocol: str
+    status_code: str
+    failed_at: datetime
+    reason: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.kind, BankPaymentFailureKind):
+            raise InvalidTreasuryRuleError("kind must be a BankPaymentFailureKind.")
+        object.__setattr__(self, "protocol", _text(self.protocol, "protocol", maximum=120))
+        object.__setattr__(
+            self,
+            "status_code",
+            _text(self.status_code, "status_code", maximum=40).upper(),
+        )
+        _aware_datetime(self.failed_at, "failed_at")
+        object.__setattr__(self, "reason", _text(self.reason, "reason", maximum=500))
 
 
 @dataclass(frozen=True, slots=True)
@@ -332,6 +361,7 @@ class PaymentBatch:
     submitted_at: datetime | None = None
     transition_reason: str | None = None
     bank_confirmation: BankPaymentConfirmation | None = None
+    bank_failure: BankPaymentFailure | None = None
 
     def __post_init__(self) -> None:
         for field in ("id", "company_id", "treasury_account_id", "created_by"):
@@ -392,6 +422,15 @@ class PaymentBatch:
         elif self.bank_confirmation is not None:
             raise InvalidTreasuryRuleError(
                 "Bank confirmation can only be attached to a confirmed payment batch."
+            )
+        if self.status is PaymentBatchStatus.FAILED:
+            if self.bank_failure is None:
+                raise InvalidTreasuryRuleError(
+                    "A failed payment batch requires explicit bank failure evidence."
+                )
+        elif self.bank_failure is not None:
+            raise InvalidTreasuryRuleError(
+                "Bank failure evidence can only be attached to a failed payment batch."
             )
         self._validate_lifecycle_evidence()
 
@@ -493,6 +532,18 @@ class PaymentBatch:
             version=self.version + 1,
         )
 
+    def fail(self, failure: BankPaymentFailure) -> PaymentBatch:
+        self._require_status(PaymentBatchStatus.SUBMITTED)
+        if not isinstance(failure, BankPaymentFailure):
+            raise InvalidTreasuryRuleError("failure must be a BankPaymentFailure.")
+        return replace(
+            self,
+            status=PaymentBatchStatus.FAILED,
+            bank_failure=failure,
+            transition_reason=failure.reason,
+            version=self.version + 1,
+        )
+
     def cancel(self, *, reason: str) -> PaymentBatch:
         if self.status not in {
             PaymentBatchStatus.DRAFT,
@@ -524,6 +575,7 @@ class PaymentBatch:
                 PaymentBatchStatus.RELEASED,
                 PaymentBatchStatus.SUBMITTED,
                 PaymentBatchStatus.CONFIRMED,
+                PaymentBatchStatus.FAILED,
             }
             and self.approved_by is None
         ):
@@ -534,19 +586,24 @@ class PaymentBatch:
                 PaymentBatchStatus.RELEASED,
                 PaymentBatchStatus.SUBMITTED,
                 PaymentBatchStatus.CONFIRMED,
+                PaymentBatchStatus.FAILED,
             }
             and self.released_by is None
         ):
             raise InvalidTreasuryRuleError("Released payment-batch states require released_by.")
-        if self.status in {PaymentBatchStatus.SUBMITTED, PaymentBatchStatus.CONFIRMED} and (
-            self.submission_protocol is None or self.submitted_at is None
-        ):
+        if self.status in {
+            PaymentBatchStatus.SUBMITTED,
+            PaymentBatchStatus.CONFIRMED,
+            PaymentBatchStatus.FAILED,
+        } and (self.submission_protocol is None or self.submitted_at is None):
             raise InvalidTreasuryRuleError(
                 "Submitted payment-batch states require protocol and timestamp."
             )
-        if self.status in {PaymentBatchStatus.REJECTED, PaymentBatchStatus.CANCELLED} and (
-            self.transition_reason is None
-        ):
+        if self.status in {
+            PaymentBatchStatus.REJECTED,
+            PaymentBatchStatus.FAILED,
+            PaymentBatchStatus.CANCELLED,
+        } and (self.transition_reason is None):
             raise InvalidTreasuryRuleError("Terminal decisions require a transition reason.")
         if (
             self.status is PaymentBatchStatus.CONFIRMED
@@ -557,6 +614,13 @@ class PaymentBatch:
             raise InvalidTreasuryRuleError(
                 "Bank confirmation cannot predate payment-batch submission."
             )
+        if (
+            self.status is PaymentBatchStatus.FAILED
+            and self.bank_failure is not None
+            and self.submitted_at is not None
+            and self.bank_failure.failed_at < self.submitted_at
+        ):
+            raise InvalidTreasuryRuleError("Bank failure cannot predate payment-batch submission.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -601,6 +665,8 @@ class TreasurySegregationPolicy:
 __all__ = [
     "BankAccountType",
     "BankPaymentConfirmation",
+    "BankPaymentFailure",
+    "BankPaymentFailureKind",
     "BankRemittanceFormat",
     "BeneficiaryBankAccount",
     "MatchingGateStatus",

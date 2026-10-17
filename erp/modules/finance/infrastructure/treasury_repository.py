@@ -13,6 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from erp.modules.finance.domain import (
     BankAccountType,
     BankPaymentConfirmation,
+    BankPaymentFailure,
+    BankPaymentFailureKind,
     BankRemittanceFormat,
     BeneficiaryBankAccount,
     InvalidTreasuryRuleError,
@@ -64,6 +66,20 @@ class PaymentBatchRepository:
                 PaymentBatchModel.company_id == self._company_id,
                 PaymentBatchModel.id == batch_id,
             )
+            .execution_options(populate_existing=True)
+        )
+        if root is None:
+            return None
+        return _batch(root, await self._items(root.id))
+
+    async def get_for_update(self, batch_id: UUID) -> PaymentBatch | None:
+        root = await self._session.scalar(
+            select(PaymentBatchModel)
+            .where(
+                PaymentBatchModel.company_id == self._company_id,
+                PaymentBatchModel.id == batch_id,
+            )
+            .with_for_update()
             .execution_options(populate_existing=True)
         )
         if root is None:
@@ -200,6 +216,7 @@ def _batch_model(batch: PaymentBatch, actor_id: UUID) -> PaymentBatchModel:
 
 def _batch_values(batch: PaymentBatch, actor_id: UUID) -> dict[str, Any]:
     confirmation = batch.bank_confirmation
+    failure = batch.bank_failure
     return {
         "code": batch.code,
         "treasury_account_id": batch.treasury_account_id,
@@ -218,6 +235,11 @@ def _batch_values(batch: PaymentBatch, actor_id: UUID) -> dict[str, Any]:
         "bank_confirmation_status": confirmation.status_code if confirmation else None,
         "bank_confirmed_at": confirmation.confirmed_at if confirmation else None,
         "bank_confirmed_amount": confirmation.confirmed_amount if confirmation else None,
+        "bank_failure_kind": failure.kind.value if failure else None,
+        "bank_failure_protocol": failure.protocol if failure else None,
+        "bank_failure_status": failure.status_code if failure else None,
+        "bank_failed_at": failure.failed_at if failure else None,
+        "bank_failure_reason": failure.reason if failure else None,
         "version": batch.version,
         "updated_at": datetime.now(UTC),
         "updated_by": actor_id,
@@ -280,6 +302,9 @@ def _audit_model(
             "bank_confirmation_protocol": (
                 batch.bank_confirmation.protocol if batch.bank_confirmation else None
             ),
+            "bank_failure_protocol": batch.bank_failure.protocol if batch.bank_failure else None,
+            "bank_failure_status": (batch.bank_failure.status_code if batch.bank_failure else None),
+            "bank_failure_kind": batch.bank_failure.kind.value if batch.bank_failure else None,
         },
     )
 
@@ -306,6 +331,7 @@ def _batch(
         submitted_at=root.submitted_at,
         transition_reason=root.transition_reason,
         bank_confirmation=_confirmation(root),
+        bank_failure=_failure(root),
     )
 
 
@@ -354,6 +380,27 @@ def _confirmation(root: PaymentBatchModel) -> BankPaymentConfirmation | None:
     )
 
 
+def _failure(root: PaymentBatchModel) -> BankPaymentFailure | None:
+    values = (
+        root.bank_failure_kind,
+        root.bank_failure_protocol,
+        root.bank_failure_status,
+        root.bank_failed_at,
+        root.bank_failure_reason,
+    )
+    if all(value is None for value in values):
+        return None
+    if any(value is None for value in values):
+        raise InvalidTreasuryRuleError("Persisted bank failure evidence is incomplete.")
+    return BankPaymentFailure(
+        kind=BankPaymentFailureKind(cast(str, root.bank_failure_kind)),
+        protocol=cast(str, root.bank_failure_protocol),
+        status_code=cast(str, root.bank_failure_status),
+        failed_at=cast(datetime, root.bank_failed_at),
+        reason=cast(str, root.bank_failure_reason),
+    )
+
+
 def _validate_frozen_state(current: PaymentBatch, candidate: PaymentBatch) -> None:
     if (
         current.company_id != candidate.company_id
@@ -389,7 +436,10 @@ def _validate_transition(current: PaymentBatchStatus, candidate: PaymentBatchSta
             PaymentBatchStatus.SUBMITTED,
             PaymentBatchStatus.CANCELLED,
         },
-        PaymentBatchStatus.SUBMITTED: {PaymentBatchStatus.CONFIRMED},
+        PaymentBatchStatus.SUBMITTED: {
+            PaymentBatchStatus.CONFIRMED,
+            PaymentBatchStatus.FAILED,
+        },
     }
     if candidate not in allowed.get(current, set()):
         raise InvalidTreasuryRuleError(
@@ -400,6 +450,8 @@ def _validate_transition(current: PaymentBatchStatus, candidate: PaymentBatchSta
 def _transition_occurred_at(batch: PaymentBatch) -> datetime:
     if batch.bank_confirmation is not None:
         return batch.bank_confirmation.confirmed_at
+    if batch.bank_failure is not None:
+        return batch.bank_failure.failed_at
     return batch.submitted_at or datetime.now(UTC)
 
 

@@ -11,6 +11,8 @@ import pytest
 from erp.modules.finance.domain import (
     BankAccountType,
     BankPaymentConfirmation,
+    BankPaymentFailure,
+    BankPaymentFailureKind,
     BankRemittanceFormat,
     BeneficiaryBankAccount,
     InvalidTreasuryRuleError,
@@ -117,6 +119,18 @@ def bank_confirmation(**changes: Any) -> BankPaymentConfirmation:
     }
     values.update(changes)
     return BankPaymentConfirmation(**values)
+
+
+def bank_failure(**changes: Any) -> BankPaymentFailure:
+    values: dict[str, Any] = {
+        "kind": BankPaymentFailureKind.REJECTED,
+        "protocol": "BANK-REJECT-0001",
+        "status_code": "AG",
+        "failed_at": datetime(2026, 11, 11, 15, 30, tzinfo=UTC),
+        "reason": "Invalid beneficiary account",
+    }
+    values.update(changes)
+    return BankPaymentFailure(**values)
 
 
 def submitted_batch() -> PaymentBatch:
@@ -326,6 +340,33 @@ def test_payment_batch_never_equates_transmission_with_bank_confirmation() -> No
             status=PaymentBatchStatus.CONFIRMED,
             bank_confirmation=bank_confirmation(confirmed_amount=Decimal("1.00")),
         )
+
+
+def test_bank_failure_is_explicit_terminal_evidence() -> None:
+    submitted = submitted_batch()
+    failed = submitted.fail(bank_failure())
+
+    assert failed.status is PaymentBatchStatus.FAILED
+    assert failed.bank_failure is not None
+    assert failed.bank_failure.kind is BankPaymentFailureKind.REJECTED
+    assert failed.transition_reason == "Invalid beneficiary account"
+    with pytest.raises(InvalidTreasuryRuleError, match="must be SUBMITTED"):
+        failed.fail(bank_failure())
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("kind", "REJECTED"),
+        ("protocol", ""),
+        ("status_code", ""),
+        ("failed_at", datetime(2026, 11, 11, 15, 30, tzinfo=UTC).replace(tzinfo=None)),
+        ("reason", ""),
+    ],
+)
+def test_bank_failure_rejects_invalid_evidence(field: str, value: object) -> None:
+    with pytest.raises(InvalidTreasuryRuleError):
+        bank_failure(**{field: value})
 
 
 def test_payment_batch_state_machine_preserves_evidence_and_versions() -> None:

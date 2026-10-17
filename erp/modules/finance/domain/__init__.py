@@ -38,6 +38,8 @@ from erp.modules.finance.domain.segregation import PayableSegregationPolicy
 from erp.modules.finance.domain.treasury import (
     BankAccountType,
     BankPaymentConfirmation,
+    BankPaymentFailure,
+    BankPaymentFailureKind,
     BankRemittanceFormat,
     BeneficiaryBankAccount,
     MatchingGateStatus,
@@ -53,6 +55,8 @@ from erp.modules.finance.domain.treasury import (
 __all__ = [
     "BankAccountType",
     "BankPaymentConfirmation",
+    "BankPaymentFailure",
+    "BankPaymentFailureKind",
     "BankRemittanceFormat",
     "BeneficiaryBankAccount",
     "FinanceDomainError",
