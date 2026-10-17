@@ -29,6 +29,15 @@ from erp.modules.finance.infrastructure.provisioning_consumer import (
     PayableProvisioningConsumer,
     PayableProvisioningService,
 )
+from erp.modules.finance.infrastructure.remittance import (
+    Cnab240RemittanceAdapter,
+    Cnab400RemittanceAdapter,
+    PixApiRemittanceAdapter,
+    RemittanceAdapterRegistry,
+)
+from erp.modules.finance.infrastructure.treasury_events import (
+    PostgresPaymentBatchEventPublisher,
+)
 from erp.modules.finance.infrastructure.treasury_model import (
     BatchAuditLogModel,
     PaymentBatchItemModel,
@@ -44,6 +53,8 @@ __all__ = [
     "FISCAL_DOCUMENT_CANCELLED",
     "PURCHASE_ORDER_APPROVED",
     "BatchAuditLogModel",
+    "Cnab240RemittanceAdapter",
+    "Cnab400RemittanceAdapter",
     "FiscalEventConsumer",
     "PayableApprovalDecisionConsumer",
     "PayableDivergenceConsumer",
@@ -57,7 +68,10 @@ __all__ = [
     "PaymentBatchItemModel",
     "PaymentBatchModel",
     "PaymentBatchRepository",
+    "PixApiRemittanceAdapter",
     "PostgresPayableStore",
+    "PostgresPaymentBatchEventPublisher",
     "ProvisionalEntryModel",
     "ProvisionalEntryRepository",
+    "RemittanceAdapterRegistry",
 ]
