@@ -36,6 +36,10 @@ from erp.modules.finance.domain import (
 from erp.modules.finance.infrastructure.bank_returns import BankReturnAdapterRegistry
 from erp.modules.finance.infrastructure.payable_repository import PayableRepository
 from erp.modules.finance.infrastructure.remittance import RemittanceAdapterRegistry
+from erp.modules.finance.infrastructure.treasury_event_state import (
+    apply_treasury_source_cursors,
+    require_payment_batch_unblocked,
+)
 from erp.modules.finance.infrastructure.treasury_events import (
     PostgresPaymentBatchEventPublisher,
 )
@@ -112,6 +116,7 @@ class PostgresTreasuryStore:
                 )
             except FinanceDomainError as error:
                 raise _domain_error(error) from error
+            await apply_treasury_source_cursors(session, result.batch)
             mutation = TreasuryBatchMutation(result.batch)
             await self._complete(session, decision, mutation, status=201)
             return mutation
@@ -165,6 +170,11 @@ class PostgresTreasuryStore:
             repository = PaymentBatchRepository(session, company_id=command.company_id)
             batch = await _required_batch(repository, command.payment_batch_id)
             _require_version(batch.version, command.expected_version)
+            await require_payment_batch_unblocked(
+                session,
+                company_id=command.company_id,
+                payment_batch_id=command.payment_batch_id,
+            )
             if batch.execution_mode is PaymentExecutionMode.DRY_RUN:
                 raise ApplicationError(
                     code="DRY_RUN_BATCH_NOT_EXECUTABLE",

@@ -41,6 +41,25 @@ from erp.modules.finance.infrastructure.remittance import (
     PixApiRemittanceAdapter,
     RemittanceAdapterRegistry,
 )
+from erp.modules.finance.infrastructure.treasury_event_consumer import (
+    TREASURY_EVENT_CONSUMER,
+    TreasuryEventConsumer,
+)
+from erp.modules.finance.infrastructure.treasury_event_model import (
+    PaymentBatchReviewModel,
+    TreasurySourceCursorModel,
+)
+from erp.modules.finance.infrastructure.treasury_event_state import (
+    PAYMENT_BATCH_BLOCKED,
+    PAYMENT_BATCH_REEVALUATION_CLEARED,
+    PAYMENT_BATCH_REEVALUATION_REQUESTED,
+    TreasuryAssessment,
+    TreasuryReviewStatus,
+    accept_treasury_source_cursor,
+    apply_treasury_source_cursors,
+    reassess_impacted_payment_batches,
+    require_payment_batch_unblocked,
+)
 from erp.modules.finance.infrastructure.treasury_events import (
     PostgresPaymentBatchEventPublisher,
 )
@@ -58,7 +77,11 @@ __all__ = [
     "FINANCE_PAYABLE_PROVISIONING_CONSUMER",
     "FISCAL_DOCUMENT_AUTHORIZED",
     "FISCAL_DOCUMENT_CANCELLED",
+    "PAYMENT_BATCH_BLOCKED",
+    "PAYMENT_BATCH_REEVALUATION_CLEARED",
+    "PAYMENT_BATCH_REEVALUATION_REQUESTED",
     "PURCHASE_ORDER_APPROVED",
+    "TREASURY_EVENT_CONSUMER",
     "BankReturnAdapterRegistry",
     "BatchAuditLogModel",
     "Cnab240RemittanceAdapter",
@@ -78,6 +101,7 @@ __all__ = [
     "PaymentBatchItemModel",
     "PaymentBatchModel",
     "PaymentBatchRepository",
+    "PaymentBatchReviewModel",
     "PixApiRemittanceAdapter",
     "PixCallbackParser",
     "PostgresPayableStore",
@@ -86,4 +110,12 @@ __all__ = [
     "ProvisionalEntryModel",
     "ProvisionalEntryRepository",
     "RemittanceAdapterRegistry",
+    "TreasuryAssessment",
+    "TreasuryEventConsumer",
+    "TreasuryReviewStatus",
+    "TreasurySourceCursorModel",
+    "accept_treasury_source_cursor",
+    "apply_treasury_source_cursors",
+    "reassess_impacted_payment_batches",
+    "require_payment_batch_unblocked",
 ]
