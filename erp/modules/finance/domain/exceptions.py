@@ -99,6 +99,24 @@ class TreasurySodViolationError(SodViolationError):
     """A treasury actor conflicts with the payable or batch maker-checker rules."""
 
 
+class TreasuryConflictError(FinanceDomainError):
+    """A payment batch conflicts with an existing company-scoped identity."""
+
+    code = "TREASURY_CONFLICT"
+
+
+class TreasuryVersionConflictError(FinanceDomainError):
+    """A payment batch was changed by another transaction."""
+
+    code = "VERSION_CONFLICT"
+
+
+class TreasuryScopeError(FinanceDomainError):
+    """A payment batch does not belong to the selected company."""
+
+    code = "TREASURY_SCOPE_ERROR"
+
+
 __all__ = [
     "FinanceDomainError",
     "FinanceScopeError",
@@ -116,5 +134,8 @@ __all__ = [
     "PaymentInstallmentIneligibleError",
     "SegregationOfDutiesViolation",
     "SodViolationError",
+    "TreasuryConflictError",
+    "TreasuryScopeError",
     "TreasurySodViolationError",
+    "TreasuryVersionConflictError",
 ]

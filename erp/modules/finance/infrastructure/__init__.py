@@ -29,6 +29,12 @@ from erp.modules.finance.infrastructure.provisioning_consumer import (
     PayableProvisioningConsumer,
     PayableProvisioningService,
 )
+from erp.modules.finance.infrastructure.treasury_model import (
+    BatchAuditLogModel,
+    PaymentBatchItemModel,
+    PaymentBatchModel,
+)
+from erp.modules.finance.infrastructure.treasury_repository import PaymentBatchRepository
 
 __all__ = [
     "FINANCE_APPROVAL_CONSUMER",
@@ -37,6 +43,7 @@ __all__ = [
     "FISCAL_DOCUMENT_AUTHORIZED",
     "FISCAL_DOCUMENT_CANCELLED",
     "PURCHASE_ORDER_APPROVED",
+    "BatchAuditLogModel",
     "FiscalEventConsumer",
     "PayableApprovalDecisionConsumer",
     "PayableDivergenceConsumer",
@@ -47,6 +54,9 @@ __all__ = [
     "PayableProvisioningConsumer",
     "PayableProvisioningService",
     "PayableRepository",
+    "PaymentBatchItemModel",
+    "PaymentBatchModel",
+    "PaymentBatchRepository",
     "PostgresPayableStore",
     "ProvisionalEntryModel",
     "ProvisionalEntryRepository",

@@ -130,6 +130,12 @@ class PayableInstallmentModel(Base):
         UniqueConstraint(
             "company_id",
             "payable_id",
+            "id",
+            name="uq_payable_installment_company_payable_id",
+        ),
+        UniqueConstraint(
+            "company_id",
+            "payable_id",
             "installment_number",
             name="uq_payable_installment_number",
         ),

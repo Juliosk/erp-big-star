@@ -119,6 +119,20 @@ def bank_confirmation(**changes: Any) -> BankPaymentConfirmation:
     return BankPaymentConfirmation(**values)
 
 
+def submitted_batch() -> PaymentBatch:
+    policy = TreasurySegregationPolicy()
+    return (
+        payment_batch()
+        .submit_for_approval()
+        .approve(actor_id=uuid4(), policy=policy)
+        .release(actor_id=uuid4(), policy=policy)
+        .mark_submitted(
+            protocol="REM-2026-001",
+            occurred_at=datetime(2026, 11, 11, 15, 0, tzinfo=UTC),
+        )
+    )
+
+
 def test_bank_account_is_normalized_and_immutable() -> None:
     account = bank_account(branch_number=" 12-34 ", account_number="12.345-6")
 
@@ -272,13 +286,9 @@ def test_payment_batch_normalizes_identity_and_calculates_totals() -> None:
 
 
 def test_bank_confirmation_is_normalized_and_required_for_confirmed_batch() -> None:
-    aggregate = payment_batch()
+    aggregate = submitted_batch()
     confirmation = bank_confirmation(confirmed_amount=aggregate.total_amount)
-    confirmed = replace(
-        aggregate,
-        status=PaymentBatchStatus.CONFIRMED,
-        bank_confirmation=confirmation,
-    )
+    confirmed = aggregate.confirm(confirmation)
 
     assert confirmed.bank_confirmation is not None
     assert confirmed.bank_confirmation.status_code == "PAID"
@@ -316,6 +326,138 @@ def test_payment_batch_never_equates_transmission_with_bank_confirmation() -> No
             status=PaymentBatchStatus.CONFIRMED,
             bank_confirmation=bank_confirmation(confirmed_amount=Decimal("1.00")),
         )
+
+
+def test_payment_batch_state_machine_preserves_evidence_and_versions() -> None:
+    policy = TreasurySegregationPolicy()
+    draft = payment_batch()
+    pending = draft.submit_for_approval()
+    approver = uuid4()
+    approved = pending.approve(actor_id=approver, policy=policy)
+    executor = uuid4()
+    released = approved.release(actor_id=executor, policy=policy)
+    occurred_at = datetime(2026, 11, 11, 15, 0, tzinfo=UTC)
+    submitted = released.mark_submitted(protocol=" REM-173 ", occurred_at=occurred_at)
+    confirmation = bank_confirmation(confirmed_amount=submitted.total_amount)
+    confirmed = submitted.confirm(confirmation)
+
+    assert [
+        value.version for value in (draft, pending, approved, released, submitted, confirmed)
+    ] == [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+    ]
+    assert approved.approved_by == approver
+    assert released.released_by == executor
+    assert submitted.submission_protocol == "REM-173"
+    assert submitted.submitted_at == occurred_at
+    assert confirmed.status is PaymentBatchStatus.CONFIRMED
+
+
+def test_payment_batch_reject_and_cancel_are_terminal_explained_decisions() -> None:
+    policy = TreasurySegregationPolicy()
+    rejected = (
+        payment_batch()
+        .submit_for_approval()
+        .reject(
+            actor_id=uuid4(),
+            reason=" Dados bancarios divergentes ",
+            policy=policy,
+        )
+    )
+    cancelled = payment_batch().cancel(reason="Solicitacao retirada")
+
+    assert rejected.status is PaymentBatchStatus.REJECTED
+    assert rejected.transition_reason == "Dados bancarios divergentes"
+    assert rejected.approved_by is None
+    assert cancelled.status is PaymentBatchStatus.CANCELLED
+    assert cancelled.version == 2
+
+
+def test_payment_batch_state_machine_rejects_invalid_transitions_and_arguments() -> None:
+    policy = TreasurySegregationPolicy()
+    draft = payment_batch()
+    pending = draft.submit_for_approval()
+    approved = pending.approve(actor_id=uuid4(), policy=policy)
+    released = approved.release(actor_id=uuid4(), policy=policy)
+    submitted = released.mark_submitted(
+        protocol="REM-173",
+        occurred_at=datetime(2026, 11, 11, 15, 0, tzinfo=UTC),
+    )
+
+    with pytest.raises(InvalidTreasuryRuleError, match="must be DRAFT"):
+        pending.submit_for_approval()
+    with pytest.raises(InvalidTreasuryRuleError, match="must be PENDING_APPROVAL"):
+        draft.approve(actor_id=uuid4(), policy=policy)
+    with pytest.raises(InvalidTreasuryRuleError, match="must be PENDING_APPROVAL"):
+        draft.reject(actor_id=uuid4(), reason="no", policy=policy)
+    with pytest.raises(InvalidTreasuryRuleError, match="must be APPROVED"):
+        pending.release(actor_id=uuid4(), policy=policy)
+    with pytest.raises(InvalidTreasuryRuleError, match="must be RELEASED"):
+        approved.mark_submitted(
+            protocol="REM",
+            occurred_at=datetime(2026, 11, 11, 15, 0, tzinfo=UTC),
+        )
+    with pytest.raises(InvalidTreasuryRuleError, match="must be SUBMITTED"):
+        released.confirm(bank_confirmation(confirmed_amount=released.total_amount))
+    with pytest.raises(InvalidTreasuryRuleError, match="BankPaymentConfirmation"):
+        submitted.confirm(cast(BankPaymentConfirmation, object()))
+    with pytest.raises(InvalidTreasuryRuleError, match="cannot be cancelled"):
+        submitted.cancel(reason="too late")
+    with pytest.raises(InvalidTreasuryRuleError, match="reason"):
+        draft.cancel(reason=" ")
+    with pytest.raises(InvalidTreasuryRuleError, match="reason"):
+        pending.reject(actor_id=uuid4(), reason=" ", policy=policy)
+
+
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    [
+        ({"approved_by": ZERO_UUID}, "approved_by"),
+        ({"released_by": ZERO_UUID}, "released_by"),
+        ({"submission_protocol": ""}, "submission_protocol"),
+        (
+            {"submitted_at": datetime(2026, 11, 11, 15, 0, tzinfo=UTC).replace(tzinfo=None)},
+            "submitted_at",
+        ),
+        ({"transition_reason": ""}, "transition_reason"),
+        ({"status": PaymentBatchStatus.APPROVED}, "approved_by"),
+        (
+            {"status": PaymentBatchStatus.RELEASED, "approved_by": uuid4()},
+            "released_by",
+        ),
+        (
+            {
+                "status": PaymentBatchStatus.SUBMITTED,
+                "approved_by": uuid4(),
+                "released_by": uuid4(),
+            },
+            "protocol and timestamp",
+        ),
+        ({"status": PaymentBatchStatus.REJECTED}, "transition reason"),
+        ({"status": PaymentBatchStatus.CANCELLED}, "transition reason"),
+    ],
+)
+def test_payment_batch_rejects_incomplete_lifecycle_evidence(
+    changes: dict[str, object], message: str
+) -> None:
+    with pytest.raises(InvalidTreasuryRuleError, match=message):
+        replace(payment_batch(), **changes)  # type: ignore[arg-type]
+
+
+def test_payment_batch_rejects_confirmation_that_predates_submission() -> None:
+    submitted = submitted_batch()
+    confirmation = bank_confirmation(
+        confirmed_at=datetime(2026, 11, 11, 14, 59, tzinfo=UTC),
+        confirmed_amount=submitted.total_amount,
+    )
+
+    with pytest.raises(InvalidTreasuryRuleError, match="cannot predate"):
+        submitted.confirm(confirmation)
 
 
 @pytest.mark.parametrize(

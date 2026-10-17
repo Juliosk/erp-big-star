@@ -17,7 +17,10 @@ from erp.modules.finance.domain.exceptions import (
     PaymentInstallmentIneligibleError,
     SegregationOfDutiesViolation,
     SodViolationError,
+    TreasuryConflictError,
+    TreasuryScopeError,
     TreasurySodViolationError,
+    TreasuryVersionConflictError,
 )
 from erp.modules.finance.domain.governance import PayableApprovalStatus, PayableGovernance
 from erp.modules.finance.domain.payable import (
@@ -85,6 +88,9 @@ __all__ = [
     "ProvisionalFinancialEntry",
     "SegregationOfDutiesViolation",
     "SodViolationError",
+    "TreasuryConflictError",
+    "TreasuryScopeError",
     "TreasurySegregationPolicy",
     "TreasurySodViolationError",
+    "TreasuryVersionConflictError",
 ]
