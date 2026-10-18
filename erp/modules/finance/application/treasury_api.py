@@ -129,9 +129,21 @@ class TreasuryAuditEntry:
 
 
 @dataclass(frozen=True, slots=True)
+class TreasuryBatchReview:
+    status: str
+    blocked: bool
+    revision: int
+    required_since: datetime
+    last_event_at: datetime
+    source_states: dict[str, object]
+    reasons: tuple[dict[str, object], ...]
+
+
+@dataclass(frozen=True, slots=True)
 class TreasuryBatchDetail:
     batch: PaymentBatch
     audit_history: tuple[TreasuryAuditEntry, ...]
+    review: TreasuryBatchReview | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,6 +152,7 @@ class TreasuryBatchPage:
     page: int
     page_size: int
     has_more: bool
+    reviews: tuple[tuple[UUID, TreasuryBatchReview], ...] = ()
 
 
 class TreasuryStore(Protocol):

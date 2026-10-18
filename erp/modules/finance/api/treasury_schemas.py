@@ -13,6 +13,7 @@ from erp.modules.finance.application import (
     TreasuryBatchDetail,
     TreasuryBatchMutation,
     TreasuryBatchPage,
+    TreasuryBatchReview,
     TreasuryReturnResult,
 )
 from erp.modules.finance.domain import PaymentBatch
@@ -65,6 +66,28 @@ class TreasuryBatchItemResponse(BaseModel):
     beneficiary_holder_name: str
 
 
+class TreasuryBatchReviewResponse(BaseModel):
+    status: str
+    blocked: bool
+    revision: int
+    required_since: datetime
+    last_event_at: datetime
+    source_states: dict[str, object]
+    reasons: list[dict[str, object]]
+
+    @classmethod
+    def from_application(cls, value: TreasuryBatchReview) -> TreasuryBatchReviewResponse:
+        return cls(
+            status=value.status,
+            blocked=value.blocked,
+            revision=value.revision,
+            required_since=value.required_since,
+            last_event_at=value.last_event_at,
+            source_states=value.source_states,
+            reasons=list(value.reasons),
+        )
+
+
 class TreasuryBatchResponse(BaseModel):
     id: UUID
     company_id: UUID
@@ -86,9 +109,14 @@ class TreasuryBatchResponse(BaseModel):
     bank_failure_protocol: str | None
     bank_failure_status: str | None
     items: list[TreasuryBatchItemResponse]
+    review: TreasuryBatchReviewResponse | None = None
 
     @classmethod
-    def from_domain(cls, value: PaymentBatch) -> TreasuryBatchResponse:
+    def from_domain(
+        cls,
+        value: PaymentBatch,
+        review: TreasuryBatchReview | None = None,
+    ) -> TreasuryBatchResponse:
         confirmation = value.bank_confirmation
         failure = value.bank_failure
         return cls(
@@ -127,6 +155,9 @@ class TreasuryBatchResponse(BaseModel):
                 )
                 for item in value.items
             ],
+            review=(
+                None if review is None else TreasuryBatchReviewResponse.from_application(review)
+            ),
         )
 
 
@@ -199,7 +230,7 @@ class TreasuryBatchDetailResponse(BaseModel):
     @classmethod
     def from_application(cls, value: TreasuryBatchDetail) -> TreasuryBatchDetailResponse:
         return cls(
-            batch=TreasuryBatchResponse.from_domain(value.batch),
+            batch=TreasuryBatchResponse.from_domain(value.batch, value.review),
             audit_history=[
                 TreasuryAuditEntryResponse.from_application(item) for item in value.audit_history
             ],
@@ -218,8 +249,12 @@ class TreasuryBatchListResponse(BaseModel):
 
     @classmethod
     def from_application(cls, value: TreasuryBatchPage) -> TreasuryBatchListResponse:
+        reviews = dict(value.reviews)
         return cls(
-            data=[TreasuryBatchResponse.from_domain(item) for item in value.items],
+            data=[
+                TreasuryBatchResponse.from_domain(item, reviews.get(item.id))
+                for item in value.items
+            ],
             meta=PageMeta(
                 page=value.page,
                 page_size=value.page_size,

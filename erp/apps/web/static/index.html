@@ -42,6 +42,9 @@
         <a id="finance-nav" href="#finance" hidden
           >Contas a pagar <span>M12</span></a
         >
+        <a id="treasury-nav" href="/ui/treasury" hidden
+          >Tesouraria <span>M12</span></a
+        >
       </nav>
       <div class="company-context">
         <label for="company">Empresa de trabalho</label
@@ -1514,6 +1517,118 @@
               <div class="table-wrap compact-table"><table><thead><tr><th>Parcela</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody id="finance-installment-rows"></tbody></table></div>
               <div class="workflow-section-heading finance-subheading"><div><p class="eyebrow">RASTREABILIDADE</p><h3>Histórico de auditoria</h3></div></div>
               <ol id="finance-audit" class="finance-audit"></ol>
+            </div>
+          </section>
+        </div>
+      </section>
+      <section id="treasury" hidden aria-labelledby="treasury-title">
+        <div class="page-heading treasury-heading">
+          <div>
+            <p class="eyebrow">EXECUÇÃO FINANCEIRA / M12</p>
+            <h1 id="treasury-title">Sala de liquidação</h1>
+            <p>Lotes, alçadas, remessas e confirmações bancárias em uma fila explicável.</p>
+          </div>
+          <button id="treasury-refresh" class="secondary">Atualizar fila</button>
+        </div>
+        <div class="treasury-metrics" aria-label="Resumo da fila de pagamentos">
+          <article><small>Lotes visíveis</small><strong id="treasury-count">0</strong><span>na seleção atual</span></article>
+          <article><small>Valor em fila</small><strong id="treasury-total">R$ 0,00</strong><span>pagamentos agrupados</span></article>
+          <article class="alert"><small>Com impedimento</small><strong id="treasury-blocked">0</strong><span>exigem ação humana</span></article>
+          <article class="ready"><small>Pronto para seguir</small><strong id="treasury-ready">R$ 0,00</strong><span>sem bloqueio externo</span></article>
+        </div>
+        <div class="treasury-workspace">
+          <section class="panel treasury-queue">
+            <div class="treasury-queue-heading">
+              <div><p class="eyebrow">FILA DE LOTES</p><h2>Agenda bancária</h2></div>
+              <span class="treasury-live-mark">AO VIVO</span>
+            </div>
+            <div class="treasury-filters">
+              <label for="treasury-status-filter">Status do lote
+                <select id="treasury-status-filter">
+                  <option value="">Todos</option>
+                  <option value="DRAFT">Rascunho</option>
+                  <option value="PENDING_APPROVAL">Em alçada M22</option>
+                  <option value="APPROVED">Aprovado</option>
+                  <option value="RELEASED">Remessa liberada</option>
+                  <option value="SUBMITTED">Enviado ao banco</option>
+                  <option value="CONFIRMED">Confirmado</option>
+                  <option value="FAILED">Falha bancária</option>
+                </select>
+              </label>
+              <label for="treasury-review-filter">Exceção
+                <select id="treasury-review-filter">
+                  <option value="">Todas</option>
+                  <option value="BLOCKED">Bloqueadas</option>
+                  <option value="REVIEW_REQUIRED">Revisão necessária</option>
+                  <option value="CLEAR">Sem bloqueio</option>
+                  <option value="BANK_FAILURE">Falha bancária</option>
+                </select>
+              </label>
+            </div>
+            <div id="treasury-batch-list" class="treasury-batch-list"></div>
+            <div id="treasury-empty" class="treasury-empty" hidden>
+              <span aria-hidden="true">◎</span>
+              <h3>Nenhum lote nesta seleção</h3>
+              <p>Altere os filtros ou aguarde novos pagamentos elegíveis.</p>
+            </div>
+            <footer class="treasury-pagination">
+              <span id="treasury-page">Página 1</span>
+              <div><button id="treasury-previous" class="quiet">Anterior</button><button id="treasury-next" class="quiet">Próxima</button></div>
+            </footer>
+          </section>
+          <section class="panel treasury-dossier" aria-live="polite">
+            <div id="treasury-dossier-empty" class="treasury-dossier-empty">
+              <span aria-hidden="true">⌁</span>
+              <h2>Selecione um lote</h2>
+              <p>O circuito de liberação e os dados bancários aparecerão aqui.</p>
+            </div>
+            <div id="treasury-dossier-content" hidden>
+              <div class="treasury-dossier-heading">
+                <div><p class="eyebrow">DOSSIÊ DE PAGAMENTO</p><h2 id="treasury-selected-code">—</h2><p id="treasury-selected-meta" class="hint"></p></div>
+                <span id="treasury-selected-version" class="version">—</span>
+              </div>
+              <div class="treasury-summary-strip">
+                <div><small>Total do lote</small><strong id="treasury-selected-total">R$ 0,00</strong></div>
+                <div><small>Conta de tesouraria</small><strong id="treasury-selected-account" class="mono">—</strong></div>
+                <div><small>Canal bancário</small><strong id="treasury-selected-format">—</strong></div>
+              </div>
+              <div class="treasury-release-rail" aria-label="Circuito de liberação bancária">
+                <article id="treasury-stage-eligibility"><span>01</span><strong>Elegibilidade</strong><small>títulos e matching</small></article>
+                <i aria-hidden="true">→</i>
+                <article id="treasury-stage-approval"><span>02</span><strong>Alçada M22</strong><small>segregação de funções</small></article>
+                <i aria-hidden="true">→</i>
+                <article id="treasury-stage-remittance"><span>03</span><strong>Remessa</strong><small>arquivo bancário</small></article>
+                <i aria-hidden="true">→</i>
+                <article id="treasury-stage-bank"><span>04</span><strong>Banco</strong><small>confirmação externa</small></article>
+              </div>
+              <section id="treasury-review-panel" class="treasury-review-panel clear">
+                <div><p class="eyebrow">FILA EXPLICÁVEL</p><h3 id="treasury-review-title">Lote liberado para seguir</h3><p id="treasury-review-meta" class="hint"></p></div>
+                <ol id="treasury-review-reasons"></ol>
+              </section>
+              <div class="treasury-actions">
+                <button id="treasury-dry-run" class="secondary">Simular remessa</button>
+                <button id="treasury-remittance">Solicitar alçada M22</button>
+                <button id="treasury-open-workflow" class="quiet" hidden>Abrir Central M22</button>
+              </div>
+              <label id="treasury-workflow-field" for="treasury-workflow-id" hidden>Instância M22 aprovada
+                <input id="treasury-workflow-id" autocomplete="off" placeholder="UUID da instância de aprovação" />
+              </label>
+              <p id="treasury-action-blocked" class="treasury-action-blocked" hidden>Remessa suspensa: resolva as divergências listadas antes de prosseguir.</p>
+              <section id="treasury-artifact" class="treasury-artifact" hidden>
+                <span id="treasury-artifact-kind">SIMULAÇÃO</span>
+                <div><strong id="treasury-artifact-name">—</strong><small id="treasury-artifact-meta"></small></div>
+                <button id="treasury-download" class="quiet">Baixar arquivo</button>
+              </section>
+              <div class="treasury-detail-grid">
+                <section>
+                  <div class="workflow-section-heading"><div><p class="eyebrow">FAVORECIDOS</p><h3>Itens e dados bancários</h3></div></div>
+                  <div class="table-wrap compact-table treasury-item-table"><table><thead><tr><th>Favorecido</th><th>Banco / Conta</th><th>Valor</th></tr></thead><tbody id="treasury-item-rows"></tbody></table></div>
+                </section>
+                <section>
+                  <div class="workflow-section-heading"><div><p class="eyebrow">TRILHA IMUTÁVEL</p><h3>Auditoria do lote</h3></div></div>
+                  <ol id="treasury-audit" class="treasury-audit"></ol>
+                </section>
+              </div>
             </div>
           </section>
         </div>

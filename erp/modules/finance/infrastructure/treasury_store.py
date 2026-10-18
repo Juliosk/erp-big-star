@@ -5,6 +5,7 @@ from datetime import UTC, date, datetime
 from typing import Any, cast
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from erp.modules.finance.application import (
@@ -24,6 +25,7 @@ from erp.modules.finance.application import (
     TreasuryBatchDetail,
     TreasuryBatchMutation,
     TreasuryBatchPage,
+    TreasuryBatchReview,
     TreasuryReturnResult,
 )
 from erp.modules.finance.domain import (
@@ -36,6 +38,7 @@ from erp.modules.finance.domain import (
 from erp.modules.finance.infrastructure.bank_returns import BankReturnAdapterRegistry
 from erp.modules.finance.infrastructure.payable_repository import PayableRepository
 from erp.modules.finance.infrastructure.remittance import RemittanceAdapterRegistry
+from erp.modules.finance.infrastructure.treasury_event_model import PaymentBatchReviewModel
 from erp.modules.finance.infrastructure.treasury_event_state import (
     apply_treasury_source_cursors,
     require_payment_batch_unblocked,
@@ -319,6 +322,7 @@ class PostgresTreasuryStore:
             if batch is None:
                 return None
             audit = await repository.audit_log(batch_id)
+            review = await _batch_review(session, company_id, batch_id)
             return TreasuryBatchDetail(
                 batch,
                 tuple(
@@ -333,6 +337,7 @@ class PostgresTreasuryStore:
                     )
                     for item in audit
                 ),
+                review,
             )
 
     async def list(
@@ -362,7 +367,18 @@ class PostgresTreasuryStore:
                 limit=1,
                 offset=offset + page_size,
             )
-            return TreasuryBatchPage(items, page, page_size, bool(more))
+            reviews = await _batch_reviews(
+                session,
+                company_id,
+                tuple(item.id for item in items),
+            )
+            return TreasuryBatchPage(
+                items,
+                page,
+                page_size,
+                bool(more),
+                tuple(reviews.items()),
+            )
 
     def _service(
         self,
@@ -490,6 +506,41 @@ async def _required_batch(
             status_code=404,
         )
     return batch
+
+
+async def _batch_review(
+    session: AsyncSession,
+    company_id: UUID,
+    batch_id: UUID,
+) -> TreasuryBatchReview | None:
+    return (await _batch_reviews(session, company_id, (batch_id,))).get(batch_id)
+
+
+async def _batch_reviews(
+    session: AsyncSession,
+    company_id: UUID,
+    batch_ids: tuple[UUID, ...],
+) -> dict[UUID, TreasuryBatchReview]:
+    if not batch_ids:
+        return {}
+    values = await session.scalars(
+        select(PaymentBatchReviewModel).where(
+            PaymentBatchReviewModel.company_id == company_id,
+            PaymentBatchReviewModel.payment_batch_id.in_(batch_ids),
+        )
+    )
+    return {
+        value.payment_batch_id: TreasuryBatchReview(
+            status=value.status,
+            blocked=value.blocked,
+            revision=value.revision,
+            required_since=value.required_since,
+            last_event_at=value.last_event_at,
+            source_states=cast(dict[str, object], value.source_states),
+            reasons=tuple(cast(list[dict[str, object]], value.reasons)),
+        )
+        for value in values
+    }
 
 
 def _require_version(actual: int, expected: int) -> None:

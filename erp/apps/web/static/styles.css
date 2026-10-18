@@ -1347,6 +1347,176 @@ dialog::backdrop {
 .finance-audit strong { color: var(--navy); font-size: .76rem; }
 .finance-audit small { color: var(--muted); }
 
+/* Treasury reads like a bank operations room: one queue, one clearance rail. */
+.treasury-heading { margin-bottom: 18px; }
+.treasury-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin-bottom: 18px;
+  overflow: hidden;
+  border: 1px solid #cbd8df;
+  border-radius: 8px;
+  background: #cbd8df;
+}
+.treasury-metrics article {
+  display: grid;
+  gap: 4px;
+  padding: 16px 18px;
+  background: #f9fbfc;
+}
+.treasury-metrics article.alert { box-shadow: inset 0 4px #b13b2d; }
+.treasury-metrics article.ready { box-shadow: inset 0 4px #176b68; }
+.treasury-metrics small {
+  color: var(--muted);
+  font: 700 .66rem "Cascadia Mono", monospace;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.treasury-metrics strong { color: var(--navy); font-size: 1.35rem; }
+.treasury-metrics span { color: var(--muted); font-size: .72rem; }
+.treasury-workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, .72fr) minmax(0, 1.85fr);
+  gap: 16px;
+  align-items: start;
+}
+.treasury-queue,
+.treasury-dossier { padding: 0; overflow: hidden; }
+.treasury-queue { background: #f3f7f8; }
+.treasury-queue-heading,
+.treasury-dossier-heading,
+.treasury-batch-card-head,
+.treasury-batch-card-foot,
+.treasury-pagination,
+.treasury-actions,
+.treasury-artifact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.treasury-queue-heading { padding: 20px 20px 12px; }
+.treasury-queue-heading h2,
+.treasury-dossier-heading h2,
+.treasury-review-panel h3,
+.treasury-empty h3 { margin: 3px 0 0; }
+.treasury-live-mark {
+  padding: 5px 8px;
+  border: 1px solid #9bbebc;
+  border-radius: 999px;
+  color: #176b68;
+  background: #eaf6f4;
+  font: 800 .62rem "Cascadia Mono", monospace;
+  letter-spacing: .08em;
+}
+.treasury-live-mark::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: #208b74; }
+.treasury-filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 20px 16px;
+  border-bottom: 1px solid #d6e1e6;
+}
+.treasury-filters label { min-width: 0; font-size: .68rem; }
+.treasury-filters select { width: 100%; min-width: 0; margin-top: 5px; }
+.treasury-batch-list { display: grid; gap: 7px; padding: 13px; }
+.treasury-batch-card {
+  display: grid;
+  gap: 11px;
+  width: 100%;
+  padding: 14px 15px;
+  border: 1px solid #ccdade;
+  border-left: 4px solid #176b68;
+  border-radius: 6px;
+  color: var(--ink);
+  background: #fff;
+  text-align: left;
+}
+.treasury-batch-card.blocked { border-left-color: #b13b2d; }
+.treasury-batch-card:hover,
+.treasury-batch-card:focus-visible,
+.treasury-batch-card[aria-current="true"] { border-color: #176b68; box-shadow: 0 5px 16px rgba(23, 107, 104, .13); transform: translateY(-1px); }
+.treasury-batch-card-head strong { font-size: .78rem; }
+.treasury-batch-card-value { display: grid; gap: 2px; }
+.treasury-batch-card-value strong { color: var(--navy); font-size: 1.18rem; }
+.treasury-batch-card-value small,
+.treasury-batch-card-foot { color: var(--muted); font-size: .7rem; }
+.treasury-clear-label { color: #176b68; font-weight: 800; }
+.treasury-empty { display: grid; place-items: center; padding: 35px 20px; color: var(--muted); text-align: center; }
+.treasury-empty span { color: #176b68; font-size: 2rem; }
+.treasury-empty p { margin: 4px 0 0; font-size: .8rem; }
+.treasury-pagination { padding: 12px 16px; border-top: 1px solid #d6e1e6; color: var(--muted); font-size: .72rem; }
+.treasury-pagination > div { display: flex; gap: 5px; }
+.treasury-dossier { min-height: 650px; border-top: 5px solid #176b68; }
+.treasury-dossier-empty { display: grid; place-items: center; align-content: center; min-height: 640px; padding: 30px; color: var(--muted); text-align: center; }
+.treasury-dossier-empty span { color: #176b68; font-size: 3.2rem; }
+.treasury-dossier-empty h2 { margin: 12px 0 4px; color: var(--navy); }
+.treasury-dossier-empty p { max-width: 360px; margin: 0; }
+#treasury-dossier-content { padding: 24px; }
+.treasury-dossier-heading { align-items: flex-start; }
+.treasury-summary-strip {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 1px;
+  margin: 20px 0;
+  background: #d8e3e7;
+  border: 1px solid #d8e3e7;
+}
+.treasury-summary-strip > div { display: grid; gap: 5px; padding: 13px 15px; background: #f7fafb; }
+.treasury-summary-strip small { color: var(--muted); font-size: .67rem; text-transform: uppercase; }
+.treasury-summary-strip strong { color: var(--navy); font-size: .87rem; overflow-wrap: anywhere; }
+.treasury-release-rail {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+  align-items: center;
+  margin: 0 0 18px;
+}
+.treasury-release-rail article { display: grid; gap: 5px; min-height: 92px; padding: 13px; border: 1px solid #cad8de; border-top: 4px solid #8a99a6; background: #fff; }
+.treasury-release-rail article.clear { border-top-color: #176b68; background: #f4fbfa; }
+.treasury-release-rail article.active { border-top-color: #b7832f; background: #fffaf0; }
+.treasury-release-rail article.blocked { border-top-color: #b13b2d; background: #fff5f3; }
+.treasury-release-rail article > span { color: var(--muted); font: 700 .65rem "Cascadia Mono", monospace; }
+.treasury-release-rail strong { color: var(--navy); font-size: .8rem; }
+.treasury-release-rail small { color: var(--muted); line-height: 1.35; }
+.treasury-release-rail i { padding: 0 6px; color: #8194a0; font-style: normal; }
+.treasury-review-panel { display: grid; grid-template-columns: minmax(190px, .7fr) minmax(0, 1.3fr); gap: 20px; padding: 16px 18px; border: 1px solid #bcd5d1; border-left: 5px solid #176b68; background: #f1f9f8; }
+.treasury-review-panel.blocked { border-color: #e0b7b1; border-left-color: #b13b2d; background: #fff7f5; }
+.treasury-review-panel p { margin-bottom: 0; }
+.treasury-review-panel ol { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.treasury-review-panel li { display: grid; gap: 3px; padding-bottom: 7px; border-bottom: 1px solid rgba(85, 111, 122, .18); }
+.treasury-review-panel li:last-child { padding: 0; border: 0; }
+.treasury-review-panel li strong { font-size: .76rem; }
+.treasury-review-panel li small { color: var(--muted); font-size: .67rem; }
+.treasury-actions { justify-content: flex-start; flex-wrap: wrap; margin: 17px 0 10px; }
+.treasury-actions button { min-height: 43px; }
+#treasury-workflow-field { display: grid; gap: 6px; max-width: 520px; }
+#treasury-workflow-field input { width: 100%; }
+.treasury-action-blocked { margin: 13px 0; padding: 11px 13px; border-left: 4px solid #b13b2d; color: #8b2f25; background: #fff1ef; font-weight: 700; }
+.treasury-artifact { margin: 15px 0; padding: 13px 15px; border: 1px dashed #709c98; background: #f0f8f7; }
+.treasury-artifact > span { color: #176b68; font: 800 .64rem "Cascadia Mono", monospace; letter-spacing: .08em; }
+.treasury-artifact > div { display: grid; flex: 1; gap: 3px; }
+.treasury-artifact small { color: var(--muted); font-size: .68rem; overflow-wrap: anywhere; }
+.treasury-detail-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(220px, .75fr); gap: 22px; margin-top: 25px; }
+.treasury-detail-grid h3 { margin: 3px 0 0; font-size: 1rem; }
+.treasury-item-table td { vertical-align: top; }
+.treasury-item-table td > strong,
+.treasury-item-table td > small { display: block; }
+.treasury-item-table td > small { margin-top: 3px; color: var(--muted); }
+.treasury-audit { display: grid; gap: 0; margin: 0; padding: 0; border-top: 1px solid var(--sky); list-style: none; }
+.treasury-audit li { display: grid; gap: 4px; padding: 10px 3px; border-bottom: 1px solid var(--sky); }
+.treasury-audit strong { color: var(--navy); font-size: .76rem; }
+.treasury-audit small { color: var(--muted); font-size: .67rem; }
+#treasury .status.review-BLOCKED,
+#treasury .status.FAILED { color: #8d2e24; background: #ffe5e1; }
+#treasury .status.review-REVIEW_REQUIRED,
+#treasury .status.PENDING_APPROVAL { color: #7c570f; background: #fff0c9; }
+#treasury .status.review-CLEARED,
+#treasury .status.CONFIRMED { color: #176b51; background: #def2ea; }
+#treasury button:focus-visible,
+#treasury select:focus-visible,
+#treasury input:focus-visible { outline: 3px solid rgba(23, 107, 104, .28); outline-offset: 2px; }
+
 /* Three-way matching is presented as an evidence ledger, not a generic dashboard. */
 .matching-cockpit {
   grid-column: 1 / -1;
@@ -1602,6 +1772,9 @@ dialog::backdrop {
   .fiscal-form { grid-template-columns: 1fr; }
   .finance-grid { grid-template-columns: 1fr; }
   .finance-metrics { grid-template-columns: 1fr 1fr; }
+  .treasury-workspace { grid-template-columns: 1fr; }
+  .treasury-metrics { grid-template-columns: 1fr 1fr; }
+  .treasury-detail-grid { grid-template-columns: 1fr; }
   .fiscal-form .fiscal-span,
   .fiscal-form > button,
   .fiscal-operation,
@@ -1741,6 +1914,24 @@ dialog::backdrop {
   .inbound-facts { grid-template-columns: 1fr; }
   .inbound-upload input[type="file"] { width: 100%; }
   .finance-metrics { grid-template-columns: 1fr; }
+  .treasury-metrics,
+  .treasury-filters,
+  .treasury-summary-strip,
+  .treasury-release-rail,
+  .treasury-review-panel { grid-template-columns: 1fr; }
+  .treasury-release-rail i { display: none; }
+  .treasury-dossier { min-height: 0; }
+  .treasury-dossier-empty { min-height: 300px; }
+  #treasury-dossier-content { padding: 18px 14px; }
+  .treasury-dossier-heading,
+  .treasury-artifact { align-items: flex-start; flex-direction: column; }
+  .treasury-item-table tr { display: block; padding: 9px; }
+  .treasury-item-table table,
+  .treasury-item-table tbody { display: block; width: 100%; }
+  .treasury-item-table thead { display: none; }
+  .treasury-item-table td { display: block; padding: 5px 0; border: 0; text-align: left; }
+  .treasury-item-table td + td { border-top: 1px solid #e1e8ec; }
+  .treasury-item-table .numeric { text-align: left; }
   .finance-origin,
   .finance-adjustments,
   .governance-circuit { grid-template-columns: 1fr; }

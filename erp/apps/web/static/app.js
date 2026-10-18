@@ -8,6 +8,7 @@ import { mountSales } from "./sales.js";
 import { mountProcurement } from "./procurement.js";
 import { mountFiscal } from "./fiscal.js";
 import { mountFinance } from "./finance.js";
+import { mountTreasury } from "./treasury.js";
 const $ = (id) => document.getElementById(id);
 const labels = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -88,6 +89,12 @@ const errors = {
     "A política de alçada financeira não está configurada para esta empresa.",
   FINANCE_PAYABLE_UNAVAILABLE:
     "O serviço de contas a pagar está indisponível nesta inicialização.",
+  FINANCE_TREASURY_UNAVAILABLE:
+    "O serviço de tesouraria está indisponível nesta inicialização.",
+  PAYMENT_BATCH_REVIEW_BLOCKED:
+    "O lote possui divergências pendentes. Consulte a fila explicável antes de gerar a remessa.",
+  DRY_RUN_BATCH_NOT_EXECUTABLE:
+    "Este lote é somente simulação e não pode gerar uma remessa oficial.",
   FISCAL_SEFAZ_UNAVAILABLE:
     "O gateway SEFAZ não está configurado para este ambiente.",
   FISCAL_CANCELLATION_WINDOW_EXPIRED:
@@ -117,7 +124,16 @@ let token = "",
   area = "products";
 let lastCreation = { body: "", key: "" };
 const can = (action) => permissions.has(`product.product.${action}`);
-let customers, inventory, pricing, wms, workflow, sales, procurement, fiscal, finance;
+let customers,
+  inventory,
+  pricing,
+  wms,
+  workflow,
+  sales,
+  procurement,
+  fiscal,
+  finance,
+  treasury;
 const imports = mountImports({
   api,
   context: () => ({ company, permissions }),
@@ -429,6 +445,45 @@ finance = mountFinance({
     $("detail").hidden = true;
   },
 });
+treasury = mountTreasury({
+  api,
+  context: () => ({ company, permissions }),
+  notice,
+  openWorkflow: () => $("workflow-nav").click(),
+  enter: () => {
+    area = "treasury";
+    $("treasury-nav").setAttribute("aria-current", "page");
+    [
+      "products",
+      "imports",
+      "customers",
+      "inventory",
+      "pricing",
+      "wms",
+      "workflow",
+      "sales",
+      "procurement",
+      "fiscal",
+      "finance",
+    ].forEach((name) => $(`${name}-nav`)?.removeAttribute("aria-current"));
+    document.querySelector(".topbar > span").textContent =
+      "Financeiro / Tesouraria";
+    generation++;
+    current = null;
+    imports.reset();
+    customers.hide();
+    inventory.hide();
+    pricing.hide();
+    wms.hide();
+    workflow.hide();
+    sales.hide();
+    procurement.hide();
+    fiscal.hide();
+    finance.hide();
+    $("catalog").hidden = true;
+    $("detail").hidden = true;
+  },
+});
 function notice(message) {
   $("notice").textContent = message;
   $("notice").hidden = !message;
@@ -444,6 +499,7 @@ function reset() {
   procurement.reset();
   fiscal.reset();
   finance.reset();
+  treasury.reset();
   $("imports-nav").hidden = true;
   $("customers-nav").hidden = true;
   $("inventory-nav").hidden = true;
@@ -454,6 +510,7 @@ function reset() {
   $("procurement-nav").hidden = true;
   $("fiscal-nav").hidden = true;
   $("finance-nav").hidden = true;
+  $("treasury-nav").hidden = true;
   token = "";
   permissions.clear();
   current = null;
@@ -540,6 +597,7 @@ function bind(id, action, event = "click") {
   $(id).addEventListener(event, async (e) => {
     e.preventDefault();
     try {
+      if (id.endsWith("-nav") && id !== "treasury-nav") treasury?.hide();
       await action(e);
     } catch (error) {
       notice(error.message);
@@ -595,6 +653,7 @@ async function connect() {
     !permissions.has("fiscal.nfe.read") &&
     !permissions.has("fiscal.inbound.read");
   $("finance-nav").hidden = !permissions.has("finance.payable.read");
+  $("treasury-nav").hidden = !permissions.has("finance.treasury.read");
   if (!company) {
     notice(
       "Nenhuma empresa ativa autorizada. Configure os escopos da identidade.",
@@ -603,6 +662,13 @@ async function connect() {
   }
   notice("");
   page = 1;
+  if (
+    window.location.pathname.replace(/\/$/, "").endsWith("/treasury") &&
+    permissions.has("finance.treasury.read")
+  ) {
+    await treasury.show();
+    return;
+  }
   await loadList();
 }
 async function loadList() {
@@ -618,6 +684,7 @@ async function loadList() {
   $("procurement-nav").removeAttribute("aria-current");
   $("fiscal-nav").removeAttribute("aria-current");
   $("finance-nav").removeAttribute("aria-current");
+  $("treasury-nav").removeAttribute("aria-current");
   document.querySelector(".topbar > span").textContent = "Cadastros / Produtos";
   imports.reset();
   customers.hide();
@@ -629,6 +696,7 @@ async function loadList() {
   procurement.hide();
   fiscal.hide();
   finance.hide();
+  treasury.hide();
   const epoch = ++generation;
   current = null;
   $("detail").hidden = true;
@@ -792,6 +860,7 @@ bind(
     if (area === "procurement") return procurement.show();
     if (area === "fiscal") return fiscal.show();
     if (area === "finance") return finance.show();
+    if (area === "treasury") return treasury.show();
     await loadList();
   },
   "change",
@@ -832,6 +901,9 @@ bind("fiscal-nav", () => {
 });
 bind("finance-nav", () => {
   if (company) return finance.show();
+});
+bind("treasury-nav", () => {
+  if (company) return treasury.show();
 });
 bind("products-nav", () => {
   if (company) return loadList();

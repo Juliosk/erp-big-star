@@ -3,11 +3,17 @@
 from pathlib import Path
 
 from fastapi import FastAPI
+from starlette.responses import Response
 from starlette.staticfiles import StaticFiles
 from starlette.types import Message, Receive, Scope, Send
 
 
 class WebFiles(StaticFiles):
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        if path.rstrip("/") == "treasury":
+            path = "index.html"
+        return await super().get_response(path, scope)
+
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         async def secured_send(message: Message) -> None:
             if message["type"] == "http.response.start":

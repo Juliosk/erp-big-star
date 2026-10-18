@@ -29,7 +29,7 @@ from erp.modules.finance.application import (
     TreasuryApplicationService,
     TreasuryQueryService,
 )
-from erp.modules.finance.infrastructure import PostgresTreasuryStore
+from erp.modules.finance.infrastructure import PaymentBatchReviewModel, PostgresTreasuryStore
 from erp.modules.procurement.infrastructure import MatchingSessionModel
 from erp.modules.workflow.application.decisions import CommandMetadata, DecideWorkflowInstance
 from erp.modules.workflow.domain import ApprovalDecisionKind
@@ -393,6 +393,65 @@ def test_etag_rbac_tenant_and_input_guards_fail_closed() -> None:
             assert unavailable.json()["error"]["code"] == "FINANCE_TREASURY_UNAVAILABLE"
         finally:
             application.state.finance_treasury = commands
+
+
+def test_list_and_detail_expose_tenant_bound_reassessment_projection() -> None:
+    with treasury_api() as (client, fixture, _):
+        created = _create(client, fixture)
+        assert created.status_code == 201
+        batch_id = UUID(created.json()["batch"]["id"])
+        data = fixture.matching.data
+        now = datetime.now(UTC)
+
+        async def seed_review() -> None:
+            async with data.database.session() as session, session.begin():
+                session.add(
+                    PaymentBatchReviewModel(
+                        id=uuid4(),
+                        company_id=data.company_id,
+                        payment_batch_id=batch_id,
+                        status="BLOCKED",
+                        blocked=True,
+                        required_since=now,
+                        last_event_at=now,
+                        source_states={
+                            "procurement:three_way_match_session:test": {
+                                "blocked": True,
+                                "status": "BLOCKED",
+                            }
+                        },
+                        reasons=[
+                            {
+                                "event_type": "MatchingDiscrepancyDetected",
+                                "aggregate_version": 4,
+                                "reason": "Three-way matching reported an unresolved discrepancy.",
+                            }
+                        ],
+                        revision=1,
+                    )
+                )
+
+        assert client.portal is not None
+        client.portal.call(seed_review)
+        listing = client.get(
+            "/api/v1/finance/treasury/batches",
+            headers=_headers(),
+            params={"company_id": str(data.company_id)},
+        )
+        assert listing.status_code == 200
+        projected = next(item for item in listing.json()["data"] if item["id"] == str(batch_id))
+        assert projected["review"]["status"] == "BLOCKED"
+        assert projected["review"]["blocked"] is True
+
+        detail = client.get(
+            f"/api/v1/finance/treasury/batches/{batch_id}",
+            headers=_headers(),
+            params={"company_id": str(data.company_id)},
+        )
+        assert detail.status_code == 200
+        review = detail.json()["batch"]["review"]
+        assert review["revision"] == 1
+        assert review["reasons"][0]["event_type"] == "MatchingDiscrepancyDetected"
 
 
 def _cnab_240_return(batch_id: UUID, amount: Decimal) -> bytes:
