@@ -117,11 +117,25 @@ class TreasuryScopeError(FinanceDomainError):
     code = "TREASURY_SCOPE_ERROR"
 
 
+class InvalidBankStatementError(FinanceDomainError):
+    """A bank statement, movement or reconciliation rule is inconsistent."""
+
+    code = "INVALID_BANK_STATEMENT"
+
+
+class BankMovementAlreadyReconciledError(FinanceDomainError):
+    """A reconciled bank movement cannot be reconciled a second time."""
+
+    code = "BANK_MOVEMENT_ALREADY_RECONCILED"
+
+
 __all__ = [
+    "BankMovementAlreadyReconciledError",
     "FinanceDomainError",
     "FinanceScopeError",
     "FinanceVersionConflictError",
     "InstallmentMismatchError",
+    "InvalidBankStatementError",
     "InvalidFinanceContractError",
     "InvalidPayableError",
     "InvalidPayableStateError",

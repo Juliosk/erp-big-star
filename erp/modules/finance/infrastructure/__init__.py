@@ -6,6 +6,13 @@ from erp.modules.finance.infrastructure.bank_returns import (
     Cnab400ReturnParser,
     PixCallbackParser,
 )
+from erp.modules.finance.infrastructure.bank_statements import (
+    BankStatementImportContext,
+    BankStatementParserRegistry,
+    CsvStatementLayout,
+    CsvStatementParser,
+    OfxStatementParser,
+)
 from erp.modules.finance.infrastructure.governance_consumer import (
     FINANCE_APPROVAL_CONSUMER,
     FINANCE_DIVERGENCE_CONSUMER,
@@ -83,12 +90,17 @@ __all__ = [
     "PURCHASE_ORDER_APPROVED",
     "TREASURY_EVENT_CONSUMER",
     "BankReturnAdapterRegistry",
+    "BankStatementImportContext",
+    "BankStatementParserRegistry",
     "BatchAuditLogModel",
     "Cnab240RemittanceAdapter",
     "Cnab240ReturnParser",
     "Cnab400RemittanceAdapter",
     "Cnab400ReturnParser",
+    "CsvStatementLayout",
+    "CsvStatementParser",
     "FiscalEventConsumer",
+    "OfxStatementParser",
     "PayableApprovalDecisionConsumer",
     "PayableDivergenceConsumer",
     "PayableGovernanceModel",
