@@ -1,7 +1,7 @@
 """Framework-neutral ingestion and automatic bank reconciliation use cases."""
 
 import hashlib
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -17,6 +17,7 @@ from erp.modules.finance.domain import (
     BankTransactionKind,
     FinancialReconciliationCandidate,
     InvalidBankStatementError,
+    ReconciliationDecision,
     ReconciliationReason,
     ReconciliationStatus,
 )
@@ -69,6 +70,7 @@ class BankStatementStore(Protocol):
         *,
         actor_id: UUID,
         expected_version: int | None = None,
+        conciliation_metadata: Mapping[UUID, Mapping[str, object]] | None = None,
     ) -> BankStatement: ...
 
 
@@ -241,8 +243,26 @@ class BankConciliationService:
         statement = await self._store.get(statement_id)
         if statement is None:
             raise InvalidBankStatementError("Bank statement was not found in the company scope.")
-        decisions = []
-        outcomes = []
+        outcomes, decisions = await self._evaluate(statement)
+        if decisions:
+            statement = statement.apply_many(tuple(decisions), reconciled_at=occurred_at)
+            await self._store.save(statement, actor_id=actor_id)
+        return BankConciliationResult(statement, outcomes)
+
+    async def simulate(self, statement_id: UUID) -> BankConciliationResult:
+        _nonzero_uuid(statement_id, "statement_id")
+        statement = await self._store.get(statement_id)
+        if statement is None:
+            raise InvalidBankStatementError("Bank statement was not found in the company scope.")
+        outcomes, _ = await self._evaluate(statement)
+        return BankConciliationResult(statement, outcomes)
+
+    async def _evaluate(
+        self,
+        statement: BankStatement,
+    ) -> tuple[tuple[BankMovementConciliation, ...], list[ReconciliationDecision]]:
+        decisions: list[ReconciliationDecision] = []
+        outcomes: list[BankMovementConciliation] = []
         for movement in statement.movements:
             if movement.status is BankMovementStatus.RECONCILED:
                 continue
@@ -278,10 +298,7 @@ class BankConciliationService:
             )
             if decision.status is ReconciliationStatus.MATCHED:
                 decisions.append(decision)
-        if decisions:
-            statement = statement.apply_many(tuple(decisions), reconciled_at=occurred_at)
-            await self._store.save(statement, actor_id=actor_id)
-        return BankConciliationResult(statement, tuple(outcomes))
+        return tuple(outcomes), decisions
 
 
 def _direct_classification(

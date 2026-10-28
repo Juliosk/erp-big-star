@@ -15,6 +15,7 @@ dependencies = [
     "minio==7.2.20",
     "openpyxl==3.1.5",
     "pydantic-settings==2.15.0",
+    "python-multipart==0.0.20",
     "reportlab==4.4.4",
     "sqlalchemy[asyncio]==2.0.52",
     "uvicorn[standard]==0.52.4",

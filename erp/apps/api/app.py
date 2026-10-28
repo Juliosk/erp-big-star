@@ -53,12 +53,17 @@ from erp.modules.customer.infrastructure.customer_groups import PostgresCustomer
 from erp.modules.customer.infrastructure.customer_updates import PostgresCustomerUpdates
 from erp.modules.finance.api import router as finance_router
 from erp.modules.finance.application import (
+    BankReconciliationApplicationService,
     FinanceAuthorization,
     PayableApplicationService,
     TreasuryApplicationService,
     TreasuryQueryService,
 )
-from erp.modules.finance.infrastructure import PostgresPayableStore, PostgresTreasuryStore
+from erp.modules.finance.infrastructure import (
+    PostgresBankReconciliationStore,
+    PostgresPayableStore,
+    PostgresTreasuryStore,
+)
 from erp.modules.fiscal.api import router as fiscal_router
 from erp.modules.fiscal.application import (
     FiscalArtifactStoragePort,
@@ -216,6 +221,7 @@ def create_app(
     finance_payables: PayableApplicationService | None = None,
     finance_treasury: TreasuryApplicationService | None = None,
     finance_treasury_queries: TreasuryQueryService | None = None,
+    finance_reconciliation: BankReconciliationApplicationService | None = None,
     inventory_queries: InventoryQueries | None = None,
     inventory_creation: InventoryCatalogService | None = None,
     inventory_adjustments: InventoryAdjustmentService | None = None,
@@ -280,6 +286,7 @@ def create_app(
     resolved_finance_payables = finance_payables
     resolved_finance_treasury = finance_treasury
     resolved_finance_treasury_queries = finance_treasury_queries
+    resolved_finance_reconciliation = finance_reconciliation
     resolved_inventory_queries = inventory_queries
     resolved_inventory_creation = inventory_creation
     resolved_inventory_adjustments = inventory_adjustments
@@ -662,6 +669,13 @@ def create_app(
                 treasury_store,
                 treasury_authorization,
             )
+    if resolved_finance_reconciliation is None and isinstance(resolved_database, Database):
+        resolved_finance_reconciliation = BankReconciliationApplicationService(
+            PostgresBankReconciliationStore(resolved_database),
+            FinanceAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
     if fiscal_artifact_storage is None and resolved_settings.import_storage_access_key:
         fiscal_artifact_storage = MinioStorage(resolved_settings)
     if resolved_fiscal_documents is not None and fiscal_artifact_storage is not None:
@@ -778,6 +792,7 @@ def create_app(
     application.state.finance_payables = resolved_finance_payables
     application.state.finance_treasury = resolved_finance_treasury
     application.state.finance_treasury_queries = resolved_finance_treasury_queries
+    application.state.finance_reconciliation = resolved_finance_reconciliation
     application.state.inventory_queries = resolved_inventory_queries
     application.state.inventory_creation = resolved_inventory_creation
     application.state.inventory_adjustments = resolved_inventory_adjustments

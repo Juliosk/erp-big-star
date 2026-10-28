@@ -108,6 +108,9 @@ class Settings(BaseSettings):
         "finance.treasury_batch.create",
         "finance.treasury_batch.approve",
         "finance.treasury_batch.execute",
+        "finance.reconciliation.read",
+        "finance.reconciliation.import",
+        "finance.reconciliation.execute",
         "workflow.definition.manage",
     )
 

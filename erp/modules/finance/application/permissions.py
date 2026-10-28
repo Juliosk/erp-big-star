@@ -22,6 +22,9 @@ FINANCE_TREASURY_READ = PermissionCode("finance.treasury.read")
 FINANCE_TREASURY_BATCH_CREATE = PermissionCode("finance.treasury_batch.create")
 FINANCE_TREASURY_BATCH_APPROVE = PermissionCode("finance.treasury_batch.approve")
 FINANCE_TREASURY_BATCH_EXECUTE = PermissionCode("finance.treasury_batch.execute")
+FINANCE_RECONCILIATION_READ = PermissionCode("finance.reconciliation.read")
+FINANCE_RECONCILIATION_IMPORT = PermissionCode("finance.reconciliation.import")
+FINANCE_RECONCILIATION_EXECUTE = PermissionCode("finance.reconciliation.execute")
 
 
 def finance_permission_registry() -> PermissionRegistry:
@@ -56,6 +59,21 @@ def finance_permission_registry() -> PermissionRegistry:
         (
             FINANCE_TREASURY_BATCH_EXECUTE,
             "Release approved payment batches to a bank adapter",
+            PermissionRiskLevel.CRITICAL,
+        ),
+        (
+            FINANCE_RECONCILIATION_READ,
+            "Read bank statements and reconciliation status",
+            PermissionRiskLevel.HIGH,
+        ),
+        (
+            FINANCE_RECONCILIATION_IMPORT,
+            "Import bank statements into company accounts",
+            PermissionRiskLevel.CRITICAL,
+        ),
+        (
+            FINANCE_RECONCILIATION_EXECUTE,
+            "Execute or override bank reconciliation decisions",
             PermissionRiskLevel.CRITICAL,
         ),
     )
@@ -94,6 +112,9 @@ __all__ = [
     "FINANCE_PAYABLE_APPROVE",
     "FINANCE_PAYABLE_CREATE",
     "FINANCE_PAYABLE_READ",
+    "FINANCE_RECONCILIATION_EXECUTE",
+    "FINANCE_RECONCILIATION_IMPORT",
+    "FINANCE_RECONCILIATION_READ",
     "FINANCE_TREASURY_BATCH_APPROVE",
     "FINANCE_TREASURY_BATCH_CREATE",
     "FINANCE_TREASURY_BATCH_EXECUTE",

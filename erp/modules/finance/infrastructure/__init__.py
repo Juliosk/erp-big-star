@@ -3,6 +3,9 @@
 from erp.modules.finance.infrastructure.bank_reconciliation_candidates import (
     PayableBankCandidateProvider,
 )
+from erp.modules.finance.infrastructure.bank_reconciliation_store import (
+    PostgresBankReconciliationStore,
+)
 from erp.modules.finance.infrastructure.bank_returns import (
     BankReturnAdapterRegistry,
     Cnab240ReturnParser,
@@ -133,6 +136,7 @@ __all__ = [
     "PaymentBatchReviewModel",
     "PixApiRemittanceAdapter",
     "PixCallbackParser",
+    "PostgresBankReconciliationStore",
     "PostgresPayableStore",
     "PostgresPaymentBatchEventPublisher",
     "PostgresTreasuryStore",

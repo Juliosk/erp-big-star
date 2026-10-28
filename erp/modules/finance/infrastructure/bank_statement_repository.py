@@ -1,5 +1,6 @@
 """Tenant-bound persistence adapter for M12 bank statements."""
 
+from collections.abc import Mapping
 from datetime import UTC, date, datetime
 from typing import Any, cast
 from uuid import UUID, uuid4
@@ -174,12 +175,44 @@ class BankStatementRepository:
             values.append(_statement(root, await self._movements(root.id)))
         return tuple(values)
 
+    async def list_movements(
+        self,
+        *,
+        status: BankMovementStatus | None = None,
+        statement_id: UUID | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[tuple[UUID, BankMovement], ...]:
+        _page(limit, offset)
+        query = select(BankMovementModel).where(
+            BankMovementModel.company_id == self._company_id
+        )
+        if status is not None:
+            if not isinstance(status, BankMovementStatus):
+                raise ValueError("status must be a BankMovementStatus.")
+            query = query.where(BankMovementModel.status == status.value)
+        if statement_id is not None:
+            _nonzero_uuid(statement_id, "statement_id")
+            query = query.where(BankMovementModel.bank_statement_id == statement_id)
+        values = await self._session.scalars(
+            query.order_by(
+                BankMovementModel.booked_on.desc(),
+                BankMovementModel.bank_statement_id,
+                BankMovementModel.sequence_number,
+            )
+            .limit(limit)
+            .offset(offset)
+            .execution_options(populate_existing=True)
+        )
+        return tuple((value.bank_statement_id, _movement(value)) for value in values)
+
     async def save(
         self,
         statement: BankStatement,
         *,
         actor_id: UUID,
         expected_version: int | None = None,
+        conciliation_metadata: Mapping[UUID, Mapping[str, object]] | None = None,
     ) -> BankStatement:
         self._write_scope(statement, actor_id)
         compare = statement.version - 1 if expected_version is None else expected_version
@@ -247,6 +280,7 @@ class BankStatementRepository:
                         "statement_version": statement.version,
                         "external_id": movement.external_id,
                         "document_number": movement.document_number,
+                        **dict((conciliation_metadata or {}).get(movement.id, {})),
                     },
                 )
             )
