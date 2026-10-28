@@ -129,8 +129,15 @@ class BankMovementAlreadyReconciledError(FinanceDomainError):
     code = "BANK_MOVEMENT_ALREADY_RECONCILED"
 
 
+class BankStatementConflictError(FinanceDomainError):
+    """A bank-statement import conflicts with an existing tenant identity."""
+
+    code = "BANK_STATEMENT_CONFLICT"
+
+
 __all__ = [
     "BankMovementAlreadyReconciledError",
+    "BankStatementConflictError",
     "FinanceDomainError",
     "FinanceScopeError",
     "FinanceVersionConflictError",

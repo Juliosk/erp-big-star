@@ -399,6 +399,7 @@ class BankStatement:
     movements: tuple[BankMovement, ...]
     opening_balance: Decimal | None = None
     closing_balance: Decimal | None = None
+    version: int = 1
 
     def __post_init__(self) -> None:
         for field in ("id", "company_id", "bank_account_id"):
@@ -465,6 +466,8 @@ class BankStatement:
                 raise InvalidBankStatementError(
                     "Opening, movements and closing balance do not reconcile."
                 )
+        if type(self.version) is not int or self.version < 1:
+            raise InvalidBankStatementError("version must be a positive integer.")
 
     @property
     def status(self) -> BankStatementStatus:
@@ -507,7 +510,7 @@ class BankStatement:
             movements.append(movement)
         if not changed:
             raise InvalidBankStatementError("Decision movement does not belong to this statement.")
-        return replace(self, movements=tuple(movements))
+        return replace(self, movements=tuple(movements), version=self.version + 1)
 
 
 def _document_similarity(left: str | None, right: str | None) -> Decimal:

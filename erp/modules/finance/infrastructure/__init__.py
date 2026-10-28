@@ -6,6 +6,15 @@ from erp.modules.finance.infrastructure.bank_returns import (
     Cnab400ReturnParser,
     PixCallbackParser,
 )
+from erp.modules.finance.infrastructure.bank_statement_model import (
+    BankMovementModel,
+    BankStatementModel,
+    ConciliationRecordModel,
+    StatementImportAuditModel,
+)
+from erp.modules.finance.infrastructure.bank_statement_repository import (
+    BankStatementRepository,
+)
 from erp.modules.finance.infrastructure.bank_statements import (
     BankStatementImportContext,
     BankStatementParserRegistry,
@@ -89,14 +98,18 @@ __all__ = [
     "PAYMENT_BATCH_REEVALUATION_REQUESTED",
     "PURCHASE_ORDER_APPROVED",
     "TREASURY_EVENT_CONSUMER",
+    "BankMovementModel",
     "BankReturnAdapterRegistry",
     "BankStatementImportContext",
+    "BankStatementModel",
     "BankStatementParserRegistry",
+    "BankStatementRepository",
     "BatchAuditLogModel",
     "Cnab240RemittanceAdapter",
     "Cnab240ReturnParser",
     "Cnab400RemittanceAdapter",
     "Cnab400ReturnParser",
+    "ConciliationRecordModel",
     "CsvStatementLayout",
     "CsvStatementParser",
     "FiscalEventConsumer",
@@ -122,6 +135,7 @@ __all__ = [
     "ProvisionalEntryModel",
     "ProvisionalEntryRepository",
     "RemittanceAdapterRegistry",
+    "StatementImportAuditModel",
     "TreasuryAssessment",
     "TreasuryEventConsumer",
     "TreasuryReviewStatus",

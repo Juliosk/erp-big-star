@@ -2,6 +2,7 @@
 
 from erp.modules.finance.domain.exceptions import (
     BankMovementAlreadyReconciledError,
+    BankStatementConflictError,
     FinanceDomainError,
     FinanceScopeError,
     FinanceVersionConflictError,
@@ -82,6 +83,7 @@ __all__ = [
     "BankReconciliationPolicy",
     "BankRemittanceFormat",
     "BankStatement",
+    "BankStatementConflictError",
     "BankStatementSource",
     "BankStatementStatus",
     "BankTransactionKind",

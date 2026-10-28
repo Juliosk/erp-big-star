@@ -114,10 +114,13 @@ def test_statement_is_immutable_and_tracks_pending_partial_and_complete_status()
     first_decision = BankReconciliationPolicy().best_match(first, (_candidate(first),))
     partial = statement.apply(first_decision, reconciled_at=NOW)
     assert statement.status is BankStatementStatus.PENDING
+    assert statement.version == 1
+    assert partial.version == 2
     assert partial.status is BankStatementStatus.PARTIALLY_RECONCILED
 
     second_decision = BankReconciliationPolicy().best_match(second, (_candidate(second),))
     complete = partial.apply(second_decision, reconciled_at=NOW)
+    assert complete.version == 3
     assert complete.status is BankStatementStatus.RECONCILED
     assert complete.movements[0].status is BankMovementStatus.RECONCILED
 
@@ -143,6 +146,7 @@ def test_statement_validates_scope_period_uniqueness_hash_and_balances() -> None
         {"imported_at": NOW.replace(tzinfo=None)},
         {"source": "OFX"},
         {"source_hash": "not-a-hash"},
+        {"version": 0},
         {"movements": ()},
         {"movements": (movement, movement)},
         {"opening_balance": Decimal("25.00"), "closing_balance": Decimal("124.98")},
