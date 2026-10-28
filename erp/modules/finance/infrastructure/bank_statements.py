@@ -10,8 +10,11 @@ import unicodedata
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
-from uuid import UUID, uuid5
+from uuid import uuid5
 
+from erp.modules.finance.application.bank_reconciliation import (
+    BankStatementImportContext,
+)
 from erp.modules.finance.domain import (
     BankMovement,
     BankMovementDirection,
@@ -27,18 +30,6 @@ _OFX_TRANSACTION = re.compile(
     r"<STMTTRN(?:\s[^>]*)?>(.*?)(?=</STMTTRN\s*>|<STMTTRN(?:\s|>)|</BANKTRANLIST|</OFX>)",
     re.I | re.S,
 )
-
-
-@dataclass(frozen=True, slots=True)
-class BankStatementImportContext:
-    """Trusted tenant and account metadata supplied by the application boundary."""
-
-    statement_id: UUID
-    company_id: UUID
-    bank_account_id: UUID
-    imported_at: datetime
-    bank_code: str | None = None
-    account_reference: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -376,7 +367,7 @@ def _csv_kind(description: str, direction: BankMovementDirection) -> BankTransac
         return BankTransactionKind.BANK_FEE
     if any(term in normalized for term in ("juros", "rendimento", "interest")):
         return BankTransactionKind.INTEREST
-    if any(term in normalized for term in ("imposto", "tributo", "tax")):
+    if any(term in normalized for term in ("imposto", "tributo", "tax", "iof")):
         return BankTransactionKind.TAX
     return (
         BankTransactionKind.RECEIPT

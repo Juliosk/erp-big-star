@@ -1,5 +1,8 @@
 """M12 persistence adapters."""
 
+from erp.modules.finance.infrastructure.bank_reconciliation_candidates import (
+    PayableBankCandidateProvider,
+)
 from erp.modules.finance.infrastructure.bank_returns import (
     BankReturnAdapterRegistry,
     Cnab240ReturnParser,
@@ -115,6 +118,7 @@ __all__ = [
     "FiscalEventConsumer",
     "OfxStatementParser",
     "PayableApprovalDecisionConsumer",
+    "PayableBankCandidateProvider",
     "PayableDivergenceConsumer",
     "PayableGovernanceModel",
     "PayableGovernanceRepository",

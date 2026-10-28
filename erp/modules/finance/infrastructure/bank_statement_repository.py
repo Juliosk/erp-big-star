@@ -5,6 +5,7 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,26 +55,57 @@ class BankStatementRepository:
         await self._flush()
         self._session.add_all(_movement_models(statement, actor_id))
         self._session.add(
-            StatementImportAuditModel(
-                id=uuid4(),
-                company_id=statement.company_id,
-                bank_statement_id=statement.id,
-                source=statement.source.value,
-                source_hash=statement.source_hash,
+            _import_audit_model(
+                statement,
+                actor_id=actor_id,
                 original_file_name=original_file_name,
                 file_size_bytes=file_size_bytes,
-                movement_count=len(statement.movements),
-                imported_at=statement.imported_at,
-                actor_id=actor_id,
-                details={
-                    "bank_account_id": str(statement.bank_account_id),
-                    "bank_code": statement.bank_code,
-                    "period_start": statement.period_start.isoformat(),
-                    "period_end": statement.period_end.isoformat(),
-                },
             )
         )
         await self._flush()
+
+    async def add_idempotent(
+        self,
+        statement: BankStatement,
+        *,
+        actor_id: UUID,
+        original_file_name: str | None,
+        file_size_bytes: int,
+    ) -> tuple[BankStatement, bool]:
+        """Insert once by tenant/account/hash without owning the transaction."""
+        self._write_scope(statement, actor_id)
+        _import_metadata(original_file_name, file_size_bytes)
+        if statement.version != 1:
+            raise ValueError("A new bank statement must start at version one.")
+        inserted = await self._session.scalar(
+            insert(BankStatementModel)
+            .values(**_statement_values(statement, actor_id))
+            .on_conflict_do_nothing(
+                index_elements=("company_id", "bank_account_id", "source_hash")
+            )
+            .returning(BankStatementModel.id)
+        )
+        if inserted is None:
+            existing = await self.get_by_hash(
+                bank_account_id=statement.bank_account_id,
+                source_hash=statement.source_hash,
+            )
+            if existing is None:
+                raise BankStatementConflictError(
+                    "Bank statement identity conflicts with another company-scoped import."
+                )
+            return existing, True
+        self._session.add_all(_movement_models(statement, actor_id))
+        self._session.add(
+            _import_audit_model(
+                statement,
+                actor_id=actor_id,
+                original_file_name=original_file_name,
+                file_size_bytes=file_size_bytes,
+            )
+        )
+        await self._flush()
+        return statement, False
 
     async def get(self, statement_id: UUID) -> BankStatement | None:
         root = await self._session.scalar(
@@ -274,22 +306,53 @@ class BankStatementRepository:
 
 
 def _statement_model(statement: BankStatement, actor_id: UUID) -> BankStatementModel:
-    return BankStatementModel(
-        id=statement.id,
+    return BankStatementModel(**_statement_values(statement, actor_id))
+
+
+def _statement_values(statement: BankStatement, actor_id: UUID) -> dict[str, object]:
+    return {
+        "id": statement.id,
+        "company_id": statement.company_id,
+        "bank_account_id": statement.bank_account_id,
+        "bank_code": statement.bank_code,
+        "account_reference": statement.account_reference,
+        "period_start": statement.period_start,
+        "period_end": statement.period_end,
+        "imported_at": statement.imported_at,
+        "source": statement.source.value,
+        "source_hash": statement.source_hash,
+        "opening_balance": statement.opening_balance,
+        "closing_balance": statement.closing_balance,
+        "version": statement.version,
+        "created_by": actor_id,
+        "updated_by": actor_id,
+    }
+
+
+def _import_audit_model(
+    statement: BankStatement,
+    *,
+    actor_id: UUID,
+    original_file_name: str | None,
+    file_size_bytes: int,
+) -> StatementImportAuditModel:
+    return StatementImportAuditModel(
+        id=uuid4(),
         company_id=statement.company_id,
-        bank_account_id=statement.bank_account_id,
-        bank_code=statement.bank_code,
-        account_reference=statement.account_reference,
-        period_start=statement.period_start,
-        period_end=statement.period_end,
-        imported_at=statement.imported_at,
+        bank_statement_id=statement.id,
         source=statement.source.value,
         source_hash=statement.source_hash,
-        opening_balance=statement.opening_balance,
-        closing_balance=statement.closing_balance,
-        version=statement.version,
-        created_by=actor_id,
-        updated_by=actor_id,
+        original_file_name=original_file_name,
+        file_size_bytes=file_size_bytes,
+        movement_count=len(statement.movements),
+        imported_at=statement.imported_at,
+        actor_id=actor_id,
+        details={
+            "bank_account_id": str(statement.bank_account_id),
+            "bank_code": statement.bank_code,
+            "period_start": statement.period_start.isoformat(),
+            "period_end": statement.period_end.isoformat(),
+        },
     )
 
 

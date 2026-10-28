@@ -491,24 +491,50 @@ class BankStatement:
         *,
         reconciled_at: datetime,
     ) -> BankStatement:
-        if decision.status is not ReconciliationStatus.MATCHED:
-            raise InvalidBankStatementError("Only an unambiguous match can reconcile a movement.")
-        if decision.candidate_id is None or decision.score is None:
-            raise InvalidBankStatementError(
-                "Matched decision requires candidate and score evidence."
-            )
-        changed = False
+        return self.apply_many((decision,), reconciled_at=reconciled_at)
+
+    def apply_many(
+        self,
+        decisions: tuple[ReconciliationDecision, ...],
+        *,
+        reconciled_at: datetime,
+    ) -> BankStatement:
+        if not isinstance(decisions, tuple) or not decisions:
+            raise InvalidBankStatementError("decisions must be a non-empty tuple.")
+        decision_by_movement: dict[UUID, ReconciliationDecision] = {}
+        for decision in decisions:
+            if not isinstance(decision, ReconciliationDecision):
+                raise InvalidBankStatementError(
+                    "decisions must contain ReconciliationDecision values."
+                )
+            if decision.status is not ReconciliationStatus.MATCHED:
+                raise InvalidBankStatementError(
+                    "Only an unambiguous match can reconcile a movement."
+                )
+            if decision.candidate_id is None or decision.score is None:
+                raise InvalidBankStatementError(
+                    "Matched decision requires candidate and score evidence."
+                )
+            if decision.movement_id in decision_by_movement:
+                raise InvalidBankStatementError(
+                    "A movement can receive only one reconciliation decision."
+                )
+            decision_by_movement[decision.movement_id] = decision
+        changed: set[UUID] = set()
         movements: list[BankMovement] = []
         for movement in self.movements:
-            if movement.id == decision.movement_id:
+            selected = decision_by_movement.get(movement.id)
+            if selected is not None:
+                assert selected.candidate_id is not None
+                assert selected.score is not None
                 movement = movement.reconcile(
-                    reference_id=decision.candidate_id,
+                    reference_id=selected.candidate_id,
                     reconciled_at=reconciled_at,
-                    score=decision.score,
+                    score=selected.score,
                 )
-                changed = True
+                changed.add(movement.id)
             movements.append(movement)
-        if not changed:
+        if changed != decision_by_movement.keys():
             raise InvalidBankStatementError("Decision movement does not belong to this statement.")
         return replace(self, movements=tuple(movements), version=self.version + 1)
 
