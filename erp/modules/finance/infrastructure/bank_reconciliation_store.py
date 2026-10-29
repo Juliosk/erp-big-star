@@ -19,6 +19,7 @@ from erp.modules.finance.application import (
     BankStatementIngestionResult,
     BankStatementIngestionService,
     BankStatementPage,
+    CompositeBankCandidateProvider,
     IngestBankStatement,
     MatchBankStatement,
     ResolveBankMovement,
@@ -36,6 +37,12 @@ from erp.modules.finance.domain import (
 )
 from erp.modules.finance.infrastructure.bank_reconciliation_candidates import (
     PayableBankCandidateProvider,
+)
+from erp.modules.finance.infrastructure.bank_reconciliation_event_candidates import (
+    EventBankCandidateProvider,
+)
+from erp.modules.finance.infrastructure.bank_reconciliation_events import (
+    publish_reconciled_movements,
 )
 from erp.modules.finance.infrastructure.bank_statement_repository import (
     BankStatementRepository,
@@ -183,11 +190,17 @@ class PostgresBankReconciliationStore:
             try:
                 if command.mode is BankMatchMode.SIMULATE:
                     return await service.simulate(command.statement_id)
-                return await service.reconcile(
+                result = await service.reconcile(
                     command.statement_id,
                     actor_id=actor_id,
                     occurred_at=command.occurred_at,
                 )
+                await publish_reconciled_movements(
+                    session,
+                    before=statement,
+                    result=result,
+                )
+                return result
             except FinanceDomainError as error:
                 raise _domain_error(error) from error
 
@@ -290,7 +303,7 @@ class PostgresBankReconciliationStore:
                 )
             except FinanceDomainError as error:
                 raise _domain_error(error) from error
-            return BankConciliationResult(
+            result = BankConciliationResult(
                 updated,
                 (
                     BankMovementConciliation(
@@ -303,13 +316,22 @@ class PostgresBankReconciliationStore:
                     ),
                 ),
             )
+            await publish_reconciled_movements(
+                session,
+                before=statement,
+                result=result,
+            )
+            return result
 
 
 def _payable_candidate_provider(
     session: AsyncSession,
     company_id: UUID,
 ) -> BankCandidateProvider:
-    return PayableBankCandidateProvider(session, company_id=company_id)
+    return CompositeBankCandidateProvider(
+        PayableBankCandidateProvider(session, company_id=company_id),
+        EventBankCandidateProvider(session, company_id=company_id),
+    )
 
 
 async def _required_statement(
