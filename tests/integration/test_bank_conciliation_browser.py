@@ -170,4 +170,18 @@ def test_bank_conciliation_assets_keep_clean_architecture_contract() -> None:
     assert '"finance/conciliation"' in mount
 
 
+def test_bank_conciliation_runbook_preserves_operational_governance() -> None:
+    content = Path("docs/bank-conciliation-runbook.md").read_text(encoding="utf-8")
+    assert "Migration `0047`" in content
+    assert "`finance.reconciliation.import`" in content
+    assert "`finance.reconciliation.execute`" in content
+    assert "`If-Match: \"N\"`" in content
+    assert "`BankMovementReconciled` v1" in content
+    assert "`BankReconciliationReviewRequired` v1" in content
+    assert "SELECT FOR UPDATE SKIP" in content
+    assert "não cria título fictício" in content
+    assert "docker system prune -a --volumes" in content
+    assert "Diretrizes da Sprint 21" in content
+
+
 __all__: list[str] = []
