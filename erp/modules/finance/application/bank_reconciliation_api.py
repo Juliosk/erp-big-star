@@ -8,6 +8,7 @@ from uuid import UUID
 
 from erp.modules.admin.contracts import SecurityContext
 from erp.modules.finance.application.bank_reconciliation import (
+    BankCandidateOption,
     BankConciliationResult,
     BankStatementIngestionResult,
 )
@@ -121,6 +122,13 @@ class BankReconciliationOperations(Protocol):
         page: int,
         page_size: int,
     ) -> BankMovementPage: ...
+
+    async def candidate_options(
+        self,
+        company_id: UUID,
+        statement_id: UUID,
+        movement_id: UUID,
+    ) -> tuple[BankCandidateOption, ...]: ...
 
     async def match(
         self,
@@ -244,6 +252,24 @@ class BankReconciliationApplicationService:
             statement_id=statement_id,
             page=page,
             page_size=page_size,
+        )
+
+    async def candidate_options(
+        self,
+        context: SecurityContext,
+        company_id: UUID,
+        statement_id: UUID,
+        movement_id: UUID,
+    ) -> tuple[BankCandidateOption, ...]:
+        await self._authorization.require(
+            context,
+            company_id,
+            FINANCE_RECONCILIATION_READ,
+        )
+        return await self._operations.candidate_options(
+            company_id,
+            statement_id,
+            movement_id,
         )
 
     async def match(

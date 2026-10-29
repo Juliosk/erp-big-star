@@ -202,9 +202,7 @@ def test_multipart_ofx_upload_replay_listing_and_tenant_isolation() -> None:
             params={"company_id": str(data.company_id), "bank_account_id": str(account_id)},
         )
         assert listing.status_code == 200
-        assert [item["id"] for item in listing.json()["data"]] == [
-            first.json()["statement"]["id"]
-        ]
+        assert [item["id"] for item in listing.json()["data"]] == [first.json()["statement"]["id"]]
         movements = client.get(
             "/api/v1/finance/reconciliation/movements",
             headers=_headers(),
@@ -322,9 +320,7 @@ def test_manual_resolution_enforces_conflict_justification_etag_and_rbac() -> No
         )
         assert forced.status_code == 200, forced.text
         assert forced.headers["etag"] == '"2"'
-        assert forced.json()["outcomes"][0]["candidate_id"] == str(
-            mismatched_candidate_id
-        )
+        assert forced.json()["outcomes"][0]["candidate_id"] == str(mismatched_candidate_id)
 
         stale = client.post(
             f"/api/v1/finance/reconciliation/statements/{statement_id}/match",
@@ -349,6 +345,44 @@ def test_manual_resolution_enforces_conflict_justification_etag_and_rbac() -> No
             json={"mode": "SIMULATE"},
         )
         assert denied.status_code == 403
+
+
+def test_manual_resolution_candidates_are_explainable_and_tenant_bound() -> None:
+    with reconciliation_api() as (
+        client,
+        data,
+        resolver,
+        exact_candidate_id,
+        mismatched_candidate_id,
+    ):
+        uploaded = _upload(client, data)
+        assert uploaded.status_code == 201, uploaded.text
+        statement_id = uploaded.json()["statement"]["id"]
+        movement_id = uploaded.json()["movements"][0]["id"]
+        endpoint = (
+            f"/api/v1/finance/reconciliation/statements/{statement_id}"
+            f"/movements/{movement_id}/candidates"
+        )
+
+        response = client.get(
+            endpoint,
+            headers=_headers(),
+            params={"company_id": str(data.company_id)},
+        )
+        assert response.status_code == 200, response.text
+        candidates = {UUID(value["reference_id"]): value for value in response.json()["data"]}
+        assert candidates[exact_candidate_id]["automatic"] is True
+        assert candidates[exact_candidate_id]["score"] == "1.0000"
+        assert candidates[mismatched_candidate_id]["automatic"] is False
+        assert candidates[mismatched_candidate_id]["reason"] == "AMOUNT_MISMATCH"
+
+        resolver.context = _context(data.actor_id, data.other_company_id)
+        hidden = client.get(
+            endpoint,
+            headers=_headers(),
+            params={"company_id": str(data.other_company_id)},
+        )
+        assert hidden.status_code == 404
 
 
 def test_direct_fee_resolution_is_explainable_without_creating_a_false_title_match() -> None:

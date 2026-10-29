@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, model_validator
 
 from erp.modules.finance.application import (
+    BankCandidateOption,
     BankConciliationResult,
     BankMatchMode,
     BankMovementEntry,
@@ -14,7 +15,11 @@ from erp.modules.finance.application import (
     BankResolutionMode,
     BankStatementPage,
 )
-from erp.modules.finance.domain import BankMovement, BankStatement
+from erp.modules.finance.domain import (
+    BankMovement,
+    BankStatement,
+    ReconciliationStatus,
+)
 
 
 class MatchStatementRequest(BaseModel):
@@ -28,10 +33,14 @@ class ResolveMovementRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_resolution(self) -> ResolveMovementRequest:
-        if self.mode in {
-            BankResolutionMode.ACCEPT_MATCH,
-            BankResolutionMode.FORCE_MATCH,
-        } and self.candidate_id is None:
+        if (
+            self.mode
+            in {
+                BankResolutionMode.ACCEPT_MATCH,
+                BankResolutionMode.FORCE_MATCH,
+            }
+            and self.candidate_id is None
+        ):
             raise ValueError("candidate_id is required for match resolutions.")
         if self.mode is BankResolutionMode.DIRECT_ENTRY and self.candidate_id is not None:
             raise ValueError("candidate_id is forbidden for direct entries.")
@@ -169,6 +178,39 @@ class BankMovementQueueResponse(BaseModel):
         )
 
 
+class BankCandidateOptionResponse(BaseModel):
+    reference_id: UUID
+    source: str
+    expected_on: date
+    amount: Decimal
+    direction: str
+    document_number: str | None
+    score: Decimal
+    reason: str
+    automatic: bool
+
+    @classmethod
+    def from_application(cls, value: BankCandidateOption) -> BankCandidateOptionResponse:
+        candidate = value.match.candidate
+        return cls(
+            reference_id=candidate.reference_id,
+            source=value.match.source.value,
+            expected_on=candidate.expected_on,
+            amount=candidate.amount,
+            direction=candidate.direction.value,
+            document_number=candidate.document_number,
+            score=value.suggestion.score,
+            reason=value.suggestion.reason.value,
+            automatic=value.suggestion.status is ReconciliationStatus.MATCHED,
+        )
+
+
+class BankCandidateOptionListResponse(BaseModel):
+    statement_id: UUID
+    movement_id: UUID
+    data: list[BankCandidateOptionResponse]
+
+
 class BankConciliationOutcomeResponse(BaseModel):
     movement_id: UUID
     classification: str
@@ -205,6 +247,8 @@ class BankConciliationResponse(BaseModel):
 
 
 __all__ = [
+    "BankCandidateOptionListResponse",
+    "BankCandidateOptionResponse",
     "BankConciliationResponse",
     "BankMovementListResponse",
     "BankMovementQueueResponse",

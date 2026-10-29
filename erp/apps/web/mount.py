@@ -10,7 +10,11 @@ from starlette.types import Message, Receive, Scope, Send
 
 class WebFiles(StaticFiles):
     async def get_response(self, path: str, scope: Scope) -> Response:
-        if path.rstrip("/") == "treasury":
+        requested_path = str(scope.get("path", "")).rstrip("/")
+        if path.rstrip("/").replace("\\", "/") in {
+            "treasury",
+            "finance/conciliation",
+        } or requested_path in {"/ui/treasury", "/ui/finance/conciliation"}:
             path = "index.html"
         return await super().get_response(path, scope)
 

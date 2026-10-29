@@ -20,6 +20,7 @@ from erp.modules.finance.domain import (
     ReconciliationDecision,
     ReconciliationReason,
     ReconciliationStatus,
+    ReconciliationSuggestion,
 )
 
 
@@ -154,11 +155,23 @@ class BankMatchCandidate:
 
     def __post_init__(self) -> None:
         if not isinstance(self.candidate, FinancialReconciliationCandidate):
-            raise InvalidBankStatementError(
-                "candidate must be a FinancialReconciliationCandidate."
-            )
+            raise InvalidBankStatementError("candidate must be a FinancialReconciliationCandidate.")
         if not isinstance(self.source, BankCandidateSource):
             raise InvalidBankStatementError("source must be a BankCandidateSource.")
+
+
+@dataclass(frozen=True, slots=True)
+class BankCandidateOption:
+    """Explainable candidate presented to a human reconciliation decision."""
+
+    match: BankMatchCandidate
+    suggestion: ReconciliationSuggestion
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.match, BankMatchCandidate):
+            raise InvalidBankStatementError("match must be a BankMatchCandidate.")
+        if not isinstance(self.suggestion, ReconciliationSuggestion):
+            raise InvalidBankStatementError("suggestion must be a ReconciliationSuggestion.")
 
 
 class BankCandidateProvider(Protocol):
@@ -330,6 +343,7 @@ def _nonzero_uuid(value: UUID, field: str) -> UUID:
 
 
 __all__ = [
+    "BankCandidateOption",
     "BankCandidateProvider",
     "BankCandidateSource",
     "BankConciliationClassification",

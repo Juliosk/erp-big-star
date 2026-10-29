@@ -1,6 +1,7 @@
 """Public M12 application surface."""
 
 from erp.modules.finance.application.bank_reconciliation import (
+    BankCandidateOption,
     BankCandidateProvider,
     BankCandidateSource,
     BankConciliationClassification,
@@ -127,6 +128,7 @@ __all__ = [
     "PAYMENT_BATCH_SUBMITTED",
     "AdjustPayable",
     "ApprovePaymentBatch",
+    "BankCandidateOption",
     "BankCandidateProvider",
     "BankCandidateSource",
     "BankConciliationClassification",

@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, File, Form, Query, Request, Response, Up
 
 from erp.modules.admin.contracts import SecurityContext
 from erp.modules.finance.api.bank_reconciliation_schemas import (
+    BankCandidateOptionListResponse,
+    BankCandidateOptionResponse,
     BankConciliationResponse,
     BankMovementListResponse,
     BankMovementQueueResponse,
@@ -93,8 +95,7 @@ async def upload_statement(
     if result.idempotency_replayed:
         response.status_code = 200
     response.headers["Location"] = (
-        f"/api/v1/finance/reconciliation/statements/{result.statement.id}"
-        f"?company_id={company_id}"
+        f"/api/v1/finance/reconciliation/statements/{result.statement.id}?company_id={company_id}"
     )
     _headers(
         response,
@@ -187,6 +188,32 @@ async def list_movements(
     return BankMovementListResponse(
         statement_id=statement.id,
         data=[BankMovementResponse.from_domain(item) for item in values],
+    )
+
+
+@router.get(
+    "/statements/{statement_id}/movements/{movement_id}/candidates",
+    response_model=BankCandidateOptionListResponse,
+)
+async def list_movement_candidates(
+    statement_id: UUID,
+    movement_id: UUID,
+    company_id: UUID,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[BankReconciliationApplicationService, Depends(get_service)],
+) -> BankCandidateOptionListResponse:
+    values = await service.candidate_options(
+        context,
+        company_id,
+        statement_id,
+        movement_id,
+    )
+    _headers(response)
+    return BankCandidateOptionListResponse(
+        statement_id=statement_id,
+        movement_id=movement_id,
+        data=[BankCandidateOptionResponse.from_application(value) for value in values],
     )
 
 

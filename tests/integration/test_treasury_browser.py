@@ -351,7 +351,8 @@ def test_treasury_cockpit_assets_keep_the_clean_web_contract() -> None:
     assert 'can("finance.treasury.read")' in script
     assert "finance/treasury/batches" in script
     assert "PaymentBatchReviewModel" not in script
-    assert 'path.rstrip("/") == "treasury"' in mount
+    assert '"treasury"' in mount
+    assert '"finance/conciliation"' in mount
 
 
 __all__: list[str] = []

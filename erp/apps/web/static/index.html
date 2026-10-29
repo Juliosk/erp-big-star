@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Cadastros · Big Star / Forma Kids</title>
-    <link rel="stylesheet" href="./styles.css" />
-    <script type="module" src="./app.js"></script>
+    <link rel="stylesheet" href="/ui/styles.css" />
+    <script type="module" src="/ui/app.js"></script>
   </head>
   <body>
     <aside class="sidebar">
@@ -44,6 +44,9 @@
         >
         <a id="treasury-nav" href="/ui/treasury" hidden
           >Tesouraria <span>M12</span></a
+        >
+        <a id="conciliation-nav" href="/ui/finance/conciliation" hidden
+          >Conciliação <span>M12</span></a
         >
       </nav>
       <div class="company-context">
@@ -1633,6 +1636,141 @@
           </section>
         </div>
       </section>
+      <section id="bank-conciliation" hidden aria-labelledby="conciliation-title">
+        <div class="page-heading conciliation-heading">
+          <div>
+            <p class="eyebrow">EXTRATOS &amp; CONFERÊNCIA / M12</p>
+            <h1 id="conciliation-title">Mesa de conciliação</h1>
+            <p>Da linha bancária à evidência financeira, com cada decisão explicada.</p>
+          </div>
+          <button id="conciliation-refresh" class="secondary">Atualizar mesa</button>
+        </div>
+
+        <section class="panel conciliation-import-panel">
+          <div class="conciliation-import-heading">
+            <div><p class="eyebrow">NOVA IMPORTAÇÃO</p><h2>Receber extrato bancário</h2></div>
+            <span>OFX · CSV</span>
+          </div>
+          <form id="conciliation-upload-form" class="conciliation-upload-form">
+            <label for="conciliation-bank-account">Conta bancária (UUID)
+              <input id="conciliation-bank-account" required autocomplete="off" placeholder="Identificador da conta de tesouraria" />
+            </label>
+            <label for="conciliation-source">Formato
+              <select id="conciliation-source"><option value="OFX">OFX</option><option value="CSV">CSV</option></select>
+            </label>
+            <label for="conciliation-bank-code">Banco
+              <input id="conciliation-bank-code" maxlength="20" placeholder="001" />
+            </label>
+            <label for="conciliation-account-reference">Agência / conta
+              <input id="conciliation-account-reference" maxlength="80" placeholder="1234 / 56789-0" />
+            </label>
+            <label class="conciliation-file" for="conciliation-file">Arquivo
+              <input id="conciliation-file" type="file" accept=".ofx,.csv,application/x-ofx,text/csv" required />
+            </label>
+            <button id="conciliation-upload" type="submit">Importar extrato</button>
+          </form>
+          <p id="conciliation-import-status" class="hint" aria-live="polite">Nenhum arquivo enviado nesta sessão.</p>
+        </section>
+
+        <div class="conciliation-metrics" aria-label="Indicadores da conciliação bancária">
+          <article><small>Extratos</small><strong id="conciliation-statement-count">0</strong><span>na empresa de trabalho</span></article>
+          <article><small>Movimentos</small><strong id="conciliation-movement-count">0</strong><span>na página atual</span></article>
+          <article class="pending"><small>Pendentes</small><strong id="conciliation-pending-count">0</strong><span>aguardam decisão</span></article>
+          <article class="matched"><small>Conciliados</small><strong id="conciliation-matched-count">0</strong><span>com evidência vinculada</span></article>
+        </div>
+
+        <section class="conciliation-ledger" aria-label="Extratos importados">
+          <div class="conciliation-ledger-label"><span aria-hidden="true">▦</span><strong>Extratos recentes</strong></div>
+          <div id="conciliation-statement-list" class="conciliation-statement-list"></div>
+        </section>
+
+        <div class="conciliation-workspace">
+          <section class="panel conciliation-queue">
+            <div class="conciliation-section-heading">
+              <div><p class="eyebrow">FILA DE MOVIMENTOS</p><h2>Linhas para conferir</h2></div>
+              <span id="conciliation-queue-page">Página 1</span>
+            </div>
+            <div class="conciliation-filters">
+              <label for="conciliation-state-filter">Estado
+                <select id="conciliation-state-filter">
+                  <option value="">Todos</option>
+                  <option value="PENDING">Pendente</option>
+                  <option value="MATCHED">Conciliado</option>
+                  <option value="AMBIGUOUS">Ambíguo</option>
+                  <option value="UNMATCHED">Sem candidato</option>
+                  <option value="DIRECT_FEE">Lançamento direto</option>
+                </select>
+              </label>
+              <label for="conciliation-account-filter">Conta
+                <select id="conciliation-account-filter"><option value="">Todas</option></select>
+              </label>
+              <label for="conciliation-period-from">De
+                <input id="conciliation-period-from" type="date" />
+              </label>
+              <label for="conciliation-period-to">Até
+                <input id="conciliation-period-to" type="date" />
+              </label>
+            </div>
+            <div class="conciliation-state-key" aria-label="Legenda dos estados">
+              <span class="PENDING">Pendente</span><span class="MATCHED">Conciliado</span><span class="AMBIGUOUS">Ambíguo</span><span class="UNMATCHED">Sem candidato</span><span class="DIRECT_FEE">Direto</span>
+            </div>
+            <div id="conciliation-movement-list" class="conciliation-movement-list"></div>
+            <div id="conciliation-empty" class="conciliation-empty" hidden>
+              <span aria-hidden="true">≋</span><h3>Nenhum movimento nesta seleção</h3><p>Ajuste os filtros ou importe um novo extrato.</p>
+            </div>
+            <footer class="conciliation-pagination">
+              <button id="conciliation-previous" class="quiet">Anterior</button>
+              <button id="conciliation-next" class="quiet">Próxima</button>
+            </footer>
+          </section>
+
+          <section class="panel conciliation-dossier" aria-live="polite">
+            <div id="conciliation-dossier-empty" class="conciliation-dossier-empty">
+              <span aria-hidden="true">⇄</span><h2>Selecione uma linha bancária</h2><p>A análise automática e os candidatos financeiros serão exibidos lado a lado.</p>
+            </div>
+            <div id="conciliation-dossier-content" hidden>
+              <div class="conciliation-dossier-heading">
+                <div><p class="eyebrow">DOSSIÊ DA LINHA</p><h2 id="conciliation-selected-title">—</h2><p id="conciliation-selected-meta" class="hint"></p></div>
+                <span id="conciliation-selected-version" class="version">—</span>
+              </div>
+              <div class="conciliation-match-rail">
+                <article class="bank-side"><small>BANCO</small><strong id="conciliation-bank-value">R$ 0,00</strong><span id="conciliation-bank-document">—</span></article>
+                <div id="conciliation-match-signal" class="PENDING"><span>⇄</span><strong>Aguardando análise</strong><small>selecione para comparar</small></div>
+                <article class="erp-side"><small>ERP</small><strong id="conciliation-erp-value">Sem candidato</strong><span id="conciliation-erp-document">—</span></article>
+              </div>
+              <section class="conciliation-explanation">
+                <div><p class="eyebrow">DECISÃO EXPLICÁVEL</p><h3 id="conciliation-explanation-title">Aguardando análise</h3></div>
+                <p id="conciliation-explanation-text">A mesa ainda não comparou esta linha com títulos liquidados.</p>
+              </section>
+              <div id="conciliation-actions" class="conciliation-actions">
+                <button id="conciliation-accept">Aceitar sugestão</button>
+                <button id="conciliation-resolve" class="secondary">Resolver manualmente</button>
+                <button id="conciliation-direct" class="quiet">Classificar lançamento direto</button>
+              </div>
+              <div class="conciliation-detail-grid">
+                <section><p class="eyebrow">MOVIMENTO BANCÁRIO</p><dl id="conciliation-bank-details" class="conciliation-facts"></dl></section>
+                <section><p class="eyebrow">CANDIDATOS FINANCEIROS</p><div id="conciliation-candidate-list" class="conciliation-candidate-list"></div></section>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <dialog id="conciliation-resolution-dialog" class="conciliation-dialog">
+        <form id="conciliation-resolution-form">
+          <div class="dialog-heading">
+            <div><p class="eyebrow">DECISÃO MANUAL</p><h2 id="conciliation-dialog-title">Resolver movimento</h2></div>
+            <button id="conciliation-dialog-close" type="button" class="quiet" aria-label="Fechar resolução manual">×</button>
+          </div>
+          <p id="conciliation-dialog-context" class="hint"></p>
+          <fieldset id="conciliation-candidate-options"><legend>Escolha o candidato financeiro</legend></fieldset>
+          <label id="conciliation-override-field" for="conciliation-justification">Justificativa do override
+            <textarea id="conciliation-justification" maxlength="500" rows="4" placeholder="Descreva a evidência que sustenta esta decisão."></textarea>
+          </label>
+          <p id="conciliation-dialog-error" role="alert" hidden></p>
+          <footer class="dialog-footer"><button id="conciliation-confirm" type="submit">Confirmar resolução</button></footer>
+        </form>
+      </dialog>
       <section id="sales" hidden aria-labelledby="sales-title">
         <div class="page-heading">
           <div>

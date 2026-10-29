@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from erp.modules.finance.application import (
+    BankCandidateOption,
     BankCandidateProvider,
     BankConciliationClassification,
     BankConciliationResult,
@@ -65,9 +66,7 @@ class PostgresBankReconciliationStore:
     ) -> None:
         self._database = database
         self._parsers = BankStatementParserRegistry()
-        self._candidate_provider_factory = (
-            candidate_provider_factory or _payable_candidate_provider
-        )
+        self._candidate_provider_factory = candidate_provider_factory or _payable_candidate_provider
 
     async def upload(
         self,
@@ -171,6 +170,45 @@ class PostgresBankReconciliationStore:
                 page=page,
                 page_size=page_size,
                 has_more=bool(remaining),
+            )
+
+    async def candidate_options(
+        self,
+        company_id: UUID,
+        statement_id: UUID,
+        movement_id: UUID,
+    ) -> tuple[BankCandidateOption, ...]:
+        """Return tenant-bound, explainable options for one manual decision."""
+        async with self._database.session() as session:
+            statement = await BankStatementRepository(session, company_id=company_id).get(
+                statement_id
+            )
+            if statement is None:
+                raise ApplicationError(
+                    code="RESOURCE_NOT_FOUND",
+                    message="Bank statement not found.",
+                    status_code=404,
+                )
+            movement = next(
+                (value for value in statement.movements if value.id == movement_id),
+                None,
+            )
+            if movement is None:
+                raise ApplicationError(
+                    code="RESOURCE_NOT_FOUND",
+                    message="Bank movement not found.",
+                    status_code=404,
+                )
+            candidates = await self._candidate_provider_factory(session, company_id).candidates_for(
+                movement
+            )
+            policy = BankReconciliationPolicy()
+            return tuple(
+                BankCandidateOption(
+                    match=value,
+                    suggestion=policy.evaluate(movement, value.candidate),
+                )
+                for value in candidates
             )
 
     async def match(

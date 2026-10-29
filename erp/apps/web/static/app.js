@@ -9,6 +9,7 @@ import { mountProcurement } from "./procurement.js";
 import { mountFiscal } from "./fiscal.js";
 import { mountFinance } from "./finance.js";
 import { mountTreasury } from "./treasury.js";
+import { mountBankConciliation } from "./conciliation.js";
 const $ = (id) => document.getElementById(id);
 const labels = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -133,7 +134,8 @@ let customers,
   procurement,
   fiscal,
   finance,
-  treasury;
+  treasury,
+  conciliation;
 const imports = mountImports({
   api,
   context: () => ({ company, permissions }),
@@ -484,6 +486,46 @@ treasury = mountTreasury({
     $("detail").hidden = true;
   },
 });
+conciliation = mountBankConciliation({
+  api,
+  context: () => ({ company, permissions }),
+  notice,
+  enter: () => {
+    area = "conciliation";
+    $("conciliation-nav").setAttribute("aria-current", "page");
+    [
+      "products",
+      "imports",
+      "customers",
+      "inventory",
+      "pricing",
+      "wms",
+      "workflow",
+      "sales",
+      "procurement",
+      "fiscal",
+      "finance",
+      "treasury",
+    ].forEach((name) => $(`${name}-nav`)?.removeAttribute("aria-current"));
+    document.querySelector(".topbar > span").textContent =
+      "Financeiro / Conciliação bancária";
+    generation++;
+    current = null;
+    imports.reset();
+    customers.hide();
+    inventory.hide();
+    pricing.hide();
+    wms.hide();
+    workflow.hide();
+    sales.hide();
+    procurement.hide();
+    fiscal.hide();
+    finance.hide();
+    treasury.hide();
+    $("catalog").hidden = true;
+    $("detail").hidden = true;
+  },
+});
 function notice(message) {
   $("notice").textContent = message;
   $("notice").hidden = !message;
@@ -500,6 +542,7 @@ function reset() {
   fiscal.reset();
   finance.reset();
   treasury.reset();
+  conciliation.reset();
   $("imports-nav").hidden = true;
   $("customers-nav").hidden = true;
   $("inventory-nav").hidden = true;
@@ -511,6 +554,7 @@ function reset() {
   $("fiscal-nav").hidden = true;
   $("finance-nav").hidden = true;
   $("treasury-nav").hidden = true;
+  $("conciliation-nav").hidden = true;
   token = "";
   permissions.clear();
   current = null;
@@ -547,6 +591,7 @@ async function api(
     version,
     key,
     raw,
+    form,
     binary = false,
     contentType,
   } = {},
@@ -566,7 +611,9 @@ async function api(
       method,
       headers,
       body:
-        raw !== undefined
+        form !== undefined
+          ? form
+          : raw !== undefined
           ? raw
           : body === undefined
             ? undefined
@@ -598,6 +645,9 @@ function bind(id, action, event = "click") {
     e.preventDefault();
     try {
       if (id.endsWith("-nav") && id !== "treasury-nav") treasury?.hide();
+      if (id.endsWith("-nav") && id !== "conciliation-nav") {
+        conciliation?.hide();
+      }
       await action(e);
     } catch (error) {
       notice(error.message);
@@ -654,6 +704,9 @@ async function connect() {
     !permissions.has("fiscal.inbound.read");
   $("finance-nav").hidden = !permissions.has("finance.payable.read");
   $("treasury-nav").hidden = !permissions.has("finance.treasury.read");
+  $("conciliation-nav").hidden = !permissions.has(
+    "finance.reconciliation.read",
+  );
   if (!company) {
     notice(
       "Nenhuma empresa ativa autorizada. Configure os escopos da identidade.",
@@ -662,6 +715,15 @@ async function connect() {
   }
   notice("");
   page = 1;
+  if (
+    window.location.pathname
+      .replace(/\/$/, "")
+      .endsWith("/finance/conciliation") &&
+    permissions.has("finance.reconciliation.read")
+  ) {
+    await conciliation.show();
+    return;
+  }
   if (
     window.location.pathname.replace(/\/$/, "").endsWith("/treasury") &&
     permissions.has("finance.treasury.read")
@@ -685,6 +747,7 @@ async function loadList() {
   $("fiscal-nav").removeAttribute("aria-current");
   $("finance-nav").removeAttribute("aria-current");
   $("treasury-nav").removeAttribute("aria-current");
+  $("conciliation-nav").removeAttribute("aria-current");
   document.querySelector(".topbar > span").textContent = "Cadastros / Produtos";
   imports.reset();
   customers.hide();
@@ -697,6 +760,7 @@ async function loadList() {
   fiscal.hide();
   finance.hide();
   treasury.hide();
+  conciliation.hide();
   const epoch = ++generation;
   current = null;
   $("detail").hidden = true;
@@ -904,6 +968,9 @@ bind("finance-nav", () => {
 });
 bind("treasury-nav", () => {
   if (company) return treasury.show();
+});
+bind("conciliation-nav", () => {
+  if (company) return conciliation.show();
 });
 bind("products-nav", () => {
   if (company) return loadList();
