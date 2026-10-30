@@ -135,14 +135,42 @@ class BankStatementConflictError(FinanceDomainError):
     code = "BANK_STATEMENT_CONFLICT"
 
 
+class InvalidCashFlowError(FinanceDomainError):
+    """A cash-flow value object or projection rule is inconsistent."""
+
+    code = "INVALID_CASH_FLOW"
+
+
+class CashFlowScopeError(FinanceDomainError):
+    """A cash-flow source belongs to another company boundary."""
+
+    code = "CASH_FLOW_SCOPE_ERROR"
+
+
+class CashFlowCurrencyMismatchError(FinanceDomainError):
+    """Amounts with distinct currencies were mixed without conversion."""
+
+    code = "CASH_FLOW_CURRENCY_MISMATCH"
+
+
+class HypotheticalCashFlowError(FinanceDomainError):
+    """Billing without a receivable authority was used as available cash."""
+
+    code = "HYPOTHETICAL_CASH_FLOW_FORBIDDEN"
+
+
 __all__ = [
     "BankMovementAlreadyReconciledError",
     "BankStatementConflictError",
+    "CashFlowCurrencyMismatchError",
+    "CashFlowScopeError",
     "FinanceDomainError",
     "FinanceScopeError",
     "FinanceVersionConflictError",
+    "HypotheticalCashFlowError",
     "InstallmentMismatchError",
     "InvalidBankStatementError",
+    "InvalidCashFlowError",
     "InvalidFinanceContractError",
     "InvalidPayableError",
     "InvalidPayableStateError",

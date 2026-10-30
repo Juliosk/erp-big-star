@@ -111,6 +111,9 @@ class Settings(BaseSettings):
         "finance.reconciliation.read",
         "finance.reconciliation.import",
         "finance.reconciliation.execute",
+        "finance.cash_flow.read",
+        "finance.cash_flow.project",
+        "finance.cash_flow.scenario",
         "workflow.definition.manage",
     )
 

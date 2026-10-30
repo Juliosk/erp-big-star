@@ -44,6 +44,9 @@ from erp.modules.finance.application.payables import (
     SchedulePayable,
 )
 from erp.modules.finance.application.permissions import (
+    FINANCE_CASH_FLOW_PROJECT,
+    FINANCE_CASH_FLOW_READ,
+    FINANCE_CASH_FLOW_SCENARIO,
     FINANCE_PAYABLE_ADJUST,
     FINANCE_PAYABLE_APPROVE,
     FINANCE_PAYABLE_CREATE,
@@ -109,6 +112,9 @@ from erp.modules.finance.application.treasury_api import (
 )
 
 __all__ = [
+    "FINANCE_CASH_FLOW_PROJECT",
+    "FINANCE_CASH_FLOW_READ",
+    "FINANCE_CASH_FLOW_SCENARIO",
     "FINANCE_PAYABLE_ADJUST",
     "FINANCE_PAYABLE_APPROVE",
     "FINANCE_PAYABLE_CREATE",

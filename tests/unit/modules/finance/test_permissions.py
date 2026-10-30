@@ -13,6 +13,9 @@ from erp.modules.admin.contracts import (
     SecurityContext,
 )
 from erp.modules.finance.application import (
+    FINANCE_CASH_FLOW_PROJECT,
+    FINANCE_CASH_FLOW_READ,
+    FINANCE_CASH_FLOW_SCENARIO,
     FINANCE_PAYABLE_ADJUST,
     FINANCE_PAYABLE_APPROVE,
     FINANCE_PAYABLE_CREATE,
@@ -33,6 +36,9 @@ from erp.modules.finance.application import permissions as permission_module
 def test_finance_registry_exposes_canonical_payable_and_treasury_permissions() -> None:
     registry = finance_permission_registry()
     expected = {
+        FINANCE_CASH_FLOW_READ,
+        FINANCE_CASH_FLOW_PROJECT,
+        FINANCE_CASH_FLOW_SCENARIO,
         FINANCE_PAYABLE_READ,
         FINANCE_PAYABLE_CREATE,
         FINANCE_PAYABLE_APPROVE,
@@ -67,6 +73,9 @@ def test_finance_sensitive_operations_are_fail_closed_by_risk() -> None:
     assert registry.get(FINANCE_RECONCILIATION_READ).risk_level is PermissionRiskLevel.HIGH
     assert registry.get(FINANCE_RECONCILIATION_IMPORT).risk_level is PermissionRiskLevel.CRITICAL
     assert registry.get(FINANCE_RECONCILIATION_EXECUTE).risk_level is PermissionRiskLevel.CRITICAL
+    assert registry.get(FINANCE_CASH_FLOW_READ).risk_level is PermissionRiskLevel.HIGH
+    assert registry.get(FINANCE_CASH_FLOW_PROJECT).risk_level is PermissionRiskLevel.CRITICAL
+    assert registry.get(FINANCE_CASH_FLOW_SCENARIO).risk_level is PermissionRiskLevel.CRITICAL
 
 
 def test_finance_authorization_requires_permission_and_company_scope(

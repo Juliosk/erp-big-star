@@ -25,6 +25,9 @@ FINANCE_TREASURY_BATCH_EXECUTE = PermissionCode("finance.treasury_batch.execute"
 FINANCE_RECONCILIATION_READ = PermissionCode("finance.reconciliation.read")
 FINANCE_RECONCILIATION_IMPORT = PermissionCode("finance.reconciliation.import")
 FINANCE_RECONCILIATION_EXECUTE = PermissionCode("finance.reconciliation.execute")
+FINANCE_CASH_FLOW_READ = PermissionCode("finance.cash_flow.read")
+FINANCE_CASH_FLOW_PROJECT = PermissionCode("finance.cash_flow.project")
+FINANCE_CASH_FLOW_SCENARIO = PermissionCode("finance.cash_flow.scenario")
 
 
 def finance_permission_registry() -> PermissionRegistry:
@@ -76,6 +79,21 @@ def finance_permission_registry() -> PermissionRegistry:
             "Execute or override bank reconciliation decisions",
             PermissionRiskLevel.CRITICAL,
         ),
+        (
+            FINANCE_CASH_FLOW_READ,
+            "Read company cash positions and liquidity projections",
+            PermissionRiskLevel.HIGH,
+        ),
+        (
+            FINANCE_CASH_FLOW_PROJECT,
+            "Generate or refresh authoritative cash-flow projections",
+            PermissionRiskLevel.CRITICAL,
+        ),
+        (
+            FINANCE_CASH_FLOW_SCENARIO,
+            "Create and compare non-authoritative liquidity scenarios",
+            PermissionRiskLevel.CRITICAL,
+        ),
     )
     return PermissionRegistry(
         Permission(
@@ -108,6 +126,9 @@ class FinanceAuthorization:
 
 
 __all__ = [
+    "FINANCE_CASH_FLOW_PROJECT",
+    "FINANCE_CASH_FLOW_READ",
+    "FINANCE_CASH_FLOW_SCENARIO",
     "FINANCE_PAYABLE_ADJUST",
     "FINANCE_PAYABLE_APPROVE",
     "FINANCE_PAYABLE_CREATE",
