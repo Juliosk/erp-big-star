@@ -159,9 +159,16 @@ class HypotheticalCashFlowError(FinanceDomainError):
     code = "HYPOTHETICAL_CASH_FLOW_FORBIDDEN"
 
 
+class CashFlowConflictError(FinanceDomainError):
+    """A Cash Flow scenario or immutable snapshot conflicts with persisted identity."""
+
+    code = "CASH_FLOW_CONFLICT"
+
+
 __all__ = [
     "BankMovementAlreadyReconciledError",
     "BankStatementConflictError",
+    "CashFlowConflictError",
     "CashFlowCurrencyMismatchError",
     "CashFlowScopeError",
     "FinanceDomainError",

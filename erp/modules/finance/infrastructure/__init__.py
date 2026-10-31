@@ -53,6 +53,14 @@ from erp.modules.finance.infrastructure.bank_statements import (
     CsvStatementParser,
     OfxStatementParser,
 )
+from erp.modules.finance.infrastructure.cash_flow_model import (
+    CashFlowAuditLogModel,
+    CashFlowProjectionSnapshotModel,
+    CashFlowScenarioDefinitionModel,
+)
+from erp.modules.finance.infrastructure.cash_flow_repository import (
+    CashFlowProjectionRepository,
+)
 from erp.modules.finance.infrastructure.governance_consumer import (
     FINANCE_APPROVAL_CONSUMER,
     FINANCE_DIVERGENCE_CONSUMER,
@@ -143,6 +151,10 @@ __all__ = [
     "BankStatementParserRegistry",
     "BankStatementRepository",
     "BatchAuditLogModel",
+    "CashFlowAuditLogModel",
+    "CashFlowProjectionRepository",
+    "CashFlowProjectionSnapshotModel",
+    "CashFlowScenarioDefinitionModel",
     "Cnab240RemittanceAdapter",
     "Cnab240ReturnParser",
     "Cnab400RemittanceAdapter",

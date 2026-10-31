@@ -28,6 +28,7 @@ from erp.modules.finance.domain.cash_flow_projection import (
 from erp.modules.finance.domain.exceptions import (
     BankMovementAlreadyReconciledError,
     BankStatementConflictError,
+    CashFlowConflictError,
     CashFlowCurrencyMismatchError,
     CashFlowScopeError,
     FinanceDomainError,
@@ -123,6 +124,7 @@ __all__ = [
     "CashFlowBucket",
     "CashFlowCategory",
     "CashFlowCertainty",
+    "CashFlowConflictError",
     "CashFlowCurrencyMismatchError",
     "CashFlowDateHorizon",
     "CashFlowDirection",
