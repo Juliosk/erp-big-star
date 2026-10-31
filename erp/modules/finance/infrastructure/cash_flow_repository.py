@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -118,6 +118,31 @@ class CashFlowProjectionRepository:
         for model in models:
             values.append(_projection(model, await self._scenario(model.scenario_id)))
         return tuple(values)
+
+    async def claim_latest(self, projection_id: UUID) -> CashFlowProjection | None:
+        """Claim the latest version without waiting for a concurrent projection writer."""
+        _nonzero_uuid(projection_id, "projection_id")
+        latest_version = (
+            select(func.max(CashFlowProjectionSnapshotModel.version))
+            .where(
+                CashFlowProjectionSnapshotModel.company_id == self._company_id,
+                CashFlowProjectionSnapshotModel.id == projection_id,
+            )
+            .scalar_subquery()
+        )
+        model = await self._session.scalar(
+            select(CashFlowProjectionSnapshotModel)
+            .where(
+                CashFlowProjectionSnapshotModel.company_id == self._company_id,
+                CashFlowProjectionSnapshotModel.id == projection_id,
+                CashFlowProjectionSnapshotModel.version == latest_version,
+            )
+            .with_for_update(skip_locked=True)
+            .execution_options(populate_existing=True)
+        )
+        if model is None:
+            return None
+        return _projection(model, await self._scenario(model.scenario_id))
 
     async def audit_log(self, projection_id: UUID) -> tuple[CashFlowAuditLogModel, ...]:
         _nonzero_uuid(projection_id, "projection_id")

@@ -53,6 +53,20 @@ from erp.modules.finance.infrastructure.bank_statements import (
     CsvStatementParser,
     OfxStatementParser,
 )
+from erp.modules.finance.infrastructure.cash_flow_event_consumer import (
+    CASH_FLOW_EVENT_CONSUMER,
+    CashFlowEventConsumer,
+)
+from erp.modules.finance.infrastructure.cash_flow_event_model import (
+    CashFlowRecompositionRequestModel,
+    CashFlowSourceCursorModel,
+)
+from erp.modules.finance.infrastructure.cash_flow_event_state import (
+    CASH_FLOW_PROJECTION_RECOMPOSED,
+    CashFlowRecompositionWorker,
+    accept_cash_flow_source_cursor,
+    enqueue_cash_flow_recompositions,
+)
 from erp.modules.finance.infrastructure.cash_flow_model import (
     CashFlowAuditLogModel,
     CashFlowProjectionSnapshotModel,
@@ -134,6 +148,8 @@ __all__ = [
     "BANK_MOVEMENT_RECONCILED",
     "BANK_RECONCILIATION_EVENT_CONSUMER",
     "BANK_RECONCILIATION_REVIEW_REQUIRED",
+    "CASH_FLOW_EVENT_CONSUMER",
+    "CASH_FLOW_PROJECTION_RECOMPOSED",
     "FINANCE_APPROVAL_CONSUMER",
     "FINANCE_DIVERGENCE_CONSUMER",
     "FINANCE_PAYABLE_PROVISIONING_CONSUMER",
@@ -156,9 +172,13 @@ __all__ = [
     "BankStatementRepository",
     "BatchAuditLogModel",
     "CashFlowAuditLogModel",
+    "CashFlowEventConsumer",
     "CashFlowProjectionRepository",
     "CashFlowProjectionSnapshotModel",
+    "CashFlowRecompositionRequestModel",
+    "CashFlowRecompositionWorker",
     "CashFlowScenarioDefinitionModel",
+    "CashFlowSourceCursorModel",
     "Cnab240RemittanceAdapter",
     "Cnab240ReturnParser",
     "Cnab400RemittanceAdapter",
@@ -200,9 +220,11 @@ __all__ = [
     "TreasuryReviewStatus",
     "TreasurySourceCursorModel",
     "accept_bank_reconciliation_cursor",
+    "accept_cash_flow_source_cursor",
     "accept_treasury_source_cursor",
     "apply_treasury_source_cursors",
     "deactivate_event_candidate",
+    "enqueue_cash_flow_recompositions",
     "flag_reversed_reconciliations",
     "publish_reconciled_movements",
     "publish_reconciliation_review",
