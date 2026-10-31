@@ -61,6 +61,10 @@ from erp.modules.finance.infrastructure.cash_flow_model import (
 from erp.modules.finance.infrastructure.cash_flow_repository import (
     CashFlowProjectionRepository,
 )
+from erp.modules.finance.infrastructure.cash_flow_sources import (
+    PostgresBankPositionProvider,
+    PostgresPayableCommitmentProvider,
+)
 from erp.modules.finance.infrastructure.governance_consumer import (
     FINANCE_APPROVAL_CONSUMER,
     FINANCE_DIVERGENCE_CONSUMER,
@@ -181,7 +185,9 @@ __all__ = [
     "PaymentBatchReviewModel",
     "PixApiRemittanceAdapter",
     "PixCallbackParser",
+    "PostgresBankPositionProvider",
     "PostgresBankReconciliationStore",
+    "PostgresPayableCommitmentProvider",
     "PostgresPayableStore",
     "PostgresPaymentBatchEventPublisher",
     "PostgresTreasuryStore",
