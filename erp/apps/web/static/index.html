@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Cadastros · Big Star / Forma Kids</title>
     <link rel="stylesheet" href="/ui/styles.css" />
+    <link rel="stylesheet" href="/ui/protheus.css" />
     <script type="module" src="/ui/app.js"></script>
+    <script type="module" src="/ui/protheus.js"></script>
   </head>
   <body>
     <aside class="sidebar">
@@ -2340,5 +2342,10 @@
         </form>
       </dialog>
     </main>
+    <footer class="statusbar" aria-label="Barra de status">
+      <span>Empresa: <b id="sb-company">—</b></span>
+      <span>Data base: <b id="sb-date"></b></span>
+      <span>Sessão: <b id="sb-conn">Não conectado</b></span>
+    </footer>
   </body>
 </html>
