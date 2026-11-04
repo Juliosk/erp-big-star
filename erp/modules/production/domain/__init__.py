@@ -10,8 +10,10 @@ from erp.modules.production.domain.exceptions import (
     BomCycleError,
     BomNotFoundError,
     InvalidProductionValueError,
+    ProductionConflictError,
     ProductionDomainError,
     ProductionScopeError,
+    ProductionVersionConflictError,
     UnitOfMeasureMismatchError,
 )
 from erp.modules.production.domain.routing import (
@@ -37,10 +39,12 @@ __all__ = [
     "EngineeringVersion",
     "InvalidProductionValueError",
     "MaterialRequirement",
+    "ProductionConflictError",
     "ProductionDomainError",
     "ProductionQuantity",
     "ProductionRouting",
     "ProductionScopeError",
+    "ProductionVersionConflictError",
     "RoutingOperation",
     "ScrapRate",
     "UnitOfMeasure",

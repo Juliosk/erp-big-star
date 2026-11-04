@@ -43,6 +43,7 @@ class BillOfMaterials:
     version: EngineeringVersion
     output_quantity: ProductionQuantity
     items: tuple[BomItem, ...]
+    record_version: int = 1
 
     def __post_init__(self) -> None:
         require_uuid(self.company_id, "company_id")
@@ -60,6 +61,8 @@ class BillOfMaterials:
             raise InvalidProductionValueError("component products must be unique inside a BOM.")
         if self.product_id in component_ids:
             raise BomCycleError("a BOM cannot consume its own product.")
+        if type(self.record_version) is not int or self.record_version < 1:
+            raise InvalidProductionValueError("record_version must be a positive integer.")
 
 
 @dataclass(frozen=True, slots=True)

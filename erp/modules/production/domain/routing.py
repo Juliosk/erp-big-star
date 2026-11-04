@@ -32,6 +32,7 @@ class WorkCenter:
     company_id: UUID
     code: WorkCenterCode
     capabilities: frozenset[str]
+    record_version: int = 1
 
     def __post_init__(self) -> None:
         require_uuid(self.company_id, "company_id")
@@ -44,6 +45,8 @@ class WorkCenter:
             "capabilities",
             frozenset(_capability(value) for value in self.capabilities),
         )
+        if type(self.record_version) is not int or self.record_version < 1:
+            raise InvalidProductionValueError("record_version must be a positive integer.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,6 +121,7 @@ class ProductionRouting:
     product_id: UUID
     version: EngineeringVersion
     operations: tuple[RoutingOperation, ...]
+    record_version: int = 1
 
     def __post_init__(self) -> None:
         require_uuid(self.company_id, "company_id")
@@ -140,6 +144,8 @@ class ProductionRouting:
             raise InvalidProductionValueError(
                 "operation sequences must be unique and ordered."
             )
+        if type(self.record_version) is not int or self.record_version < 1:
+            raise InvalidProductionValueError("record_version must be a positive integer.")
 
 
 __all__ = [

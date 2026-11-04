@@ -20,6 +20,7 @@ from erp.modules.production.domain import (
     ProductionQuantity,
     ProductionRouting,
     ProductionScopeError,
+    ProductionVersionConflictError,
     RoutingOperation,
     ScrapRate,
     UnitOfMeasure,
@@ -293,6 +294,14 @@ def test_routing_rejects_duplicate_unordered_or_cross_tenant_operations() -> Non
         lambda: BillOfMaterials(
             uuid4(), uuid4(), version(), quantity("1"), cast(Any, ("bad",))
         ),
+        lambda: BillOfMaterials(
+            uuid4(),
+            uuid4(),
+            version(),
+            quantity("1"),
+            (item(uuid4(), "1"),),
+            record_version=0,
+        ),
         lambda: (
             lambda company_id, product_id, component_id: BillOfMaterials(
                 company_id,
@@ -324,6 +333,9 @@ def test_expansion_rejects_non_quantity_demand() -> None:
     [
         lambda: WorkCenter(uuid4(), cast(Any, "WC-1"), frozenset()),
         lambda: WorkCenter(uuid4(), WorkCenterCode("WC-1"), cast(Any, {"CUT"})),
+        lambda: WorkCenter(
+            uuid4(), WorkCenterCode("WC-1"), frozenset(), record_version=0
+        ),
         lambda: WorkCenter(uuid4(), WorkCenterCode("WC-1"), cast(Any, frozenset({1}))),
         lambda: WorkCenterConstraint(uuid4(), ()),
         lambda: WorkCenterConstraint(uuid4(), cast(Any, ("WC-1",))),
@@ -370,6 +382,23 @@ def test_expansion_rejects_non_quantity_demand() -> None:
         lambda: ProductionRouting(uuid4(), uuid4(), cast(Any, "R1"), cast(Any, ())),
         lambda: ProductionRouting(uuid4(), uuid4(), version(), ()),
         lambda: ProductionRouting(uuid4(), uuid4(), version(), cast(Any, ("bad",))),
+        lambda: (
+            lambda company_id: ProductionRouting(
+                company_id,
+                uuid4(),
+                version(),
+                (
+                    RoutingOperation(
+                        1,
+                        "Cut",
+                        WorkCenterConstraint(company_id, (WorkCenterCode("WC-1"),)),
+                        Decimal("0"),
+                        Decimal("1"),
+                    ),
+                ),
+                record_version=0,
+            )
+        )(uuid4()),
     ],
 )
 def test_routing_contracts_reject_malformed_values(factory: Callable[[], object]) -> None:
@@ -411,4 +440,14 @@ def test_supporting_value_objects_reject_malformed_values(
 def test_non_zero_uuid_is_required_at_domain_boundaries() -> None:
     with pytest.raises(InvalidProductionValueError, match="non-zero UUID"):
         BomItem(UUID(int=0), quantity("1"))
+
+
+def test_version_conflict_exposes_stable_code_and_expected_version() -> None:
+    error = ProductionVersionConflictError(3)
+
+    error = ProductionVersionConflictError(3)
+
+    assert error.code == "VERSION_CONFLICT"
+    assert error.expected_version == 3
+    assert "version 3" in str(error)
 
