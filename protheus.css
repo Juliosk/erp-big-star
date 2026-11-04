@@ -1,0 +1,176 @@
+/* Tema inspirado em ERPs desktop (estilo Protheus). Carregar DEPOIS de styles.css.
+   Só sobrescreve aparência; IDs e estrutura usados pelos .js permanecem. */
+:root {
+  --paper: #e9edf1;
+  --ink: #1f2d3a;
+  --accent: #00a7d6;
+  --sky: #c9d2db;
+  --muted: #5b6b7a;
+  --white: #fff;
+  --px-navy: #0b3a5b;
+  --px-navy2: #0f4c75;
+  --px-cyan-d: #0086ad;
+  --px-head: #e3e9ef;
+  --px-zebra: #f4f8fb;
+  --px-sel: #cfeaf6;
+  font-size: 13px;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  color-scheme: light;
+}
+:root {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+body {
+  grid-template-columns: 230px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 100vh;
+}
+/* Menu lateral em árvore compacta */
+.sidebar {
+  background: #fff;
+  color: var(--ink);
+  padding: 0;
+  border-right: 1px solid var(--sky);
+}
+.brand {
+  background: var(--px-navy);
+  color: #fff;
+  padding: 8px 12px;
+  border-bottom: 3px solid var(--accent);
+  font-size: 15px;
+  height: 44px;
+}
+.brand-star { font-size: 24px; }
+.brand small { font-size: 9px; letter-spacing: 2px; margin-top: 0; }
+.side-label {
+  margin: 0;
+  padding: 7px 10px;
+  background: var(--px-head);
+  color: var(--ink);
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  border-bottom: 1px solid var(--sky);
+}
+nav a {
+  padding: 7px 10px 7px 16px;
+  border-radius: 0;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--px-zebra);
+  background: transparent;
+}
+nav a:hover { background: var(--px-sel); }
+nav a[aria-current="page"] {
+  background: var(--px-sel);
+  border-left-color: var(--accent);
+  font-weight: 600;
+}
+nav span { color: var(--muted); font-size: 10px; }
+.company-context { margin: 0; padding: 10px; border-top: 1px solid var(--sky); }
+.company-context label,
+.company-context p { color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+.side-footer { padding: 10px; color: var(--muted); font-size: 11px; }
+.side-footer small { color: var(--muted); }
+/* Barra superior */
+main { padding: 0 10px 14px; background: var(--paper); }
+.topbar {
+  margin: 0 -10px;
+  padding: 0 12px;
+  height: 44px;
+  background: var(--px-navy);
+  color: #fff;
+  border-bottom: 3px solid var(--accent);
+  font-size: 12px;
+}
+.topbar .quiet { color: #fff; border: 1px solid #ffffff55; padding: 3px 10px; }
+.dev-banner { margin-top: 8px; }
+.page-heading { margin: 12px 0 10px; }
+h1 { font-size: 17px; color: var(--px-navy2); }
+h2 { font-size: 14px; }
+.eyebrow { font-size: 10px; letter-spacing: 1px; color: var(--muted); }
+/* Botões retos, estilo barra de ações */
+button {
+  border-radius: 2px;
+  padding: 5px 12px;
+  font-weight: 600;
+  background: var(--accent);
+  border-color: var(--px-cyan-d);
+}
+button:hover:not(:disabled) { background: var(--px-cyan-d); filter: none; }
+button.secondary {
+  background: #f7f9fb;
+  border-color: #aeb9c4;
+  color: var(--ink);
+  font-weight: 400;
+}
+button.secondary:hover:not(:disabled) { background: var(--px-sel); border-color: var(--accent); }
+button.quiet { background: transparent; border-color: transparent; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+/* Grid de browse denso e zebrado */
+.table-wrap { border-color: var(--sky); }
+th {
+  background: var(--px-head);
+  color: var(--ink);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-bottom: 2px solid var(--accent);
+  border-right: 1px solid var(--sky);
+  position: sticky;
+  top: 0;
+}
+td { padding: 5px 10px; font-size: 12.5px; border-top: 1px solid var(--sky); }
+tbody tr:nth-child(even) { background: var(--px-zebra); }
+tbody tr:hover { background: var(--px-sel); }
+td strong { font-size: 12px; }
+.status { border-radius: 9px; padding: 1px 8px; font-weight: 600; }
+.toolbar { padding: 8px; background: #fff; border: 1px solid var(--sky); gap: 6px; }
+.pagination { font-size: 12px; color: var(--muted); }
+/* Painéis e formulários */
+.panel { border-radius: 2px; padding: 14px; }
+input, select, textarea {
+  border: 1px solid #aeb9c4;
+  border-radius: 2px;
+  padding: 4px 6px;
+  background: #fff;
+  color: var(--ink);
+}
+label { font-size: 11.5px; color: var(--muted); }
+.form-grid { gap: 10px 12px; margin-top: 10px; }
+/* Janelas modais com barra de título */
+dialog {
+  border: 1px solid var(--px-navy);
+  border-radius: 0;
+  padding: 0 0 12px;
+  box-shadow: 0 12px 40px #0006;
+}
+dialog > * { margin-left: 14px; margin-right: 14px; }
+dialog > .dialog-heading,
+dialog > form > .dialog-heading {
+  margin: 0 0 8px;
+  padding: 7px 12px;
+  background: linear-gradient(var(--px-navy2), var(--px-navy));
+  color: #fff;
+}
+.dialog-heading h2 { font-size: 14px; margin: 0; }
+.dialog-heading .eyebrow { color: #cfe3f0; }
+.dialog-heading button { font-size: 16px; color: #fff; background: transparent; border-color: transparent; padding: 0 6px; }
+dialog form { padding: 0 14px; }
+dialog form > .dialog-heading { margin-left: -14px; margin-right: -14px; }
+dialog::backdrop { background: #0b1a2680; }
+/* Barra de status (rodapé) */
+.statusbar {
+  grid-column: 1 / -1;
+  background: var(--px-navy);
+  color: #cfe3f0;
+  font-size: 11.5px;
+  padding: 4px 12px calc(4px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.statusbar b { color: #fff; font-weight: 600; }
+@media (max-width: 760px) {
+  body { grid-template-columns: 1fr; }
+  .sidebar { border-right: 0; border-bottom: 1px solid var(--sky); }
+}
