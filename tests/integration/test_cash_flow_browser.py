@@ -157,4 +157,22 @@ def test_cash_flow_cockpit_assets_keep_the_clean_web_contract() -> None:
     assert '"finance/cash-flow"' in mount
 
 
+def test_cash_flow_runbook_preserves_operational_governance_and_closure() -> None:
+    content = Path("docs/cash-flow-runbook.md").read_text(encoding="utf-8")
+    assert "Migration `0050`" in content
+    assert "`finance.cash_flow.read`" in content
+    assert "`finance.cash_flow.project`" in content
+    assert "`finance.cash_flow.scenario`" in content
+    assert "`CashFlowSourceGap(source=RECEIVABLES)`" in content
+    assert '`If-Match: "N"`' in content
+    assert "CashFlowLiquidityAlertTriggered" in content
+    assert "CashFlowProjectionRecomposed" in content
+    assert "SELECT FOR UPDATE SKIP LOCKED" in content
+    assert "docker system prune -a --volumes" in content
+    assert "Encerramento do ecossistema financeiro" in content
+    assert "1.887" in content
+    assert "91,87%" in content
+    assert "0050 (head)" in content
+
+
 __all__: list[str] = []
