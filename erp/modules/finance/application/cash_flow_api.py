@@ -64,12 +64,20 @@ class CashFlowMutationResult:
 
 
 @dataclass(frozen=True, slots=True)
+class CashFlowCommandMetadata:
+    request_id: UUID
+    correlation_id: UUID
+    source_ip: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class RefreshCashFlowProjection:
     company_id: UUID
     projection_id: UUID
     expected_version: int
     idempotency_key: str
     calculated_at: datetime
+    metadata: CashFlowCommandMetadata
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +92,7 @@ class SimulateCashFlowScenario:
     business_day_convention: BusinessDayConvention
     idempotency_key: str
     calculated_at: datetime
+    metadata: CashFlowCommandMetadata
 
     def scenario(self) -> CashFlowScenario:
         return CashFlowScenario(
@@ -115,6 +124,7 @@ class CashFlowOperations(Protocol):
         *,
         actor_id: UUID,
         idempotency_key: str,
+        metadata: CashFlowCommandMetadata,
     ) -> CashFlowMutationResult: ...
 
     async def refresh(
@@ -194,6 +204,7 @@ class CashFlowApplicationService:
         command: ComposeCashFlowProjection,
         *,
         idempotency_key: str,
+        metadata: CashFlowCommandMetadata,
     ) -> CashFlowMutationResult:
         await self._authorization.require(
             context, command.company_id, FINANCE_CASH_FLOW_PROJECT, write=True
@@ -202,6 +213,7 @@ class CashFlowApplicationService:
             command,
             actor_id=context.principal.user_id,
             idempotency_key=idempotency_key,
+            metadata=metadata,
         )
 
     async def refresh(
@@ -266,6 +278,7 @@ def _view(
 __all__ = [
     "CashFlowApplicationService",
     "CashFlowCategoryTotals",
+    "CashFlowCommandMetadata",
     "CashFlowMutationResult",
     "CashFlowOperations",
     "CashFlowProjectionPage",

@@ -9,6 +9,8 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from erp.modules.finance.application import (
+    CashFlowAlertMetadata,
+    CashFlowAlertService,
     CashFlowCompositionService,
     ComposeCashFlowProjection,
     ReceivableCashFlowProvider,
@@ -16,9 +18,15 @@ from erp.modules.finance.application import (
 )
 from erp.modules.finance.domain import (
     BusinessCalendar,
+    CashFlowAlertEngine,
+    CashFlowAlertPolicy,
+    CashFlowAlertSource,
     CashFlowCertainty,
     CashFlowEngine,
     CashFlowOrigin,
+)
+from erp.modules.finance.infrastructure.cash_flow_alerts import (
+    PostgresCashFlowAlertRecorder,
 )
 from erp.modules.finance.infrastructure.cash_flow_event_model import (
     CashFlowRecompositionRequestModel,
@@ -213,6 +221,19 @@ class CashFlowRecompositionWorker:
                     currency=current.opening_balance.currency,
                 ),
                 actor_id=request.source_event_id,
+            )
+            await CashFlowAlertService(
+                CashFlowAlertEngine(CashFlowAlertPolicy()),
+                PostgresCashFlowAlertRecorder(session),
+            ).evaluate_and_record(
+                result.projection,
+                source=CashFlowAlertSource.PROJECTION,
+                metadata=CashFlowAlertMetadata(
+                    actor_id=request.source_event_id,
+                    request_id=request.request_id,
+                    correlation_id=request.correlation_id,
+                    detected_at=calculated_at,
+                ),
             )
             outgoing = MessageEnvelope.new(
                 message_kind=MessageKind.DOMAIN_EVENT,

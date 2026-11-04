@@ -53,6 +53,13 @@ from erp.modules.finance.infrastructure.bank_statements import (
     CsvStatementParser,
     OfxStatementParser,
 )
+from erp.modules.finance.infrastructure.cash_flow_alert_model import CashFlowAlertModel
+from erp.modules.finance.infrastructure.cash_flow_alerts import (
+    CASH_FLOW_CONCENTRATION_ALERT_TRIGGERED,
+    CASH_FLOW_LIQUIDITY_ALERT_TRIGGERED,
+    CASH_FLOW_SENSITIVITY_ALERT_TRIGGERED,
+    PostgresCashFlowAlertRecorder,
+)
 from erp.modules.finance.infrastructure.cash_flow_event_consumer import (
     CASH_FLOW_EVENT_CONSUMER,
     CashFlowEventConsumer,
@@ -149,8 +156,11 @@ __all__ = [
     "BANK_MOVEMENT_RECONCILED",
     "BANK_RECONCILIATION_EVENT_CONSUMER",
     "BANK_RECONCILIATION_REVIEW_REQUIRED",
+    "CASH_FLOW_CONCENTRATION_ALERT_TRIGGERED",
     "CASH_FLOW_EVENT_CONSUMER",
+    "CASH_FLOW_LIQUIDITY_ALERT_TRIGGERED",
     "CASH_FLOW_PROJECTION_RECOMPOSED",
+    "CASH_FLOW_SENSITIVITY_ALERT_TRIGGERED",
     "FINANCE_APPROVAL_CONSUMER",
     "FINANCE_DIVERGENCE_CONSUMER",
     "FINANCE_PAYABLE_PROVISIONING_CONSUMER",
@@ -172,6 +182,7 @@ __all__ = [
     "BankStatementParserRegistry",
     "BankStatementRepository",
     "BatchAuditLogModel",
+    "CashFlowAlertModel",
     "CashFlowAuditLogModel",
     "CashFlowEventConsumer",
     "CashFlowProjectionRepository",
@@ -208,6 +219,7 @@ __all__ = [
     "PixCallbackParser",
     "PostgresBankPositionProvider",
     "PostgresBankReconciliationStore",
+    "PostgresCashFlowAlertRecorder",
     "PostgresCashFlowStore",
     "PostgresPayableCommitmentProvider",
     "PostgresPayableStore",

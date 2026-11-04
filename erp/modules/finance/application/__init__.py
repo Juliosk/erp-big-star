@@ -41,9 +41,16 @@ from erp.modules.finance.application.cash_flow import (
     ReceivableCashFlowProvider,
     UnavailableReceivableProvider,
 )
+from erp.modules.finance.application.cash_flow_alerts import (
+    CashFlowAlertMetadata,
+    CashFlowAlertRecorder,
+    CashFlowAlertRecordResult,
+    CashFlowAlertService,
+)
 from erp.modules.finance.application.cash_flow_api import (
     CashFlowApplicationService,
     CashFlowCategoryTotals,
+    CashFlowCommandMetadata,
     CashFlowMutationResult,
     CashFlowOperations,
     CashFlowProjectionPage,
@@ -182,8 +189,13 @@ __all__ = [
     "BankStatementPage",
     "BankStatementParserPort",
     "BankStatementStore",
+    "CashFlowAlertMetadata",
+    "CashFlowAlertRecordResult",
+    "CashFlowAlertRecorder",
+    "CashFlowAlertService",
     "CashFlowApplicationService",
     "CashFlowCategoryTotals",
+    "CashFlowCommandMetadata",
     "CashFlowCompositionResult",
     "CashFlowCompositionService",
     "CashFlowMutationResult",

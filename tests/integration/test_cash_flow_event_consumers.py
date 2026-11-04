@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import delete, func, inspect, select
+from sqlalchemy import delete, func, inspect, select, text
 from sqlalchemy.engine import Connection
 
 from erp.modules.finance.application import (
@@ -21,6 +21,7 @@ from erp.modules.finance.infrastructure import (
     CASH_FLOW_EVENT_CONSUMER,
     CASH_FLOW_PROJECTION_RECOMPOSED,
     BankStatementRepository,
+    CashFlowAlertModel,
     CashFlowEventConsumer,
     CashFlowProjectionRepository,
     CashFlowProjectionSnapshotModel,
@@ -32,6 +33,7 @@ from erp.modules.finance.infrastructure import (
     accept_cash_flow_source_cursor,
     enqueue_cash_flow_recompositions,
 )
+from erp.platform.audit.models import AuditEventModel
 from erp.platform.config import get_settings
 from erp.platform.inbox import InboxEventModel, InboxStatus
 from erp.platform.messaging import MessageEnvelope, MessageKind
@@ -56,6 +58,38 @@ async def cash_flow_event_fixture() -> AsyncIterator[TreasuryFixture]:
             yield fixture
         finally:
             async with data.database.session() as session, session.begin():
+                alert_ids = tuple(
+                    await session.scalars(
+                        select(CashFlowAlertModel.id).where(
+                            CashFlowAlertModel.company_id.in_(
+                                (data.company_id, data.other_company_id)
+                            )
+                        )
+                    )
+                )
+                if alert_ids:
+                    await session.execute(
+                        delete(AuditEventModel).where(
+                            AuditEventModel.entity_type == "cash_flow_alert",
+                            AuditEventModel.entity_id.in_(alert_ids),
+                        )
+                    )
+                    await session.execute(
+                        delete(OutboxEventModel).where(
+                            OutboxEventModel.aggregate_type == "cash_flow_alert",
+                            OutboxEventModel.aggregate_id.in_(alert_ids),
+                        )
+                    )
+                await session.execute(
+                    text("SET LOCAL erp.allow_cash_flow_alert_cleanup = 'on'")
+                )
+                await session.execute(
+                    delete(CashFlowAlertModel).where(
+                        CashFlowAlertModel.company_id.in_(
+                            (data.company_id, data.other_company_id)
+                        )
+                    )
+                )
                 await session.execute(
                     delete(CashFlowRecompositionRequestModel).where(
                         CashFlowRecompositionRequestModel.company_id.in_(
@@ -386,10 +420,13 @@ def test_migration_0049_is_reversible_on_postgresql() -> None:
         finally:
             await database.dispose()
 
-    command.downgrade(configuration, "0048")
-    asyncio.run(verify(False))
-    command.upgrade(configuration, "0049")
-    asyncio.run(verify(True))
+    try:
+        command.downgrade(configuration, "0048")
+        asyncio.run(verify(False))
+        command.upgrade(configuration, "0049")
+        asyncio.run(verify(True))
+    finally:
+        command.upgrade(configuration, "head")
 
 
 __all__: list[str] = []

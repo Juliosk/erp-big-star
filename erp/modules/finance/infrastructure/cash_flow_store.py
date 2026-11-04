@@ -11,7 +11,12 @@ from erp.modules.finance.application import (
     ComposeCashFlowProjection,
     UnavailableReceivableProvider,
 )
+from erp.modules.finance.application.cash_flow_alerts import (
+    CashFlowAlertMetadata,
+    CashFlowAlertService,
+)
 from erp.modules.finance.application.cash_flow_api import (
+    CashFlowCommandMetadata,
     CashFlowMutationResult,
     CashFlowProjectionPage,
     RefreshCashFlowProjection,
@@ -19,6 +24,9 @@ from erp.modules.finance.application.cash_flow_api import (
 )
 from erp.modules.finance.domain import (
     BusinessCalendar,
+    CashFlowAlertEngine,
+    CashFlowAlertPolicy,
+    CashFlowAlertSource,
     CashFlowCertainty,
     CashFlowConflictError,
     CashFlowEngine,
@@ -27,6 +35,9 @@ from erp.modules.finance.domain import (
     CashFlowProjection,
     CashFlowProjectionInput,
     FinanceVersionConflictError,
+)
+from erp.modules.finance.infrastructure.cash_flow_alerts import (
+    PostgresCashFlowAlertRecorder,
 )
 from erp.modules.finance.infrastructure.cash_flow_repository import (
     CashFlowProjectionRepository,
@@ -85,6 +96,7 @@ class PostgresCashFlowStore:
         *,
         actor_id: UUID,
         idempotency_key: str,
+        metadata: CashFlowCommandMetadata,
     ) -> CashFlowMutationResult:
         payload = _compose_payload(command)
         async with self._database.session() as session, session.begin():
@@ -113,6 +125,14 @@ class PostgresCashFlowStore:
                 )
             except CashFlowConflictError as error:
                 raise _cash_flow_conflict(error) from error
+            await self._record_alerts(
+                session,
+                result.projection,
+                source=CashFlowAlertSource.PROJECTION,
+                actor_id=actor_id,
+                metadata=metadata,
+                detected_at=command.calculated_at,
+            )
             response_body = {
                 "projection_id": str(result.projection.id),
                 "version": result.projection.version,
@@ -175,6 +195,14 @@ class PostgresCashFlowStore:
                 )
             except FinanceVersionConflictError as error:
                 raise _version_conflict(error) from error
+            await self._record_alerts(
+                session,
+                result.projection,
+                source=CashFlowAlertSource.PROJECTION,
+                actor_id=actor_id,
+                metadata=command.metadata,
+                detected_at=command.calculated_at,
+            )
             response_body = {
                 "projection_id": str(result.projection.id),
                 "version": result.projection.version,
@@ -226,6 +254,14 @@ class PostgresCashFlowStore:
             base = await _current_projection(repository, command.projection_id)
             _require_version(base.version, command.expected_version)
             projection = self._simulate(base, command, calculated_at)
+            await self._record_alerts(
+                session,
+                projection,
+                source=CashFlowAlertSource.SCENARIO,
+                actor_id=actor_id,
+                metadata=command.metadata,
+                detected_at=calculated_at,
+            )
             await self._idempotency.complete(
                 session,
                 decision,
@@ -236,6 +272,31 @@ class PostgresCashFlowStore:
                 },
             )
             return CashFlowMutationResult(projection, False, False, base.version)
+
+    async def _record_alerts(
+        self,
+        session: Any,
+        projection: CashFlowProjection,
+        *,
+        source: CashFlowAlertSource,
+        actor_id: UUID,
+        metadata: CashFlowCommandMetadata,
+        detected_at: datetime,
+    ) -> None:
+        await CashFlowAlertService(
+            CashFlowAlertEngine(CashFlowAlertPolicy()),
+            PostgresCashFlowAlertRecorder(session),
+        ).evaluate_and_record(
+            projection,
+            source=source,
+            metadata=CashFlowAlertMetadata(
+                actor_id=actor_id,
+                request_id=metadata.request_id,
+                correlation_id=metadata.correlation_id,
+                detected_at=detected_at,
+                source_ip=metadata.source_ip,
+            ),
+        )
 
     def _simulate(
         self,

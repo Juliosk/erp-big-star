@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, text
+from sqlalchemy import delete, select, text
 
 from erp.apps.api.app import create_app
 from erp.modules.admin.application import SecurityContext
@@ -23,13 +23,16 @@ from erp.modules.finance.application import (
     FinanceAuthorization,
 )
 from erp.modules.finance.infrastructure import PostgresCashFlowStore
+from erp.modules.finance.infrastructure.cash_flow_alert_model import CashFlowAlertModel
 from erp.modules.finance.infrastructure.cash_flow_model import (
     CashFlowAuditLogModel,
     CashFlowProjectionSnapshotModel,
     CashFlowScenarioDefinitionModel,
 )
+from erp.platform.audit.models import AuditEventModel
 from erp.platform.config import get_settings
 from erp.platform.idempotency.models import IdempotencyRecordModel
+from erp.platform.outbox.models import OutboxEventModel
 from tests.integration.test_bank_statement_repository import bank_statement_fixture
 from tests.integration.test_procurement_supplier_repository import ProcurementFixture
 
@@ -71,6 +74,34 @@ def cash_flow_api() -> Iterator[tuple[TestClient, ProcurementFixture, ResolverSt
 
 async def _cleanup_cash_flow(data: ProcurementFixture) -> None:
     async with data.database.session() as session, session.begin():
+        alert_ids = tuple(
+            await session.scalars(
+                select(CashFlowAlertModel.id).where(
+                    CashFlowAlertModel.company_id == data.company_id
+                )
+            )
+        )
+        if alert_ids:
+            await session.execute(
+                delete(AuditEventModel).where(
+                    AuditEventModel.entity_type == "cash_flow_alert",
+                    AuditEventModel.entity_id.in_(alert_ids),
+                )
+            )
+            await session.execute(
+                delete(OutboxEventModel).where(
+                    OutboxEventModel.aggregate_type == "cash_flow_alert",
+                    OutboxEventModel.aggregate_id.in_(alert_ids),
+                )
+            )
+        await session.execute(
+            text("SET LOCAL erp.allow_cash_flow_alert_cleanup = 'on'")
+        )
+        await session.execute(
+            delete(CashFlowAlertModel).where(
+                CashFlowAlertModel.company_id == data.company_id
+            )
+        )
         await session.execute(text("SET LOCAL erp.allow_cash_flow_cleanup = 'on'"))
         await session.execute(
             delete(CashFlowAuditLogModel).where(

@@ -18,6 +18,7 @@ from erp.modules.finance.api.versioning import require_version
 from erp.modules.finance.application import ComposeCashFlowProjection
 from erp.modules.finance.application.cash_flow_api import (
     CashFlowApplicationService,
+    CashFlowCommandMetadata,
     RefreshCashFlowProjection,
     SimulateCashFlowScenario,
     utc_now,
@@ -62,9 +63,18 @@ def _headers(
         response.headers["Idempotency-Replayed"] = str(replayed).lower()
 
 
+def _metadata(request: Request) -> CashFlowCommandMetadata:
+    return CashFlowCommandMetadata(
+        request_id=UUID(request.state.request_id),
+        correlation_id=UUID(request.state.correlation_id),
+        source_ip=None if request.client is None else request.client.host,
+    )
+
+
 @router.post("/projections", status_code=201, response_model=CashFlowMutationResponse)
 async def create_projection(
     body: CreateCashFlowProjectionRequest,
+    request: Request,
     response: Response,
     context: Annotated[SecurityContext, Depends(resolve_security_context)],
     service: Annotated[CashFlowApplicationService, Depends(get_service)],
@@ -97,7 +107,12 @@ async def create_projection(
             message="Invalid Cash Flow projection request.",
             status_code=422,
         ) from error
-    result = await service.project(context, command, idempotency_key=key)
+    result = await service.project(
+        context,
+        command,
+        idempotency_key=key,
+        metadata=_metadata(request),
+    )
     if result.idempotency_replayed:
         response.status_code = 200
     response.headers["Location"] = (
@@ -170,6 +185,7 @@ async def get_projection(
 async def recalculate_projection(
     projection_id: UUID,
     company_id: UUID,
+    request: Request,
     response: Response,
     context: Annotated[SecurityContext, Depends(resolve_security_context)],
     service: Annotated[CashFlowApplicationService, Depends(get_service)],
@@ -184,6 +200,7 @@ async def recalculate_projection(
             expected_version=version,
             idempotency_key=key,
             calculated_at=utc_now(),
+            metadata=_metadata(request),
         ),
     )
     _headers(
@@ -197,6 +214,7 @@ async def recalculate_projection(
 @router.post("/scenarios", response_model=CashFlowMutationResponse)
 async def simulate_scenario(
     body: SimulateCashFlowScenarioRequest,
+    request: Request,
     response: Response,
     context: Annotated[SecurityContext, Depends(resolve_security_context)],
     service: Annotated[CashFlowApplicationService, Depends(get_service)],
@@ -216,6 +234,7 @@ async def simulate_scenario(
             business_day_convention=convention,
             idempotency_key=key,
             calculated_at=utc_now(),
+            metadata=_metadata(request),
         )
         command.scenario()
     except (FinanceDomainError, ValueError) as error:
