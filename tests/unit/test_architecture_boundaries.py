@@ -180,3 +180,21 @@ def test_finance_never_depends_on_procurement_or_fiscal_internals() -> None:
             if imported.startswith(forbidden):
                 violations.append((str(source.relative_to(PROJECT_ROOT)), imported))
     assert violations == []
+
+
+def test_production_imports_only_own_module_or_public_owner_contracts() -> None:
+    """Production integrates with other owners only through explicit contracts."""
+    allowed = (
+        "erp.modules.production.",
+        "erp.modules.admin.contracts",
+        "erp.modules.product.contracts",
+        "erp.modules.inventory.contracts",
+        "erp.modules.workflow.contracts",
+    )
+    violations = []
+    root = PROJECT_ROOT / "erp" / "modules" / "production"
+    for source in root.rglob("*.py"):
+        for imported in imported_modules(source.read_text(encoding="utf-8")):
+            if imported.startswith("erp.modules.") and not imported.startswith(allowed):
+                violations.append((str(source.relative_to(PROJECT_ROOT)), imported))
+    assert violations == []

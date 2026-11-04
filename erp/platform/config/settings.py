@@ -114,6 +114,12 @@ class Settings(BaseSettings):
         "finance.cash_flow.read",
         "finance.cash_flow.project",
         "finance.cash_flow.scenario",
+        "production.engineering.read",
+        "production.engineering.write",
+        "production.planning.read",
+        "production.planning.run",
+        "production.shop_floor.read",
+        "production.shop_floor.execute",
         "workflow.definition.manage",
     )
 
