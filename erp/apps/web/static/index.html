@@ -48,6 +48,9 @@
         <a id="conciliation-nav" href="/ui/finance/conciliation" hidden
           >Conciliação <span>M12</span></a
         >
+        <a id="cash-flow-nav" href="/ui/finance/cash-flow" hidden
+          >Fluxo de caixa <span>M12</span></a
+        >
       </nav>
       <div class="company-context">
         <label for="company">Empresa de trabalho</label
@@ -1769,6 +1772,98 @@
           </label>
           <p id="conciliation-dialog-error" role="alert" hidden></p>
           <footer class="dialog-footer"><button id="conciliation-confirm" type="submit">Confirmar resolução</button></footer>
+        </form>
+      </dialog>
+      <section id="cash-flow" hidden aria-labelledby="cash-flow-title">
+        <div class="page-heading cash-flow-heading">
+          <div>
+            <p class="eyebrow">LIQUIDEZ &amp; CENÁRIOS / M12</p>
+            <h1 id="cash-flow-title">Radar de caixa</h1>
+            <p>Runway financeiro, compromissos e sinais de ruptura no mesmo horizonte.</p>
+          </div>
+          <div class="cash-flow-heading-actions">
+            <button id="cash-flow-refresh" class="secondary">Atualizar painel</button>
+            <button id="cash-flow-recalculate">Recalcular posição</button>
+          </div>
+        </div>
+
+        <nav class="cash-flow-horizons" aria-label="Horizonte da projeção">
+          <button data-cash-flow-horizon="SHORT_TERM" aria-pressed="true">Curto prazo<small>até 90 dias</small></button>
+          <button data-cash-flow-horizon="MEDIUM_TERM" aria-pressed="false">Médio prazo<small>91 a 365 dias</small></button>
+          <button data-cash-flow-horizon="LONG_TERM" aria-pressed="false">Longo prazo<small>acima de 1 ano</small></button>
+        </nav>
+
+        <div id="cash-flow-empty" class="panel cash-flow-empty" hidden>
+          <span aria-hidden="true">⌁</span>
+          <h2>Nenhuma projeção neste horizonte</h2>
+          <p>Calcule uma posição de caixa para transformar saldos e compromissos em runway.</p>
+        </div>
+
+        <div id="cash-flow-content" hidden>
+          <div class="cash-flow-status-line">
+            <div><span id="cash-flow-state" class="cash-flow-state">—</span><strong id="cash-flow-horizon-label">Curto prazo</strong></div>
+            <div><span id="cash-flow-scenario-mark" class="cash-flow-scenario-mark" hidden>SIMULAÇÃO · NÃO PERSISTIDA</span><span id="cash-flow-version" class="version">—</span></div>
+          </div>
+          <div class="cash-flow-metrics" aria-label="Resumo da posição de caixa">
+            <article><small>Saldo de abertura</small><strong id="cash-flow-opening">R$ 0,00</strong><span id="cash-flow-calculated">—</span></article>
+            <article><small>Fechamento operacional</small><strong id="cash-flow-operational-close">R$ 0,00</strong><span>realizado + comprometido</span></article>
+            <article class="scenario"><small>Fechamento no cenário</small><strong id="cash-flow-scenario-close">R$ 0,00</strong><span id="cash-flow-period">—</span></article>
+            <article class="reserve"><small>Reserva de segurança</small><strong id="cash-flow-reserve">R$ 0,00</strong><span>linha mínima de operação</span></article>
+          </div>
+
+          <section class="panel cash-flow-runway">
+            <div class="cash-flow-section-heading">
+              <div><p class="eyebrow">RUNWAY DE LIQUIDEZ</p><h2>Evolução do saldo</h2></div>
+              <div class="cash-flow-legend" aria-label="Legenda do gráfico"><span class="operational">Operacional</span><span class="scenario">Cenário</span><span class="reserve">Abaixo da reserva</span></div>
+            </div>
+            <div id="cash-flow-gap" class="cash-flow-gap" hidden><strong>Projeção incompleta</strong><span id="cash-flow-gap-text"></span></div>
+            <div id="cash-flow-chart" class="cash-flow-chart"></div>
+          </section>
+
+          <div class="cash-flow-workspace">
+            <section class="panel cash-flow-composition">
+              <div class="cash-flow-section-heading"><div><p class="eyebrow">COMPOSIÇÃO</p><h2>Origem do movimento</h2></div></div>
+              <div class="cash-flow-mix-heading"><span>Camada</span><span>Entradas</span><span>Saídas</span></div>
+              <div id="cash-flow-mix" class="cash-flow-mix"></div>
+              <div class="cash-flow-scenario-actions">
+                <button id="cash-flow-simulate">Simular cenário</button>
+                <button id="cash-flow-reset-scenario" class="quiet" hidden>Voltar ao operacional</button>
+              </div>
+            </section>
+            <section class="panel cash-flow-alert-queue" aria-live="polite">
+              <div class="cash-flow-section-heading">
+                <div><p class="eyebrow">FILA DE RISCO</p><h2>Alertas explicáveis</h2></div>
+                <span id="cash-flow-alert-count" class="cash-flow-alert-count">0</span>
+              </div>
+              <div id="cash-flow-alert-list" class="cash-flow-alert-list"></div>
+              <div id="cash-flow-alert-empty" class="cash-flow-alert-empty">
+                <span aria-hidden="true">✓</span><strong>Nenhum limite cruzado</strong><p>A posição permanece dentro das políticas de risco configuradas.</p>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <dialog id="cash-flow-scenario-dialog" class="cash-flow-scenario-dialog">
+        <form id="cash-flow-scenario-form">
+          <div class="dialog-heading">
+            <div><p class="eyebrow">LABORATÓRIO STATELESS</p><h2>Simular sensibilidade</h2></div>
+            <button id="cash-flow-scenario-close" type="button" class="quiet" aria-label="Fechar simulação">×</button>
+          </div>
+          <p class="hint">A simulação recalcula o runway e os alertas, sem substituir o snapshot operacional.</p>
+          <label for="cash-flow-scenario-name">Nome do cenário
+            <input id="cash-flow-scenario-name" value="Stress de liquidez" maxlength="120" required />
+          </label>
+          <div class="cash-flow-scenario-fields">
+            <label for="cash-flow-delay">Atraso dos recebíveis
+              <div class="cash-flow-input-unit"><input id="cash-flow-delay" type="number" value="15" min="0" max="365" required /><span>dias</span></div>
+            </label>
+            <label for="cash-flow-cost-variation">Variação de custos
+              <div class="cash-flow-input-unit"><input id="cash-flow-cost-variation" type="number" value="10" min="-100" max="1000" step="0.1" required /><span>%</span></div>
+            </label>
+          </div>
+          <div class="cash-flow-stateless-note"><span aria-hidden="true">◇</span><p><strong>Sem efeito operacional.</strong> O resultado só permanece na tela; alertas ficam auditáveis.</p></div>
+          <footer class="dialog-footer"><button type="submit">Calcular impacto</button></footer>
         </form>
       </dialog>
       <section id="sales" hidden aria-labelledby="sales-title">

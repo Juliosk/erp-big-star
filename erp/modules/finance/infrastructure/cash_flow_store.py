@@ -6,6 +6,8 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy import select
+
 from erp.modules.finance.application import (
     CashFlowCompositionService,
     ComposeCashFlowProjection,
@@ -16,6 +18,8 @@ from erp.modules.finance.application.cash_flow_alerts import (
     CashFlowAlertService,
 )
 from erp.modules.finance.application.cash_flow_api import (
+    CashFlowAlertPage,
+    CashFlowAlertView,
     CashFlowCommandMetadata,
     CashFlowMutationResult,
     CashFlowProjectionPage,
@@ -36,6 +40,7 @@ from erp.modules.finance.domain import (
     CashFlowProjectionInput,
     FinanceVersionConflictError,
 )
+from erp.modules.finance.infrastructure.cash_flow_alert_model import CashFlowAlertModel
 from erp.modules.finance.infrastructure.cash_flow_alerts import (
     PostgresCashFlowAlertRecorder,
 )
@@ -58,6 +63,40 @@ class PostgresCashFlowStore:
         self._database = database
         self._idempotency = IdempotencyService(ttl_seconds=ttl_seconds)
         self._engine = CashFlowEngine(BusinessCalendar())
+
+    async def list_alerts(
+        self,
+        company_id: UUID,
+        *,
+        projection_id: UUID | None,
+        severity: str | None,
+        page: int,
+        page_size: int,
+    ) -> CashFlowAlertPage:
+        statement = select(CashFlowAlertModel).where(
+            CashFlowAlertModel.company_id == company_id
+        )
+        if projection_id is not None:
+            statement = statement.where(
+                CashFlowAlertModel.projection_id == projection_id
+            )
+        if severity is not None:
+            statement = statement.where(CashFlowAlertModel.severity == severity)
+        statement = (
+            statement.order_by(
+                CashFlowAlertModel.detected_at.desc(), CashFlowAlertModel.id
+            )
+            .limit(page_size + 1)
+            .offset((page - 1) * page_size)
+        )
+        async with self._database.session() as session:
+            values = tuple(await session.scalars(statement))
+        return CashFlowAlertPage(
+            items=tuple(_alert_view(item) for item in values[:page_size]),
+            page=page,
+            page_size=page_size,
+            has_more=len(values) > page_size,
+        )
 
     async def list_latest(
         self,
@@ -357,6 +396,25 @@ def _compose_payload(command: ComposeCashFlowProjection) -> dict[str, object]:
             "business_day_convention": command.scenario.business_day_convention.value,
         },
     }
+
+
+def _alert_view(value: CashFlowAlertModel) -> CashFlowAlertView:
+    return CashFlowAlertView(
+        id=value.id,
+        projection_id=value.projection_id,
+        projection_version=value.projection_version,
+        source=value.source,
+        alert_type=value.alert_type,
+        severity=value.severity,
+        dimension=value.dimension,
+        subject_key=value.subject_key,
+        breach_on=value.breach_on,
+        actual_value=value.actual_value,
+        threshold_value=value.threshold_value,
+        currency=value.currency,
+        details=dict(value.details),
+        detected_at=value.detected_at,
+    )
 
 
 async def _current_projection(

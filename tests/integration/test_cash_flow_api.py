@@ -321,6 +321,47 @@ def test_stateless_scenario_is_replayable_and_does_not_persist_snapshot() -> Non
         assert stored.json()["scenario"]["receivable_delay_days"] == 0
 
 
+def test_alert_queue_is_projection_scoped_and_tenant_bound() -> None:
+    with cash_flow_api() as (client, data, resolver):
+        projection_id = uuid4()
+        body = _projection_body(data.company_id, projection_id, uuid4())
+        body["minimum_reserve"] = "999999.00"
+        created = client.post(
+            "/api/v1/finance/cash-flow/projections",
+            headers=_headers(**{"Idempotency-Key": "cash-flow-alert-queue-194"}),
+            json=body,
+        )
+        assert created.status_code == 201, created.text
+
+        response = client.get(
+            "/api/v1/finance/cash-flow/alerts",
+            headers=_headers(),
+            params={
+                "company_id": str(data.company_id),
+                "projection_id": str(projection_id),
+                "severity": "CRITICAL",
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["data"]
+        assert {item["projection_id"] for item in response.json()["data"]} == {
+            str(projection_id)
+        }
+        assert {item["severity"] for item in response.json()["data"]} == {"CRITICAL"}
+
+        resolver.context = _context(data.actor_id, data.other_company_id)
+        hidden = client.get(
+            "/api/v1/finance/cash-flow/alerts",
+            headers=_headers(),
+            params={
+                "company_id": str(data.other_company_id),
+                "projection_id": str(projection_id),
+            },
+        )
+        assert hidden.status_code == 200
+        assert hidden.json()["data"] == []
+
+
 def test_cash_flow_rbac_and_validation_use_standard_error_contract() -> None:
     with cash_flow_api() as (client, data, resolver):
         resolver.context = _context(

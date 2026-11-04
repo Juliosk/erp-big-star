@@ -7,6 +7,8 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from erp.modules.finance.application.cash_flow_api import (
+    CashFlowAlertPage,
+    CashFlowAlertView,
     CashFlowMutationResult,
     CashFlowProjectionView,
 )
@@ -248,6 +250,58 @@ class CashFlowProjectionPageResponse(BaseModel):
     has_more: bool
 
 
+class CashFlowAlertResponse(BaseModel):
+    id: UUID
+    projection_id: UUID
+    projection_version: int
+    source: str
+    alert_type: str
+    severity: str
+    dimension: str
+    subject_key: str
+    breach_on: date | None
+    actual_value: Decimal
+    threshold_value: Decimal
+    currency: str
+    details: dict[str, object]
+    detected_at: datetime
+
+    @classmethod
+    def from_view(cls, value: CashFlowAlertView) -> CashFlowAlertResponse:
+        return cls(
+            id=value.id,
+            projection_id=value.projection_id,
+            projection_version=value.projection_version,
+            source=value.source,
+            alert_type=value.alert_type,
+            severity=value.severity,
+            dimension=value.dimension,
+            subject_key=value.subject_key,
+            breach_on=value.breach_on,
+            actual_value=value.actual_value,
+            threshold_value=value.threshold_value,
+            currency=value.currency,
+            details=value.details,
+            detected_at=value.detected_at,
+        )
+
+
+class CashFlowAlertPageResponse(BaseModel):
+    data: list[CashFlowAlertResponse]
+    page: int
+    page_size: int
+    has_more: bool
+
+    @classmethod
+    def from_application(cls, value: CashFlowAlertPage) -> CashFlowAlertPageResponse:
+        return cls(
+            data=[CashFlowAlertResponse.from_view(item) for item in value.items],
+            page=value.page,
+            page_size=value.page_size,
+            has_more=value.has_more,
+        )
+
+
 class CashFlowMutationResponse(BaseModel):
     projection: CashFlowProjectionResponse
     persisted: bool
@@ -269,6 +323,8 @@ def _amount(value: CashAmount) -> CashAmountResponse:
 
 
 __all__ = [
+    "CashFlowAlertPageResponse",
+    "CashFlowAlertResponse",
     "CashFlowMutationResponse",
     "CashFlowProjectionPageResponse",
     "CashFlowProjectionResponse",

@@ -48,6 +48,8 @@ from erp.modules.finance.application.cash_flow_alerts import (
     CashFlowAlertService,
 )
 from erp.modules.finance.application.cash_flow_api import (
+    CashFlowAlertPage,
+    CashFlowAlertView,
     CashFlowApplicationService,
     CashFlowCategoryTotals,
     CashFlowCommandMetadata,
@@ -190,9 +192,11 @@ __all__ = [
     "BankStatementParserPort",
     "BankStatementStore",
     "CashFlowAlertMetadata",
+    "CashFlowAlertPage",
     "CashFlowAlertRecordResult",
     "CashFlowAlertRecorder",
     "CashFlowAlertService",
+    "CashFlowAlertView",
     "CashFlowApplicationService",
     "CashFlowCategoryTotals",
     "CashFlowCommandMetadata",

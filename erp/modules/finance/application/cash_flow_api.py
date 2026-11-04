@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
@@ -50,6 +50,32 @@ class CashFlowProjectionView:
 @dataclass(frozen=True, slots=True)
 class CashFlowProjectionPage:
     items: tuple[CashFlowProjection, ...]
+    page: int
+    page_size: int
+    has_more: bool
+
+
+@dataclass(frozen=True, slots=True)
+class CashFlowAlertView:
+    id: UUID
+    projection_id: UUID
+    projection_version: int
+    source: str
+    alert_type: str
+    severity: str
+    dimension: str
+    subject_key: str
+    breach_on: date | None
+    actual_value: Decimal
+    threshold_value: Decimal
+    currency: str
+    details: dict[str, object]
+    detected_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class CashFlowAlertPage:
+    items: tuple[CashFlowAlertView, ...]
     page: int
     page_size: int
     has_more: bool
@@ -105,6 +131,16 @@ class SimulateCashFlowScenario:
 
 
 class CashFlowOperations(Protocol):
+    async def list_alerts(
+        self,
+        company_id: UUID,
+        *,
+        projection_id: UUID | None,
+        severity: str | None,
+        page: int,
+        page_size: int,
+    ) -> CashFlowAlertPage: ...
+
     async def list_latest(
         self,
         company_id: UUID,
@@ -174,6 +210,27 @@ class CashFlowApplicationService:
             result.page,
             result.page_size,
             result.has_more,
+        )
+
+    async def list_alerts(
+        self,
+        context: SecurityContext,
+        company_id: UUID,
+        *,
+        projection_id: UUID | None,
+        severity: str | None,
+        page: int,
+        page_size: int,
+    ) -> CashFlowAlertPage:
+        await self._authorization.require(
+            context, company_id, FINANCE_CASH_FLOW_READ, write=False
+        )
+        return await self._operations.list_alerts(
+            company_id,
+            projection_id=projection_id,
+            severity=severity,
+            page=page,
+            page_size=page_size,
         )
 
     async def get(
@@ -276,6 +333,8 @@ def _view(
 
 
 __all__ = [
+    "CashFlowAlertPage",
+    "CashFlowAlertView",
     "CashFlowApplicationService",
     "CashFlowCategoryTotals",
     "CashFlowCommandMetadata",

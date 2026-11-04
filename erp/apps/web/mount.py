@@ -14,7 +14,12 @@ class WebFiles(StaticFiles):
         if path.rstrip("/").replace("\\", "/") in {
             "treasury",
             "finance/conciliation",
-        } or requested_path in {"/ui/treasury", "/ui/finance/conciliation"}:
+            "finance/cash-flow",
+        } or requested_path in {
+            "/ui/treasury",
+            "/ui/finance/conciliation",
+            "/ui/finance/cash-flow",
+        }:
             path = "index.html"
         return await super().get_response(path, scope)
 

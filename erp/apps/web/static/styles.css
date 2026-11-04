@@ -2127,3 +2127,175 @@ dialog::backdrop {
     scroll-behavior: auto !important;
   }
 }
+
+/* Cash Flow cockpit: the runway chart is the primary operational instrument. */
+#cash-flow {
+  --cash-flow-deep: #153753;
+  --cash-flow-operational: #087f83;
+  --cash-flow-scenario: #6d5ba6;
+  --cash-flow-warning: #c47b19;
+  --cash-flow-danger: #b82d43;
+  --cash-flow-safe: #2d725c;
+}
+.cash-flow-heading { align-items: flex-end; }
+.cash-flow-heading-actions { display: flex; flex-wrap: wrap; gap: 9px; justify-content: flex-end; }
+.cash-flow-horizons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  border: 1px solid #ccd9e5;
+  border-radius: 8px;
+  background: #ccd9e5;
+}
+.cash-flow-horizons button {
+  display: grid;
+  gap: 3px;
+  padding: 13px 18px;
+  border: 0;
+  border-radius: 0;
+  color: var(--cash-flow-deep);
+  background: #f9fbfd;
+  text-align: left;
+}
+.cash-flow-horizons button small { color: var(--muted); font-size: .68rem; font-weight: 500; }
+.cash-flow-horizons button[aria-pressed="true"] {
+  color: #fff;
+  background: var(--cash-flow-deep);
+  box-shadow: inset 0 -3px 0 #45c2bd;
+}
+.cash-flow-horizons button[aria-pressed="true"] small { color: #c9e4e7; }
+.cash-flow-empty {
+  display: grid;
+  min-height: 360px;
+  place-content: center;
+  place-items: center;
+  color: var(--muted);
+  text-align: center;
+}
+.cash-flow-empty > span { color: var(--cash-flow-operational); font-size: 3rem; }
+.cash-flow-empty h2 { margin: 9px 0 3px; color: var(--cash-flow-deep); }
+.cash-flow-empty p { max-width: 430px; margin: 0; }
+.cash-flow-status-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 2px 0 12px;
+}
+.cash-flow-status-line > div { display: flex; align-items: center; gap: 8px; }
+.cash-flow-state,
+.cash-flow-scenario-mark {
+  padding: 5px 8px;
+  border-radius: 4px;
+  color: #285c4d;
+  background: #ddf1e9;
+  font: 800 .65rem "Cascadia Mono", monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.cash-flow-state.INCOMPLETE { color: #7e5014; background: #fff0d4; }
+.cash-flow-scenario-mark { color: #574589; background: #ebe6fb; }
+.cash-flow-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 11px;
+  margin-bottom: 16px;
+}
+.cash-flow-metrics article {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 17px 18px;
+  border: 1px solid #d7e1ea;
+  border-top: 4px solid var(--cash-flow-deep);
+  border-radius: 7px;
+  background: #fff;
+}
+.cash-flow-metrics article.scenario { border-top-color: var(--cash-flow-scenario); }
+.cash-flow-metrics article.reserve { border-top-color: var(--cash-flow-warning); }
+.cash-flow-metrics small { color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.cash-flow-metrics strong { overflow: hidden; color: var(--cash-flow-deep); font-size: clamp(1.12rem, 2vw, 1.55rem); text-overflow: ellipsis; white-space: nowrap; }
+.cash-flow-metrics span { color: var(--muted); font-size: .68rem; }
+.cash-flow-runway { padding: 21px 22px 12px; }
+.cash-flow-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.cash-flow-section-heading h2 { margin: 3px 0 0; }
+.cash-flow-legend { display: flex; flex-wrap: wrap; gap: 13px; color: var(--muted); font-size: .68rem; font-weight: 700; }
+.cash-flow-legend span::before { display: inline-block; width: 18px; height: 3px; margin-right: 6px; border-radius: 2px; background: var(--cash-flow-operational); vertical-align: middle; content: ""; }
+.cash-flow-legend .scenario::before { background: var(--cash-flow-scenario); }
+.cash-flow-legend .reserve::before { height: 8px; background: #f5cdd3; }
+.cash-flow-gap { display: flex; gap: 10px; margin-top: 14px; padding: 10px 12px; border-left: 4px solid var(--cash-flow-warning); color: #704c1c; background: #fff5df; font-size: .76rem; }
+.cash-flow-chart { min-height: 300px; margin-top: 8px; overflow: hidden; }
+.cash-flow-chart svg { display: block; width: 100%; min-width: 620px; height: 300px; }
+.cash-flow-grid-line { stroke: #dce5ec; stroke-width: 1; }
+.cash-flow-danger-zone { fill: rgba(184, 45, 67, .085); }
+.cash-flow-reserve-line { stroke: var(--cash-flow-warning); stroke-width: 1.5; stroke-dasharray: 7 5; }
+.cash-flow-line { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 4; }
+.cash-flow-line.operational { stroke: var(--cash-flow-operational); }
+.cash-flow-line.scenario { stroke: var(--cash-flow-scenario); stroke-dasharray: 8 5; }
+.cash-flow-breach-point { fill: #fff; stroke: var(--cash-flow-danger); stroke-width: 3; }
+.cash-flow-axis-label { fill: #68798d; font: 600 11px "Cascadia Mono", monospace; }
+.cash-flow-workspace { display: grid; grid-template-columns: minmax(300px, .75fr) minmax(420px, 1.25fr); gap: 16px; margin-top: 16px; align-items: start; }
+.cash-flow-composition,
+.cash-flow-alert-queue { min-width: 0; padding: 21px 22px; }
+.cash-flow-mix-heading,
+.cash-flow-mix > div { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items: center; }
+.cash-flow-mix-heading { margin-top: 18px; padding: 0 12px 7px; color: var(--muted); font-size: .65rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.cash-flow-mix-heading span:not(:first-child),
+.cash-flow-mix > div span { text-align: right; }
+.cash-flow-mix > div { padding: 12px; border-top: 1px solid #e0e7ed; }
+.cash-flow-mix > div span { color: var(--muted); font: 700 .74rem "Cascadia Mono", monospace; }
+.cash-flow-mix > div span:first-of-type { color: var(--cash-flow-safe); }
+.cash-flow-scenario-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.cash-flow-alert-count { display: grid; width: 30px; min-width: 30px; height: 30px; place-items: center; justify-self: end; border-radius: 50%; color: #fff; background: var(--cash-flow-deep); font-weight: 800; }
+.cash-flow-alert-list { display: grid; gap: 9px; margin-top: 16px; }
+.cash-flow-alert { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 11px; padding: 12px 14px; border: 1px solid #dae3eb; border-left: 4px solid var(--cash-flow-warning); border-radius: 6px; background: #fbfcfd; }
+.cash-flow-alert.CRITICAL { border-left-color: var(--cash-flow-danger); background: #fff9fa; }
+.cash-flow-alert > span { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; color: #fff; background: var(--cash-flow-warning); font-weight: 900; }
+.cash-flow-alert.CRITICAL > span { background: var(--cash-flow-danger); }
+.cash-flow-alert > div { display: grid; gap: 3px; min-width: 0; }
+.cash-flow-alert small { color: var(--muted); font-size: .66rem; }
+.cash-flow-alert p { margin: 0; color: #475b70; font: 700 .69rem "Cascadia Mono", monospace; }
+.cash-flow-alert-empty { display: grid; min-height: 180px; place-content: center; place-items: center; color: var(--muted); text-align: center; }
+.cash-flow-alert-empty > span { display: grid; width: 35px; height: 35px; place-items: center; border-radius: 50%; color: #fff; background: var(--cash-flow-safe); }
+.cash-flow-alert-empty strong { margin-top: 9px; color: var(--cash-flow-deep); }
+.cash-flow-alert-empty p { max-width: 340px; margin: 3px 0 0; font-size: .76rem; }
+.cash-flow-scenario-dialog { width: min(620px, calc(100vw - 28px)); padding: 0; border: 0; border-radius: 9px; }
+.cash-flow-scenario-dialog::backdrop { background: rgba(18, 36, 56, .58); backdrop-filter: blur(2px); }
+.cash-flow-scenario-dialog form { display: grid; gap: 17px; padding: 25px; }
+.cash-flow-scenario-dialog label { display: grid; gap: 6px; color: var(--muted); font-size: .72rem; font-weight: 800; }
+.cash-flow-scenario-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cash-flow-input-unit { display: grid; grid-template-columns: 1fr auto; align-items: center; overflow: hidden; border: 1px solid #bcc9d5; border-radius: 5px; background: #eef3f7; }
+.cash-flow-input-unit input { width: 100%; border: 0; border-radius: 0; }
+.cash-flow-input-unit span { padding: 0 11px; color: var(--cash-flow-deep); font: 700 .72rem "Cascadia Mono", monospace; }
+.cash-flow-stateless-note { display: grid; grid-template-columns: 30px 1fr; gap: 10px; padding: 12px; border: 1px solid #d9d3ef; border-radius: 6px; color: #594d7b; background: #f6f3ff; }
+.cash-flow-stateless-note > span { font-size: 1.35rem; }
+.cash-flow-stateless-note p { margin: 0; font-size: .76rem; }
+
+@media (max-width: 900px) {
+  .cash-flow-heading,
+  .cash-flow-section-heading { display: grid; align-items: start; }
+  .cash-flow-heading-actions { justify-content: start; }
+  .cash-flow-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cash-flow-workspace { grid-template-columns: 1fr; }
+  .cash-flow-chart { overflow-x: auto; }
+}
+@media (max-width: 560px) {
+  .cash-flow-horizons,
+  .cash-flow-metrics,
+  .cash-flow-scenario-fields { grid-template-columns: 1fr; }
+  .cash-flow-horizons button { padding: 10px 13px; }
+  .cash-flow-status-line,
+  .cash-flow-status-line > div { align-items: flex-start; }
+  .cash-flow-status-line { display: grid; }
+  .cash-flow-status-line > div { flex-wrap: wrap; }
+  .cash-flow-runway,
+  .cash-flow-composition,
+  .cash-flow-alert-queue { padding: 17px 14px; }
+  .cash-flow-legend { gap: 8px; }
+  .cash-flow-gap { display: grid; }
+  .cash-flow-scenario-actions { display: grid; }
+  .cash-flow-scenario-actions button { width: 100%; }
+  .cash-flow-scenario-dialog form { padding: 19px 16px; }
+}

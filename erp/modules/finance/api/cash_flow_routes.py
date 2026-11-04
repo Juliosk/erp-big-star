@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 
 from erp.modules.admin.contracts import SecurityContext
 from erp.modules.finance.api.cash_flow_schemas import (
+    CashFlowAlertPageResponse,
     CashFlowMutationResponse,
     CashFlowProjectionPageResponse,
     CashFlowProjectionResponse,
@@ -26,6 +27,7 @@ from erp.modules.finance.application.cash_flow_api import (
 from erp.modules.finance.domain import (
     BusinessDayConvention,
     CashAmount,
+    CashFlowAlertSeverity,
     CashFlowCategory,
     CashFlowDateHorizon,
     CashFlowHorizonKind,
@@ -69,6 +71,29 @@ def _metadata(request: Request) -> CashFlowCommandMetadata:
         correlation_id=UUID(request.state.correlation_id),
         source_ip=None if request.client is None else request.client.host,
     )
+
+
+@router.get("/alerts", response_model=CashFlowAlertPageResponse)
+async def list_alerts(
+    company_id: UUID,
+    response: Response,
+    context: Annotated[SecurityContext, Depends(resolve_security_context)],
+    service: Annotated[CashFlowApplicationService, Depends(get_service)],
+    projection_id: UUID | None = None,
+    severity: CashFlowAlertSeverity | None = None,
+    page: Annotated[int, Query(ge=1, le=100_000)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> CashFlowAlertPageResponse:
+    result = await service.list_alerts(
+        context,
+        company_id,
+        projection_id=projection_id,
+        severity=None if severity is None else severity.value,
+        page=page,
+        page_size=page_size,
+    )
+    _headers(response)
+    return CashFlowAlertPageResponse.from_application(result)
 
 
 @router.post("/projections", status_code=201, response_model=CashFlowMutationResponse)

@@ -10,6 +10,7 @@ import { mountFiscal } from "./fiscal.js";
 import { mountFinance } from "./finance.js";
 import { mountTreasury } from "./treasury.js";
 import { mountBankConciliation } from "./conciliation.js";
+import { mountCashFlow } from "./cash-flow.js";
 const $ = (id) => document.getElementById(id);
 const labels = {
   EM_DESENVOLVIMENTO: "Em desenvolvimento",
@@ -135,7 +136,8 @@ let customers,
   fiscal,
   finance,
   treasury,
-  conciliation;
+  conciliation,
+  cashFlow;
 const imports = mountImports({
   api,
   context: () => ({ company, permissions }),
@@ -526,6 +528,48 @@ conciliation = mountBankConciliation({
     $("detail").hidden = true;
   },
 });
+cashFlow = mountCashFlow({
+  api,
+  context: () => ({ company, permissions }),
+  notice,
+  enter: () => {
+    area = "cash-flow";
+    $("cash-flow-nav").setAttribute("aria-current", "page");
+    [
+      "products",
+      "imports",
+      "customers",
+      "inventory",
+      "pricing",
+      "wms",
+      "workflow",
+      "sales",
+      "procurement",
+      "fiscal",
+      "finance",
+      "treasury",
+      "conciliation",
+    ].forEach((name) => $(`${name}-nav`)?.removeAttribute("aria-current"));
+    document.querySelector(".topbar > span").textContent =
+      "Financeiro / Fluxo de caixa";
+    generation++;
+    current = null;
+    imports.reset();
+    customers.hide();
+    inventory.hide();
+    pricing.hide();
+    wms.hide();
+    workflow.hide();
+    sales.hide();
+    procurement.hide();
+    fiscal.hide();
+    finance.hide();
+    treasury.hide();
+    conciliation.hide();
+    $("catalog").hidden = true;
+    $("detail").hidden = true;
+  },
+});
 function notice(message) {
   $("notice").textContent = message;
   $("notice").hidden = !message;
@@ -543,6 +587,7 @@ function reset() {
   finance.reset();
   treasury.reset();
   conciliation.reset();
+  cashFlow.reset();
   $("imports-nav").hidden = true;
   $("customers-nav").hidden = true;
   $("inventory-nav").hidden = true;
@@ -555,6 +600,7 @@ function reset() {
   $("finance-nav").hidden = true;
   $("treasury-nav").hidden = true;
   $("conciliation-nav").hidden = true;
+  $("cash-flow-nav").hidden = true;
   token = "";
   permissions.clear();
   current = null;
@@ -648,6 +694,7 @@ function bind(id, action, event = "click") {
       if (id.endsWith("-nav") && id !== "conciliation-nav") {
         conciliation?.hide();
       }
+      if (id.endsWith("-nav") && id !== "cash-flow-nav") cashFlow?.hide();
       await action(e);
     } catch (error) {
       notice(error.message);
@@ -707,6 +754,7 @@ async function connect() {
   $("conciliation-nav").hidden = !permissions.has(
     "finance.reconciliation.read",
   );
+  $("cash-flow-nav").hidden = !permissions.has("finance.cash_flow.read");
   if (!company) {
     notice(
       "Nenhuma empresa ativa autorizada. Configure os escopos da identidade.",
@@ -715,6 +763,15 @@ async function connect() {
   }
   notice("");
   page = 1;
+  if (
+    window.location.pathname
+      .replace(/\/$/, "")
+      .endsWith("/finance/cash-flow") &&
+    permissions.has("finance.cash_flow.read")
+  ) {
+    await cashFlow.show();
+    return;
+  }
   if (
     window.location.pathname
       .replace(/\/$/, "")
@@ -748,6 +805,7 @@ async function loadList() {
   $("finance-nav").removeAttribute("aria-current");
   $("treasury-nav").removeAttribute("aria-current");
   $("conciliation-nav").removeAttribute("aria-current");
+  $("cash-flow-nav").removeAttribute("aria-current");
   document.querySelector(".topbar > span").textContent = "Cadastros / Produtos";
   imports.reset();
   customers.hide();
@@ -761,6 +819,7 @@ async function loadList() {
   finance.hide();
   treasury.hide();
   conciliation.hide();
+  cashFlow.hide();
   const epoch = ++generation;
   current = null;
   $("detail").hidden = true;
@@ -925,6 +984,8 @@ bind(
     if (area === "fiscal") return fiscal.show();
     if (area === "finance") return finance.show();
     if (area === "treasury") return treasury.show();
+    if (area === "conciliation") return conciliation.show();
+    if (area === "cash-flow") return cashFlow.show();
     await loadList();
   },
   "change",
@@ -971,6 +1032,9 @@ bind("treasury-nav", () => {
 });
 bind("conciliation-nav", () => {
   if (company) return conciliation.show();
+});
+bind("cash-flow-nav", () => {
+  if (company) return cashFlow.show();
 });
 bind("products-nav", () => {
   if (company) return loadList();
