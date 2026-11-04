@@ -19,6 +19,7 @@ from erp.modules.finance.domain import (
     CashFlowConflictError,
     CashFlowDateHorizon,
     CashFlowDirection,
+    CashFlowHorizonKind,
     CashFlowItem,
     CashFlowMissingSource,
     CashFlowOrigin,
@@ -112,6 +113,68 @@ class CashFlowProjectionRepository:
                 CashFlowProjectionSnapshotModel.id == projection_id,
             )
             .order_by(CashFlowProjectionSnapshotModel.version)
+            .execution_options(populate_existing=True)
+        )
+        values = []
+        for model in models:
+            values.append(_projection(model, await self._scenario(model.scenario_id)))
+        return tuple(values)
+
+    async def list_latest(
+        self,
+        *,
+        horizon: CashFlowHorizonKind,
+        limit: int,
+        offset: int,
+    ) -> tuple[CashFlowProjection, ...]:
+        """Return one latest immutable snapshot per projection for one horizon class."""
+        if not isinstance(horizon, CashFlowHorizonKind):
+            raise ValueError("horizon must be a CashFlowHorizonKind.")
+        if type(limit) is not int or not 1 <= limit <= 101:
+            raise ValueError("limit must be between 1 and 101.")
+        if type(offset) is not int or offset < 0:
+            raise ValueError("offset cannot be negative.")
+        latest_versions = (
+            select(
+                CashFlowProjectionSnapshotModel.company_id.label("company_id"),
+                CashFlowProjectionSnapshotModel.id.label("projection_id"),
+                func.max(CashFlowProjectionSnapshotModel.version).label("version"),
+            )
+            .where(CashFlowProjectionSnapshotModel.company_id == self._company_id)
+            .group_by(
+                CashFlowProjectionSnapshotModel.company_id,
+                CashFlowProjectionSnapshotModel.id,
+            )
+            .subquery()
+        )
+        duration = (
+            CashFlowProjectionSnapshotModel.horizon_end
+            - CashFlowProjectionSnapshotModel.horizon_start
+        )
+        if horizon is CashFlowHorizonKind.SHORT_TERM:
+            horizon_filter = duration <= 90
+        elif horizon is CashFlowHorizonKind.MEDIUM_TERM:
+            horizon_filter = duration.between(91, 365)
+        else:
+            horizon_filter = duration > 365
+        models = await self._session.scalars(
+            select(CashFlowProjectionSnapshotModel)
+            .join(
+                latest_versions,
+                (latest_versions.c.company_id == CashFlowProjectionSnapshotModel.company_id)
+                & (latest_versions.c.projection_id == CashFlowProjectionSnapshotModel.id)
+                & (latest_versions.c.version == CashFlowProjectionSnapshotModel.version),
+            )
+            .where(
+                CashFlowProjectionSnapshotModel.company_id == self._company_id,
+                horizon_filter,
+            )
+            .order_by(
+                CashFlowProjectionSnapshotModel.as_of.desc(),
+                CashFlowProjectionSnapshotModel.id,
+            )
+            .offset(offset)
+            .limit(limit)
             .execution_options(populate_existing=True)
         )
         values = []

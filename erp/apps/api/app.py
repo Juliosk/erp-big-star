@@ -54,6 +54,7 @@ from erp.modules.customer.infrastructure.customer_updates import PostgresCustome
 from erp.modules.finance.api import router as finance_router
 from erp.modules.finance.application import (
     BankReconciliationApplicationService,
+    CashFlowApplicationService,
     FinanceAuthorization,
     PayableApplicationService,
     TreasuryApplicationService,
@@ -61,6 +62,7 @@ from erp.modules.finance.application import (
 )
 from erp.modules.finance.infrastructure import (
     PostgresBankReconciliationStore,
+    PostgresCashFlowStore,
     PostgresPayableStore,
     PostgresTreasuryStore,
 )
@@ -222,6 +224,7 @@ def create_app(
     finance_treasury: TreasuryApplicationService | None = None,
     finance_treasury_queries: TreasuryQueryService | None = None,
     finance_reconciliation: BankReconciliationApplicationService | None = None,
+    finance_cash_flow: CashFlowApplicationService | None = None,
     inventory_queries: InventoryQueries | None = None,
     inventory_creation: InventoryCatalogService | None = None,
     inventory_adjustments: InventoryAdjustmentService | None = None,
@@ -287,6 +290,7 @@ def create_app(
     resolved_finance_treasury = finance_treasury
     resolved_finance_treasury_queries = finance_treasury_queries
     resolved_finance_reconciliation = finance_reconciliation
+    resolved_finance_cash_flow = finance_cash_flow
     resolved_inventory_queries = inventory_queries
     resolved_inventory_creation = inventory_creation
     resolved_inventory_adjustments = inventory_adjustments
@@ -676,6 +680,16 @@ def create_app(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
             ),
         )
+    if resolved_finance_cash_flow is None and isinstance(resolved_database, Database):
+        resolved_finance_cash_flow = CashFlowApplicationService(
+            PostgresCashFlowStore(
+                resolved_database,
+                ttl_seconds=resolved_settings.idempotency_ttl_seconds,
+            ),
+            FinanceAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
     if fiscal_artifact_storage is None and resolved_settings.import_storage_access_key:
         fiscal_artifact_storage = MinioStorage(resolved_settings)
     if resolved_fiscal_documents is not None and fiscal_artifact_storage is not None:
@@ -793,6 +807,7 @@ def create_app(
     application.state.finance_treasury = resolved_finance_treasury
     application.state.finance_treasury_queries = resolved_finance_treasury_queries
     application.state.finance_reconciliation = resolved_finance_reconciliation
+    application.state.finance_cash_flow = resolved_finance_cash_flow
     application.state.inventory_queries = resolved_inventory_queries
     application.state.inventory_creation = resolved_inventory_creation
     application.state.inventory_adjustments = resolved_inventory_adjustments
