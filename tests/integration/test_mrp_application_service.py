@@ -410,3 +410,4 @@ def test_migration_0053_is_reversible_on_postgresql() -> None:
     asyncio.run(verify(False))
     command.upgrade(configuration, "0053")
     asyncio.run(verify(True))
+    command.upgrade(configuration, "head")

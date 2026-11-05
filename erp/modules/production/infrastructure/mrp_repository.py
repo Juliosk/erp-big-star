@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from erp.modules.production.application.mrp import MRPRun
+from erp.modules.production.application.planned_order_conversion import (
+    PlannedOrderConversionRecord,
+    PlannedOrderStatus,
+)
 from erp.modules.production.domain import (
     BillOfMaterials,
     BomItem,
@@ -33,6 +37,7 @@ from erp.modules.production.domain import (
     ProductionConflictError,
     ProductionQuantity,
     ProductionScopeError,
+    ProductionVersionConflictError,
     ScrapRate,
     UnitOfMeasure,
 )
@@ -130,6 +135,90 @@ class MRPRunRepository:
         """Return normalized proposals ready for a future conversion use case."""
         run = await self.get(run_id)
         return () if run is None else run.plan.planned_orders
+
+    async def claim_for_conversion(
+        self,
+        run_id: UUID,
+        planned_order_id: UUID,
+    ) -> PlannedOrderConversionRecord | None:
+        _nonzero_uuid(run_id, "run_id")
+        _nonzero_uuid(planned_order_id, "planned_order_id")
+        model = await self._session.scalar(
+            select(MRPPlannedOrderModel)
+            .where(
+                MRPPlannedOrderModel.company_id == self._company_id,
+                MRPPlannedOrderModel.mrp_run_id == run_id,
+                MRPPlannedOrderModel.id == planned_order_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if model is None:
+            return None
+        run = await self.get(run_id)
+        if run is None:
+            raise ProductionConflictError("Planned order references a missing MRP run.")
+        planned_order = next(
+            (value for value in run.plan.planned_orders if value.id == planned_order_id),
+            None,
+        )
+        if planned_order is None:
+            raise ProductionConflictError("MRP run snapshot is missing its planned order.")
+        return PlannedOrderConversionRecord(
+            run=run,
+            planned_order=planned_order,
+            status=PlannedOrderStatus(model.status),
+            version=model.version,
+            production_order_id=model.converted_production_order_id,
+            material_reservation_id=model.material_reservation_id,
+        )
+
+    async def mark_converted(
+        self,
+        *,
+        run_id: UUID,
+        planned_order_id: UUID,
+        production_order_id: UUID,
+        material_reservation_id: UUID,
+        converted_at: datetime,
+        converted_by: UUID,
+        expected_version: int,
+    ) -> None:
+        for value, field in (
+            (run_id, "run_id"),
+            (planned_order_id, "planned_order_id"),
+            (production_order_id, "production_order_id"),
+            (material_reservation_id, "material_reservation_id"),
+            (converted_by, "converted_by"),
+        ):
+            _nonzero_uuid(value, field)
+        if converted_at.tzinfo is None or converted_at.utcoffset() is None:
+            raise ValueError("converted_at must be timezone-aware.")
+        if type(expected_version) is not int or expected_version < 1:
+            raise ValueError("expected_version must be a positive integer.")
+        result = await self._session.execute(
+            update(MRPPlannedOrderModel)
+            .where(
+                MRPPlannedOrderModel.company_id == self._company_id,
+                MRPPlannedOrderModel.mrp_run_id == run_id,
+                MRPPlannedOrderModel.id == planned_order_id,
+                MRPPlannedOrderModel.status == PlannedOrderStatus.PLANNED,
+                MRPPlannedOrderModel.version == expected_version,
+            )
+            .values(
+                status=PlannedOrderStatus.CONVERTED,
+                converted_production_order_id=production_order_id,
+                material_reservation_id=material_reservation_id,
+                converted_at=converted_at,
+                converted_by=converted_by,
+                version=expected_version + 1,
+            )
+            .returning(MRPPlannedOrderModel.id)
+            .execution_options(synchronize_session=False)
+        )
+        if result.scalar_one_or_none() is None:
+            raise ProductionVersionConflictError(expected_version)
+        await self._flush()
 
     def _validate_write(self, run: MRPRun, actor_id: UUID) -> None:
         if not isinstance(run, MRPRun):

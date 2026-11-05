@@ -44,6 +44,7 @@ from erp.modules.inventory.infrastructure.reservation_model import (
 from erp.modules.inventory.infrastructure.reservations import (
     PostgresInventoryReservations,
     SessionOrderInventoryReservationGateway,
+    SessionProductionMaterialReservationGateway,
 )
 from erp.modules.inventory.infrastructure.sales_reservation_consumer import (
     INVENTORY_SALES_RESERVATION_CONSUMER,
@@ -88,6 +89,7 @@ __all__ = [
     "PostgresInventoryReservations",
     "RabbitInventoryMovementTransport",
     "SessionOrderInventoryReservationGateway",
+    "SessionProductionMaterialReservationGateway",
     "WarehouseLocationModel",
     "WarehouseLocationRepository",
     "WarehouseModel",

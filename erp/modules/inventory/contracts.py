@@ -92,6 +92,39 @@ class OrderInventoryReservationGateway(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
+class ProductionMaterialRequirementContract:
+    product_id: UUID
+    quantity: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class ReserveProductionMaterialsContract:
+    company_id: UUID
+    production_order_id: UUID
+    requirements: tuple[ProductionMaterialRequirementContract, ...]
+    request_id: UUID
+    correlation_id: UUID
+    source_ip: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ProductionMaterialReservationResultContract:
+    reservation: InventoryReservationReference
+    event_id: UUID
+    audit_event_id: UUID
+
+
+class ProductionMaterialReservationGateway(Protocol):
+    """M5-owned allocation boundary consumed by Production conversion."""
+
+    async def reserve_production_materials(
+        self,
+        command: ReserveProductionMaterialsContract,
+        actor_id: UUID,
+    ) -> ProductionMaterialReservationResultContract: ...
+
+
+@dataclass(frozen=True, slots=True)
 class InventoryBalanceReference:
     company_id: UUID
     product_id: UUID
@@ -200,6 +233,10 @@ __all__ = [
     "OrderInventoryReservationGateway",
     "OrderInventoryReservationResultContract",
     "OrderReservationLineContract",
+    "ProductionMaterialRequirementContract",
+    "ProductionMaterialReservationGateway",
+    "ProductionMaterialReservationResultContract",
     "ReleaseOrderInventoryContract",
     "ReserveOrderInventoryContract",
+    "ReserveProductionMaterialsContract",
 ]

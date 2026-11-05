@@ -33,8 +33,11 @@ from erp.modules.inventory.contracts import (
     InventoryReservationStatusContract,
     OrderInventoryReservationGateway,
     OrderInventoryReservationResultContract,
+    ProductionMaterialReservationGateway,
+    ProductionMaterialReservationResultContract,
     ReleaseOrderInventoryContract,
     ReserveOrderInventoryContract,
+    ReserveProductionMaterialsContract,
 )
 from erp.modules.inventory.domain import (
     InventoryAvailability,
@@ -651,6 +654,7 @@ class SessionOrderInventoryReservationGateway(OrderInventoryReservationGateway):
             audit_event_id=result.audit_event_id,
         )
 
+
     async def extend_order_hold(
         self, command: ExtendOrderInventoryHoldContract, actor_id: UUID
     ) -> OrderInventoryReservationResultContract:
@@ -702,6 +706,7 @@ class SessionOrderInventoryReservationGateway(OrderInventoryReservationGateway):
             event_id=result.event_id,
             audit_event_id=result.audit_event_id,
         )
+
 
     async def get_order_reservation(
         self, company_id: UUID, reservation_id: UUID
@@ -767,6 +772,124 @@ class SessionOrderInventoryReservationGateway(OrderInventoryReservationGateway):
         )
 
 
+class SessionProductionMaterialReservationGateway(
+    ProductionMaterialReservationGateway
+):
+    """Allocate current AVAILABLE stock inside the caller-owned conversion transaction."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def reserve_production_materials(
+        self,
+        command: ReserveProductionMaterialsContract,
+        actor_id: UUID,
+    ) -> ProductionMaterialReservationResultContract:
+        lines = await _production_material_lines(self._session, command)
+        inventory_command = CreateInventoryReservation(
+            company_id=command.company_id,
+            reservation_kind=InventoryReservationKind.HARD,
+            reference_type="PRODUCTION_ORDER",
+            reference_id=command.production_order_id,
+            lines=lines,
+            idempotency_key=str(command.production_order_id),
+            metadata=CommandMetadata(
+                request_id=command.request_id,
+                correlation_id=command.correlation_id,
+                source_ip=command.source_ip,
+            ),
+        )
+        reservation = _reservation_from_command(inventory_command, actor_id=actor_id)
+        self._session.add(_reservation_model(reservation))
+        try:
+            await self._session.flush()
+        except IntegrityError as error:
+            if getattr(error.orig, "sqlstate", None) == "23505":
+                raise _reservation_conflict(
+                    "A material reservation already exists for this production order."
+                ) from error
+            raise
+        result = await InventoryReservationEffects().record(
+            self._session,
+            reservation,
+            event_type="InventoryReservationCreated",
+            actor_id=actor_id,
+            metadata=inventory_command.metadata,
+        )
+        if result.event_id is None or result.audit_event_id is None:
+            raise RuntimeError("M5 production reservation effects did not return identifiers.")
+        return ProductionMaterialReservationResultContract(
+            reservation=_reservation_reference(result.reservation),
+            event_id=result.event_id,
+            audit_event_id=result.audit_event_id,
+        )
+
+
+async def _production_material_lines(
+    session: AsyncSession,
+    command: ReserveProductionMaterialsContract,
+) -> tuple[InventoryReservationLine, ...]:
+    if not command.requirements:
+        raise _reservation_conflict("Production material requirements cannot be empty.")
+    lines: list[InventoryReservationLine] = []
+    for requirement in command.requirements:
+        if requirement.quantity <= 0:
+            raise _reservation_conflict("Production material quantities must be positive.")
+        balances = tuple(
+            await session.scalars(
+                select(InventoryBalanceModel)
+                .where(
+                    InventoryBalanceModel.company_id == command.company_id,
+                    InventoryBalanceModel.product_id == requirement.product_id,
+                    InventoryBalanceModel.state == InventoryState.AVAILABLE,
+                    InventoryBalanceModel.quantity > 0,
+                )
+                .order_by(
+                    InventoryBalanceModel.warehouse_id,
+                    InventoryBalanceModel.lot_id.asc().nulls_last(),
+                    InventoryBalanceModel.location_id.asc().nulls_last(),
+                    InventoryBalanceModel.pool_id.asc().nulls_last(),
+                    InventoryBalanceModel.id,
+                )
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        )
+        remaining = requirement.quantity
+        for balance in balances:
+            bucket = StockBucket(
+                product_id=balance.product_id,
+                warehouse_id=balance.warehouse_id,
+                location_id=balance.location_id,
+                lot_id=balance.lot_id,
+                pool_id=balance.pool_id,
+                state=InventoryState.AVAILABLE,
+            )
+            reserved = await _active_hard_reserved(session, command.company_id, bucket)
+            available = max(balance.quantity - reserved, Decimal("0"))
+            allocated = min(available, remaining)
+            if allocated > 0:
+                lines.append(
+                    InventoryReservationLine(
+                        product_id=balance.product_id,
+                        warehouse_id=balance.warehouse_id,
+                        location_id=balance.location_id,
+                        lot_id=balance.lot_id,
+                        pool_id=balance.pool_id,
+                        state=InventoryState.AVAILABLE,
+                        quantity=allocated,
+                    )
+                )
+                remaining -= allocated
+            if remaining == 0:
+                break
+        if remaining > 0:
+            raise _reservation_conflict(
+                "Insufficient AVAILABLE inventory for production material allocation."
+            )
+    return tuple(lines)
+
+
 def _reservation_reference(reservation: InventoryReservation) -> InventoryReservationReference:
     return InventoryReservationReference(
         id=reservation.id,
@@ -792,4 +915,8 @@ def _reservation_reference(reservation: InventoryReservation) -> InventoryReserv
     )
 
 
-__all__ = ["PostgresInventoryReservations", "SessionOrderInventoryReservationGateway"]
+__all__ = [
+    "PostgresInventoryReservations",
+    "SessionOrderInventoryReservationGateway",
+    "SessionProductionMaterialReservationGateway",
+]

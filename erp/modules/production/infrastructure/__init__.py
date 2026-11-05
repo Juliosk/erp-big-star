@@ -1,6 +1,9 @@
 """Public Production persistence surface."""
 
 from erp.modules.production.infrastructure.bom_repository import BOMRepository
+from erp.modules.production.infrastructure.conversion_support import (
+    PostgresProductionEngineeringDirectory,
+)
 from erp.modules.production.infrastructure.engineering_model import (
     BomComponentModel,
     BomHeaderModel,
@@ -30,6 +33,7 @@ __all__ = [
     "MRPPlannedOrderModel",
     "MRPRunHistoryModel",
     "MRPRunRepository",
+    "PostgresProductionEngineeringDirectory",
     "ProductionOrderItemPlanModel",
     "ProductionOrderModel",
     "ProductionOrderOperationExecutionModel",

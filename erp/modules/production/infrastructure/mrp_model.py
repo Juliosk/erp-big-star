@@ -92,6 +92,21 @@ class MRPPlannedOrderModel(OptimisticLockMixin, Base):
             name="fk_planned_order_company_product",
             ondelete="RESTRICT",
         ),
+        ForeignKeyConstraint(
+            ["company_id", "converted_production_order_id"],
+            ["production.production_order.company_id", "production.production_order.id"],
+            name="fk_planned_order_converted_production_order",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["company_id", "material_reservation_id"],
+            [
+                "inventory.inventory_reservation.company_id",
+                "inventory.inventory_reservation.id",
+            ],
+            name="fk_planned_order_material_reservation",
+            ondelete="RESTRICT",
+        ),
         UniqueConstraint(
             "company_id",
             "mrp_run_id",
@@ -104,6 +119,16 @@ class MRPPlannedOrderModel(OptimisticLockMixin, Base):
             "sequence",
             name="uq_planned_order_run_sequence",
         ),
+        UniqueConstraint(
+            "company_id",
+            "converted_production_order_id",
+            name="uq_planned_order_converted_production_order",
+        ),
+        UniqueConstraint(
+            "company_id",
+            "material_reservation_id",
+            name="uq_planned_order_material_reservation",
+        ),
         CheckConstraint("sequence >= 1", name="sequence"),
         CheckConstraint("order_type IN ('MANUFACTURE', 'PURCHASE')", name="order_type"),
         CheckConstraint("status IN ('PLANNED', 'CONVERTED', 'CANCELLED')", name="status"),
@@ -115,6 +140,14 @@ class MRPPlannedOrderModel(OptimisticLockMixin, Base):
             name="source_ids",
         ),
         CheckConstraint("version >= 1", name="version"),
+        CheckConstraint(
+            "(status = 'CONVERTED' AND converted_production_order_id IS NOT NULL "
+            "AND material_reservation_id IS NOT NULL AND converted_at IS NOT NULL "
+            "AND converted_by IS NOT NULL) OR (status <> 'CONVERTED' "
+            "AND converted_production_order_id IS NULL AND material_reservation_id IS NULL "
+            "AND converted_at IS NULL AND converted_by IS NULL)",
+            name="conversion_evidence",
+        ),
         Index(
             "ix_planned_order_company_status_dates",
             "company_id",
@@ -127,6 +160,12 @@ class MRPPlannedOrderModel(OptimisticLockMixin, Base):
             "company_id",
             "product_id",
             "due_on",
+        ),
+        Index(
+            "ix_planned_order_company_conversion",
+            "company_id",
+            "status",
+            "converted_at",
         ),
         {"schema": "production"},
     )
@@ -143,6 +182,10 @@ class MRPPlannedOrderModel(OptimisticLockMixin, Base):
     due_on: Mapped[date] = mapped_column(Date, nullable=False)
     release_on: Mapped[date] = mapped_column(Date, nullable=False)
     source_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    converted_production_order_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    material_reservation_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    converted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    converted_by: Mapped[UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_by: Mapped[UUID] = mapped_column(nullable=False)
 
