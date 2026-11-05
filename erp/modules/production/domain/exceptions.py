@@ -39,14 +39,39 @@ class ProductionVersionConflictError(ProductionDomainError):
         super().__init__(f"The production resource changed after version {expected_version}.")
 
 
+class InvalidProductionOrderStateError(ProductionDomainError):
+    code = "INVALID_PRODUCTION_ORDER_STATE"
+
+
+class EngineeringUnavailableError(ProductionDomainError):
+    code = "ENGINEERING_UNAVAILABLE"
+
+
+class ProductionQuantityExceededError(ProductionDomainError):
+    code = "PRODUCTION_QUANTITY_EXCEEDED"
+
+
+class RoutingConsistencyError(ProductionDomainError):
+    code = "ROUTING_INCONSISTENT"
+
+
+class LotTraceabilityError(ProductionDomainError):
+    code = "LOT_TRACEABILITY_ERROR"
+
+
 __all__ = [
     "BomCycleError",
     "BomNotFoundError",
+    "EngineeringUnavailableError",
+    "InvalidProductionOrderStateError",
     "InvalidProductionValueError",
+    "LotTraceabilityError",
     "ProductionConflictError",
     "ProductionDomainError",
+    "ProductionQuantityExceededError",
     "ProductionScopeError",
     "ProductionVersionConflictError",
+    "RoutingConsistencyError",
     "UnitOfMeasureMismatchError",
 ]
 
