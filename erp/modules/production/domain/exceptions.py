@@ -59,6 +59,10 @@ class LotTraceabilityError(ProductionDomainError):
     code = "LOT_TRACEABILITY_ERROR"
 
 
+class MRPPolicyNotFoundError(ProductionDomainError):
+    code = "MRP_POLICY_NOT_FOUND"
+
+
 __all__ = [
     "BomCycleError",
     "BomNotFoundError",
@@ -66,6 +70,7 @@ __all__ = [
     "InvalidProductionOrderStateError",
     "InvalidProductionValueError",
     "LotTraceabilityError",
+    "MRPPolicyNotFoundError",
     "ProductionConflictError",
     "ProductionDomainError",
     "ProductionQuantityExceededError",
