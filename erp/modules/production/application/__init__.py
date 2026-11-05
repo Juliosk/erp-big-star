@@ -1,5 +1,16 @@
 """Public production application surface."""
 
+from erp.modules.production.application.mrp import (
+    ExecuteMRP,
+    MRPApplicationService,
+    MRPDemandProvider,
+    MRPEngineeringProvider,
+    MRPEngineeringSnapshot,
+    MRPRun,
+    MRPRunStore,
+    MRPSupplyProvider,
+    MRPSupplySnapshot,
+)
 from erp.modules.production.application.permissions import (
     PRODUCTION_ENGINEERING_READ,
     PRODUCTION_ENGINEERING_WRITE,
@@ -18,6 +29,15 @@ __all__ = [
     "PRODUCTION_PLANNING_RUN",
     "PRODUCTION_SHOP_FLOOR_EXECUTE",
     "PRODUCTION_SHOP_FLOOR_READ",
+    "ExecuteMRP",
+    "MRPApplicationService",
+    "MRPDemandProvider",
+    "MRPEngineeringProvider",
+    "MRPEngineeringSnapshot",
+    "MRPRun",
+    "MRPRunStore",
+    "MRPSupplyProvider",
+    "MRPSupplySnapshot",
     "ProductionAuthorization",
     "production_permission_registry",
 ]
