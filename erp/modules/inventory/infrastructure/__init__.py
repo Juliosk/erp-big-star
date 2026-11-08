@@ -27,6 +27,9 @@ from erp.modules.inventory.infrastructure.movement_transport import (
     RabbitInventoryMovementTransport,
 )
 from erp.modules.inventory.infrastructure.pool_model import InventoryPoolModel
+from erp.modules.inventory.infrastructure.production_consumption import (
+    SessionProductionMaterialConsumptionGateway,
+)
 from erp.modules.inventory.infrastructure.repository import (
     InventoryLotRepository,
     InventoryPoolRepository,
@@ -89,6 +92,7 @@ __all__ = [
     "PostgresInventoryReservations",
     "RabbitInventoryMovementTransport",
     "SessionOrderInventoryReservationGateway",
+    "SessionProductionMaterialConsumptionGateway",
     "SessionProductionMaterialReservationGateway",
     "WarehouseLocationModel",
     "WarehouseLocationRepository",

@@ -32,6 +32,17 @@ from erp.modules.production.application.planned_order_conversion import (
     ProductionEngineeringSelection,
     ProductionOrderStore,
 )
+from erp.modules.production.application.shop_floor import (
+    CompleteShopFloorOperation,
+    MaterialConsumption,
+    RecordShopFloorProgress,
+    ScrapEntry,
+    ShopFloorEventType,
+    ShopFloorExecutionResult,
+    ShopFloorExecutionService,
+    ShopFloorOperationLog,
+    StartShopFloorOperation,
+)
 
 __all__ = [
     "PRODUCTION_ENGINEERING_READ",
@@ -40,6 +51,7 @@ __all__ = [
     "PRODUCTION_PLANNING_RUN",
     "PRODUCTION_SHOP_FLOOR_EXECUTE",
     "PRODUCTION_SHOP_FLOOR_READ",
+    "CompleteShopFloorOperation",
     "ConvertPlannedOrder",
     "ExecuteMRP",
     "MRPApplicationService",
@@ -50,6 +62,7 @@ __all__ = [
     "MRPRunStore",
     "MRPSupplyProvider",
     "MRPSupplySnapshot",
+    "MaterialConsumption",
     "PlannedOrderConversionRecord",
     "PlannedOrderConversionResult",
     "PlannedOrderConversionService",
@@ -59,6 +72,13 @@ __all__ = [
     "ProductionEngineeringDirectory",
     "ProductionEngineeringSelection",
     "ProductionOrderStore",
+    "RecordShopFloorProgress",
+    "ScrapEntry",
+    "ShopFloorEventType",
+    "ShopFloorExecutionResult",
+    "ShopFloorExecutionService",
+    "ShopFloorOperationLog",
+    "StartShopFloorOperation",
     "production_permission_registry",
 ]
 

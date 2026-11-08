@@ -25,6 +25,13 @@ from erp.modules.production.infrastructure.production_order_repository import (
     ProductionOrderRepository,
 )
 from erp.modules.production.infrastructure.routing_repository import RoutingRepository
+from erp.modules.production.infrastructure.shop_floor_model import (
+    ScrapRecordModel,
+    ShopFloorOperationLogModel,
+)
+from erp.modules.production.infrastructure.shop_floor_repository import (
+    ShopFloorExecutionRepository,
+)
 
 __all__ = [
     "BOMRepository",
@@ -41,6 +48,9 @@ __all__ = [
     "RoutingHeaderModel",
     "RoutingOperationModel",
     "RoutingRepository",
+    "ScrapRecordModel",
+    "ShopFloorExecutionRepository",
+    "ShopFloorOperationLogModel",
     "WorkCenterModel",
 ]
 

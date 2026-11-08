@@ -125,6 +125,48 @@ class ProductionMaterialReservationGateway(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
+class ProductionMaterialConsumptionLineContract:
+    product_id: UUID
+    quantity: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class ConsumeProductionMaterialsContract:
+    company_id: UUID
+    production_order_id: UUID
+    lines: tuple[ProductionMaterialConsumptionLineContract, ...]
+    finalize_reservation: bool
+    request_id: UUID
+    correlation_id: UUID
+    source_ip: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ProductionMaterialConsumptionTraceContract:
+    product_id: UUID
+    lot_id: UUID
+    quantity: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class ProductionMaterialConsumptionResultContract:
+    reservation_id: UUID
+    transaction_id: UUID | None
+    reservation_released: bool
+    traces: tuple[ProductionMaterialConsumptionTraceContract, ...]
+
+
+class ProductionMaterialConsumptionGateway(Protocol):
+    """M5-owned boundary that turns HARD allocations into ledger issues."""
+
+    async def consume_production_materials(
+        self,
+        command: ConsumeProductionMaterialsContract,
+        actor_id: UUID,
+    ) -> ProductionMaterialConsumptionResultContract: ...
+
+
+@dataclass(frozen=True, slots=True)
 class InventoryBalanceReference:
     company_id: UUID
     product_id: UUID
@@ -219,6 +261,7 @@ __all__ = [
     "INVENTORY_AVAILABILITY_READ",
     "INVENTORY_BALANCE_READ",
     "INVENTORY_RESERVATION_MANAGE",
+    "ConsumeProductionMaterialsContract",
     "ExtendOrderInventoryHoldContract",
     "InventoryAuthorization",
     "InventoryAvailabilityReference",
@@ -233,6 +276,10 @@ __all__ = [
     "OrderInventoryReservationGateway",
     "OrderInventoryReservationResultContract",
     "OrderReservationLineContract",
+    "ProductionMaterialConsumptionGateway",
+    "ProductionMaterialConsumptionLineContract",
+    "ProductionMaterialConsumptionResultContract",
+    "ProductionMaterialConsumptionTraceContract",
     "ProductionMaterialRequirementContract",
     "ProductionMaterialReservationGateway",
     "ProductionMaterialReservationResultContract",

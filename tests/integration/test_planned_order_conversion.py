@@ -11,7 +11,7 @@ from uuid import UUID, uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Connection, delete, func, inspect, select
+from sqlalchemy import Connection, delete, func, inspect, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from erp.modules.admin.domain import Branch
@@ -19,8 +19,11 @@ from erp.modules.admin.infrastructure import BranchModel, BranchRepository
 from erp.modules.inventory.domain import Warehouse
 from erp.modules.inventory.infrastructure import (
     InventoryBalanceModel,
+    InventoryLotModel,
+    InventoryPostingModel,
     InventoryReservationAllocationModel,
     InventoryReservationModel,
+    InventoryTransactionModel,
     SessionProductionMaterialReservationGateway,
     WarehouseModel,
     WarehouseRepository,
@@ -307,6 +310,7 @@ async def conversion_fixture(*, stock: str = "10") -> AsyncIterator[ConversionFi
         finally:
             companies = (data.company_id, data.other_company_id)
             async with data.database.session() as session, session.begin():
+                await session.execute(text("SET LOCAL erp.allow_ledger_cleanup = 'on'"))
                 await session.execute(
                     delete(MRPPlannedOrderModel).where(
                         MRPPlannedOrderModel.company_id.in_(companies)
@@ -353,8 +357,23 @@ async def conversion_fixture(*, stock: str = "10") -> AsyncIterator[ConversionFi
                     )
                 )
                 await session.execute(
+                    delete(InventoryPostingModel).where(
+                        InventoryPostingModel.company_id.in_(companies)
+                    )
+                )
+                await session.execute(
+                    delete(InventoryTransactionModel).where(
+                        InventoryTransactionModel.company_id.in_(companies)
+                    )
+                )
+                await session.execute(
                     delete(InventoryBalanceModel).where(
                         InventoryBalanceModel.company_id.in_(companies)
+                    )
+                )
+                await session.execute(
+                    delete(InventoryLotModel).where(
+                        InventoryLotModel.company_id.in_(companies)
                     )
                 )
                 await session.execute(
@@ -553,5 +572,5 @@ def test_migration_0054_is_reversible_on_postgresql() -> None:
 
     command.downgrade(configuration, "0053")
     asyncio.run(verify(False))
-    command.upgrade(configuration, "0054")
+    command.upgrade(configuration, "head")
     asyncio.run(verify(True))
