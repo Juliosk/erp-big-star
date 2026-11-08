@@ -16,6 +16,7 @@ from erp.apps.api.procurement_matching_governance import (
     PostgresMatchingGovernanceOperations,
 )
 from erp.apps.api.procurement_receipts import PostgresGoodsReceiptOperations
+from erp.apps.api.production_cockpit import router as production_router
 from erp.apps.api.routes import health_router
 from erp.apps.api.sales_workflow import WorkflowDiscountGateway
 from erp.apps.api.treasury_candidates import PostgresTreasuryPaymentCandidateProvider
@@ -134,6 +135,11 @@ from erp.modules.product.infrastructure.product_creation import PostgresProductC
 from erp.modules.product.infrastructure.product_directory import PostgresProductDirectory
 from erp.modules.product.infrastructure.product_lifecycle import PostgresProductLifecycle
 from erp.modules.product.infrastructure.product_updates import PostgresProductUpdates
+from erp.modules.production.application import (
+    ProductionAuthorization,
+    ProductionCockpitService,
+)
+from erp.modules.production.infrastructure import PostgresProductionCockpitReader
 from erp.modules.sales.api import router as sales_router
 from erp.modules.sales.application import (
     DiscountApprovalService,
@@ -235,6 +241,7 @@ def create_app(
     pricing_resolution: PricingResolutionService | None = None,
     pricing_simulation: PricingSimulationService | None = None,
     pricing_snapshots: PricingSnapshotQueryService | None = None,
+    production_cockpit: ProductionCockpitService | None = None,
     wms_picking_waves: PickingWaveService | None = None,
     wms_picking_tasks: PickingTaskScanService | None = None,
     wms_packing: PackingService | None = None,
@@ -301,6 +308,7 @@ def create_app(
     resolved_pricing_resolution = pricing_resolution
     resolved_pricing_simulation = pricing_simulation
     resolved_pricing_snapshots = pricing_snapshots
+    resolved_production_cockpit = production_cockpit
     resolved_wms_picking_waves = wms_picking_waves
     resolved_wms_picking_tasks = wms_picking_tasks
     resolved_wms_packing = wms_packing
@@ -431,6 +439,13 @@ def create_app(
         resolved_pricing_snapshots = PricingSnapshotQueryService(
             PostgresPricingSnapshots(resolved_database),
             PricingAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
+    if resolved_production_cockpit is None and isinstance(resolved_database, Database):
+        resolved_production_cockpit = ProductionCockpitService(
+            PostgresProductionCockpitReader(resolved_database),
+            ProductionAuthorization(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
             ),
         )
@@ -818,6 +833,7 @@ def create_app(
     application.state.pricing_resolution = resolved_pricing_resolution
     application.state.pricing_simulation = resolved_pricing_simulation
     application.state.pricing_snapshots = resolved_pricing_snapshots
+    application.state.production_cockpit = resolved_production_cockpit
     application.state.wms_picking_waves = resolved_wms_picking_waves
     application.state.wms_picking_tasks = resolved_wms_picking_tasks
     application.state.wms_packing = resolved_wms_packing
@@ -842,6 +858,7 @@ def create_app(
     application.include_router(finance_router)
     application.include_router(inventory_router)
     application.include_router(pricing_router)
+    application.include_router(production_router)
     application.include_router(wms_router)
     application.include_router(workflow_router)
     application.include_router(sales_router)

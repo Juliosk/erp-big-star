@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Cockpit de Produção · Big Star ERP</title>
+    <link rel="stylesheet" href="/ui/production/cockpit/cockpit.css" />
+    <script type="module" src="/ui/production/cockpit/cockpit.js"></script>
+  </head>
+  <body>
+    <section id="access" class="access-shell" aria-labelledby="access-title">
+      <form id="access-form" class="access-card" autocomplete="off">
+        <p class="eyebrow">BIG STAR · OPERAÇÃO INDUSTRIAL</p>
+        <h1 id="access-title">Abrir cockpit</h1>
+        <p>Use sua sessão do ERP para acompanhar as ordens e a carga do chão de fábrica.</p>
+        <label for="access-token">Token de acesso</label>
+        <input id="access-token" type="password" autocomplete="off" required />
+        <p id="access-error" class="form-error" role="alert"></p>
+        <button type="submit">Conectar à produção</button>
+      </form>
+    </section>
+
+    <section id="denied" class="access-shell" hidden aria-labelledby="denied-title">
+      <div class="access-card denied-card">
+        <span class="denied-mark" aria-hidden="true">!</span>
+        <p class="eyebrow">ACESSO RESTRITO</p>
+        <h1 id="denied-title">Permissão de chão de fábrica necessária</h1>
+        <p>Solicite <code>production.shop_floor.read</code> para visualizar este cockpit.</p>
+        <button id="denied-back" type="button">Voltar ao acesso</button>
+      </div>
+    </section>
+
+    <main id="cockpit" hidden>
+      <header class="command-bar">
+        <a class="brand" href="/ui/" aria-label="Voltar ao ERP Big Star">
+          <span class="brand-star">★</span><span>BIG STAR</span><small>ERP</small>
+        </a>
+        <div class="command-title">
+          <p>PRODUÇÃO · M7</p>
+          <h1>Cockpit industrial</h1>
+        </div>
+        <div class="command-actions">
+          <label for="company">Empresa de trabalho</label>
+          <select id="company"></select>
+          <button id="refresh" class="refresh" type="button">Atualizar agora</button>
+        </div>
+      </header>
+
+      <div class="factory-pulse" aria-hidden="true"><span></span><i></i></div>
+
+      <section class="shift-line" aria-label="Resumo do turno">
+        <div>
+          <span class="live-dot"></span>
+          <p>VISÃO DO TURNO</p>
+          <strong id="generated">—</strong>
+        </div>
+        <dl>
+          <div><dt>OPs ativas</dt><dd id="metric-active">0</dd></div>
+          <div><dt>Em execução</dt><dd id="metric-running">0</dd></div>
+          <div><dt>Em risco</dt><dd id="metric-risk">0</dd></div>
+          <div><dt>Carga média</dt><dd id="metric-load">0%</dd></div>
+        </dl>
+      </section>
+
+      <section class="control-grid">
+        <article class="panel load-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">CAPACIDADE INSTALADA</p>
+              <h2>Carga por centro de trabalho</h2>
+            </div>
+            <span id="shift-basis" class="basis">Turno padrão · 480 min</span>
+          </div>
+          <div id="center-loads" class="center-loads"></div>
+          <p id="center-empty" class="empty" hidden>Nenhum centro de trabalho configurado.</p>
+        </article>
+
+        <aside class="panel alert-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">ANDON DIGITAL</p>
+              <h2>Fila de atenção</h2>
+            </div>
+            <span id="alert-count" class="count">0</span>
+          </div>
+          <div id="alerts" class="alerts"></div>
+          <p id="alert-empty" class="empty">Turno sem alertas críticos.</p>
+        </aside>
+      </section>
+
+      <section class="panel order-panel">
+        <div class="panel-head order-head">
+          <div>
+            <p class="eyebrow">FLUXO DE EXECUÇÃO</p>
+            <h2>Ordens de produção ativas</h2>
+          </div>
+          <div class="legend" aria-label="Legenda de estados">
+            <span><i class="state-dot running"></i>Em execução</span>
+            <span><i class="state-dot released"></i>Liberada</span>
+            <span><i class="state-dot draft"></i>Rascunho</span>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Ordem</th><th>Estado</th><th>Roteiro</th><th>Centro atual</th>
+                <th>Produzido</th><th>Progresso</th><th>Prazo</th><th>Sincronização</th>
+              </tr>
+            </thead>
+            <tbody id="orders"></tbody>
+          </table>
+        </div>
+        <p id="orders-empty" class="empty" hidden>Nenhuma ordem ativa nesta empresa.</p>
+      </section>
+
+      <footer>
+        <span>Dados isolados pela empresa de trabalho</span>
+        <span>Eventos Production Outbox/Inbox · Migration 0056</span>
+      </footer>
+      <div id="notice" class="notice" role="status" aria-live="polite"></div>
+    </main>
+  </body>
+</html>

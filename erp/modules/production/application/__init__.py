@@ -1,5 +1,13 @@
 """Public production application surface."""
 
+from erp.modules.production.application.cockpit import (
+    ProductionCockpitAlert,
+    ProductionCockpitOrder,
+    ProductionCockpitReader,
+    ProductionCockpitService,
+    ProductionCockpitSnapshot,
+    ProductionWorkCenterLoad,
+)
 from erp.modules.production.application.events import (
     ProductionDomainEvent,
     ProductionEventPublisher,
@@ -74,12 +82,18 @@ __all__ = [
     "PlannedOrderConversionStore",
     "PlannedOrderStatus",
     "ProductionAuthorization",
+    "ProductionCockpitAlert",
+    "ProductionCockpitOrder",
+    "ProductionCockpitReader",
+    "ProductionCockpitService",
+    "ProductionCockpitSnapshot",
     "ProductionDomainEvent",
     "ProductionEngineeringDirectory",
     "ProductionEngineeringSelection",
     "ProductionEventPublisher",
     "ProductionEventType",
     "ProductionOrderStore",
+    "ProductionWorkCenterLoad",
     "RecordShopFloorProgress",
     "ScrapEntry",
     "ShopFloorEventType",
