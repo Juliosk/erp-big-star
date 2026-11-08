@@ -1,5 +1,10 @@
 """Public production application surface."""
 
+from erp.modules.production.application.events import (
+    ProductionDomainEvent,
+    ProductionEventPublisher,
+    ProductionEventType,
+)
 from erp.modules.production.application.mrp import (
     ExecuteMRP,
     MRPApplicationService,
@@ -69,8 +74,11 @@ __all__ = [
     "PlannedOrderConversionStore",
     "PlannedOrderStatus",
     "ProductionAuthorization",
+    "ProductionDomainEvent",
     "ProductionEngineeringDirectory",
     "ProductionEngineeringSelection",
+    "ProductionEventPublisher",
+    "ProductionEventType",
     "ProductionOrderStore",
     "RecordShopFloorProgress",
     "ScrapEntry",

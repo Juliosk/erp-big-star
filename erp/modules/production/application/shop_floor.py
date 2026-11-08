@@ -7,13 +7,18 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import UUID, uuid4
 
 from erp.modules.inventory.contracts import (
     ConsumeProductionMaterialsContract,
     ProductionMaterialConsumptionGateway,
     ProductionMaterialConsumptionLineContract,
+)
+from erp.modules.production.application.events import (
+    ProductionDomainEvent,
+    ProductionEventPublisher,
+    ProductionEventType,
 )
 from erp.modules.production.domain import (
     InvalidProductionValueError,
@@ -187,11 +192,13 @@ class ShopFloorExecutionService:
         work_centers: ShopFloorWorkCenterDirectory,
         logs: ShopFloorExecutionLogStore,
         inventory: ProductionMaterialConsumptionGateway,
+        events: ProductionEventPublisher,
     ) -> None:
         self._orders = production_orders
         self._centers = work_centers
         self._logs = logs
         self._inventory = inventory
+        self._events = events
 
     async def start(
         self, command: StartShopFloorOperation, *, actor_id: UUID
@@ -325,12 +332,90 @@ class ShopFloorExecutionService:
             changed.record_version,
         )
         await self._logs.append(log, command.scraps)
+        await self._publish_execution_events(
+            command,
+            changed,
+            inventory_transaction_id=(
+                None if inventory_result is None else inventory_result.transaction_id
+            ),
+            reservation_released=(
+                False if inventory_result is None else inventory_result.reservation_released
+            ),
+            complete=complete,
+        )
         return ShopFloorExecutionResult(
             changed,
             log.id,
             None if inventory_result is None else inventory_result.transaction_id,
             False if inventory_result is None else inventory_result.reservation_released,
         )
+
+    async def _publish_execution_events(
+        self,
+        command: RecordShopFloorProgress | CompleteShopFloorOperation,
+        order: ProductionOrder,
+        *,
+        inventory_transaction_id: UUID | None,
+        reservation_released: bool,
+        complete: bool,
+    ) -> None:
+        common = {
+            "operation_sequence": command.operation_sequence,
+            "good_quantity": str(command.good_quantity),
+        }
+        if command.material_consumptions:
+            await self._events.publish(
+                _execution_event(
+                    command,
+                    order,
+                    ProductionEventType.MATERIAL_CONSUMED,
+                    {
+                        **common,
+                        "inventory_transaction_id": (
+                            None
+                            if inventory_transaction_id is None
+                            else str(inventory_transaction_id)
+                        ),
+                        "reservation_released": reservation_released,
+                        "materials": [
+                            {
+                                "product_id": str(value.product_id),
+                                "quantity": str(value.quantity),
+                            }
+                            for value in command.material_consumptions
+                        ],
+                    },
+                )
+            )
+        if command.scraps:
+            await self._events.publish(
+                _execution_event(
+                    command,
+                    order,
+                    ProductionEventType.SCRAP_RECORDED,
+                    {
+                        **common,
+                        "scraps": [
+                            {
+                                "product_id": str(value.product_id),
+                                "quantity": str(value.quantity),
+                                "reason_code": value.reason_code,
+                                "notes": value.notes,
+                            }
+                            for value in command.scraps
+                        ],
+                    },
+                )
+            )
+        if complete:
+            await self._events.publish(
+                _execution_event(
+                    command,
+                    order,
+                    ProductionEventType.OPERATION_COMPLETED,
+                    {**common, "reservation_released": reservation_released},
+                )
+            )
 
     async def _order(self, company_id: UUID, order_id: UUID) -> ProductionOrder:
         order = await self._orders.get(order_id)
@@ -369,6 +454,25 @@ def _log(
         version_after,
         command.request_id,
         command.correlation_id,
+    )
+
+
+def _execution_event(
+    command: RecordShopFloorProgress | CompleteShopFloorOperation,
+    order: ProductionOrder,
+    event_type: ProductionEventType,
+    payload: dict[str, Any],
+) -> ProductionDomainEvent:
+    return ProductionDomainEvent(
+        event_type=event_type,
+        company_id=command.company_id,
+        production_order_id=command.production_order_id,
+        aggregate_version=order.record_version,
+        occurred_at=command.occurred_at,
+        request_id=command.request_id,
+        correlation_id=command.correlation_id,
+        causation_id=None,
+        payload=payload,
     )
 
 

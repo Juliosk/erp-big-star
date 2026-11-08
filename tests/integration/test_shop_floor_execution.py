@@ -37,9 +37,11 @@ from erp.modules.production.infrastructure import (
     ScrapRecordModel,
     ShopFloorExecutionRepository,
     ShopFloorOperationLogModel,
+    TransactionalProductionEventPublisher,
 )
 from erp.platform.config import get_settings
 from erp.platform.database import Database
+from erp.platform.outbox import OutboxEventModel
 from tests.integration.test_planned_order_conversion import (
     AS_OF,
     ConversionFixture,
@@ -64,6 +66,7 @@ def _service(
         work_centers=RoutingRepository(session, company_id=company_id),
         logs=ShopFloorExecutionRepository(session, company_id=company_id),
         inventory=SessionProductionMaterialConsumptionGateway(session),
+        events=TransactionalProductionEventPublisher(session),
     )
 
 
@@ -273,6 +276,23 @@ def test_execution_records_partial_output_scrap_and_real_consumption() -> None:
                             ),
                         )
                     ) == 2
+                    published = tuple(
+                        await session.scalars(
+                            select(OutboxEventModel.event_type).where(
+                                OutboxEventModel.aggregate_id == released.id,
+                                OutboxEventModel.event_type.in_(
+                                    (
+                                        "OperationCompleted",
+                                        "MaterialConsumed",
+                                        "ScrapRecorded",
+                                    )
+                                ),
+                            )
+                        )
+                    )
+                    assert published.count("MaterialConsumed") == 2
+                    assert published.count("ScrapRecorded") == 2
+                    assert published.count("OperationCompleted") == 1
             finally:
                 async with data.production.database.session() as session, session.begin():
                     await session.execute(
@@ -308,7 +328,10 @@ def test_migration_0055_is_reversible_on_postgresql() -> None:
         finally:
             await database.dispose()
 
-    command.downgrade(configuration, "0054")
-    asyncio.run(verify(False))
-    command.upgrade(configuration, "0055")
-    asyncio.run(verify(True))
+    try:
+        command.downgrade(configuration, "0054")
+        asyncio.run(verify(False))
+        command.upgrade(configuration, "0055")
+        asyncio.run(verify(True))
+    finally:
+        command.upgrade(configuration, "head")

@@ -16,6 +16,23 @@ from erp.modules.production.infrastructure.mrp_model import (
     MRPRunHistoryModel,
 )
 from erp.modules.production.infrastructure.mrp_repository import MRPRunRepository
+from erp.modules.production.infrastructure.production_event_consumer import (
+    PRODUCTION_EVENT_CONSUMER,
+    ProductionEventConsumer,
+)
+from erp.modules.production.infrastructure.production_event_model import (
+    ProductionSourceCursorModel,
+    ProductionSynchronizationRequestModel,
+)
+from erp.modules.production.infrastructure.production_event_state import (
+    PRODUCTION_SYNCHRONIZATION_REQUESTED,
+    ProductionSynchronizationWorker,
+    accept_production_source_cursor,
+    enqueue_production_synchronizations,
+)
+from erp.modules.production.infrastructure.production_events import (
+    TransactionalProductionEventPublisher,
+)
 from erp.modules.production.infrastructure.production_order_model import (
     ProductionOrderItemPlanModel,
     ProductionOrderModel,
@@ -34,6 +51,8 @@ from erp.modules.production.infrastructure.shop_floor_repository import (
 )
 
 __all__ = [
+    "PRODUCTION_EVENT_CONSUMER",
+    "PRODUCTION_SYNCHRONIZATION_REQUESTED",
     "BOMRepository",
     "BomComponentModel",
     "BomHeaderModel",
@@ -41,16 +60,23 @@ __all__ = [
     "MRPRunHistoryModel",
     "MRPRunRepository",
     "PostgresProductionEngineeringDirectory",
+    "ProductionEventConsumer",
     "ProductionOrderItemPlanModel",
     "ProductionOrderModel",
     "ProductionOrderOperationExecutionModel",
     "ProductionOrderRepository",
+    "ProductionSourceCursorModel",
+    "ProductionSynchronizationRequestModel",
+    "ProductionSynchronizationWorker",
     "RoutingHeaderModel",
     "RoutingOperationModel",
     "RoutingRepository",
     "ScrapRecordModel",
     "ShopFloorExecutionRepository",
     "ShopFloorOperationLogModel",
+    "TransactionalProductionEventPublisher",
     "WorkCenterModel",
+    "accept_production_source_cursor",
+    "enqueue_production_synchronizations",
 ]
 
