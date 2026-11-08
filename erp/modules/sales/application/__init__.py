@@ -40,12 +40,17 @@ from erp.modules.sales.application.orders import (
     SalesOrderStore,
 )
 from erp.modules.sales.application.permissions import (
+    SALES_CHANNELS_INGEST,
+    SALES_CHANNELS_MANAGE,
+    SALES_CHANNELS_READ,
     SALES_CUSTOMER_PORTFOLIO_READ,
     SALES_DISCOUNT_REQUEST,
     SALES_ORDER_CANCEL,
     SALES_ORDER_CREATE,
     SALES_ORDER_READ,
     SALES_ORDER_RESERVE,
+    SALES_ORDERS_READ,
+    SALES_ORDERS_WRITE,
     SALES_QUOTE_CONVERT,
     SALES_QUOTE_CREATE,
     SALES_QUOTE_READ,
@@ -63,8 +68,13 @@ from erp.modules.sales.application.quotes import (
 )
 
 __all__ = [
+    "SALES_CHANNELS_INGEST",
+    "SALES_CHANNELS_MANAGE",
+    "SALES_CHANNELS_READ",
     "SALES_CUSTOMER_PORTFOLIO_READ",
     "SALES_DISCOUNT_REQUEST",
+    "SALES_ORDERS_READ",
+    "SALES_ORDERS_WRITE",
     "SALES_ORDER_CANCEL",
     "SALES_ORDER_CREATE",
     "SALES_ORDER_READ",

@@ -25,16 +25,34 @@ SALES_ORDER_CREATE = PermissionCode("sales.order.create")
 SALES_ORDER_READ = PermissionCode("sales.order.read")
 SALES_ORDER_RESERVE = PermissionCode("sales.order.reserve")
 SALES_ORDER_CANCEL = PermissionCode("sales.order.cancel")
+SALES_ORDERS_READ = PermissionCode("sales.orders.read")
+SALES_ORDERS_WRITE = PermissionCode("sales.orders.write")
+SALES_CHANNELS_READ = PermissionCode("sales.channels.read")
+SALES_CHANNELS_MANAGE = PermissionCode("sales.channels.manage")
+SALES_CHANNELS_INGEST = PermissionCode("sales.channels.ingest")
 
 
 def sales_permission_registry() -> PermissionRegistry:
     specifications = (
+        (SALES_ORDERS_READ, "Read canonical multichannel orders", PermissionRiskLevel.MEDIUM),
+        (SALES_ORDERS_WRITE, "Write canonical multichannel orders", PermissionRiskLevel.HIGH),
+        (SALES_CHANNELS_READ, "Read channel accounts and SKU mappings", PermissionRiskLevel.MEDIUM),
+        (
+            SALES_CHANNELS_MANAGE,
+            "Manage channel accounts and SKU mappings",
+            PermissionRiskLevel.CRITICAL,
+        ),
+        (SALES_CHANNELS_INGEST, "Ingest external orders", PermissionRiskLevel.CRITICAL),
         (SALES_QUOTE_READ, "Read B2B sales quotes", PermissionRiskLevel.MEDIUM),
         (SALES_QUOTE_CREATE, "Create B2B sales quotes", PermissionRiskLevel.MEDIUM),
         (SALES_QUOTE_UPDATE, "Revise draft sales quotes", PermissionRiskLevel.HIGH),
         (SALES_QUOTE_SEND, "Send sales quotes to customers", PermissionRiskLevel.HIGH),
         (SALES_QUOTE_CONVERT, "Convert accepted quotes into orders", PermissionRiskLevel.CRITICAL),
-        (SALES_DISCOUNT_REQUEST, "Request approval for discount exceptions", PermissionRiskLevel.HIGH),
+        (
+            SALES_DISCOUNT_REQUEST,
+            "Request approval for discount exceptions",
+            PermissionRiskLevel.HIGH,
+        ),
         (
             SALES_CUSTOMER_PORTFOLIO_READ,
             "Read assigned commercial customer portfolio",
@@ -43,7 +61,11 @@ def sales_permission_registry() -> PermissionRegistry:
         (SALES_ORDER_CREATE, "Create sales orders", PermissionRiskLevel.HIGH),
         (SALES_ORDER_READ, "Read sales orders", PermissionRiskLevel.MEDIUM),
         (SALES_ORDER_RESERVE, "Reserve inventory for sales orders", PermissionRiskLevel.CRITICAL),
-        (SALES_ORDER_CANCEL, "Cancel sales orders and release inventory", PermissionRiskLevel.CRITICAL),
+        (
+            SALES_ORDER_CANCEL,
+            "Cancel sales orders and release inventory",
+            PermissionRiskLevel.CRITICAL,
+        ),
     )
     return PermissionRegistry(
         Permission(
@@ -74,8 +96,13 @@ class SalesAuthorization:
 
 
 __all__ = [
+    "SALES_CHANNELS_INGEST",
+    "SALES_CHANNELS_MANAGE",
+    "SALES_CHANNELS_READ",
     "SALES_CUSTOMER_PORTFOLIO_READ",
     "SALES_DISCOUNT_REQUEST",
+    "SALES_ORDERS_READ",
+    "SALES_ORDERS_WRITE",
     "SALES_ORDER_CANCEL",
     "SALES_ORDER_CREATE",
     "SALES_ORDER_READ",
