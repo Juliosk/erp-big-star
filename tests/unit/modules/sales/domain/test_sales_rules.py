@@ -14,8 +14,13 @@ from erp.modules.sales.domain.channels import (
     ChannelOrderSnapshot,
     ChannelOrderStatus,
     ChannelSkuMapping,
+    ChannelSkuMappingEntry,
     Marketplace,
+    MultichannelSalesOrder,
+    SalesChannelAccount,
     SalesChannelError,
+    SalesChannelVersionConflictError,
+    channel_order_fingerprint,
 )
 
 D = Decimal
@@ -185,3 +190,109 @@ def test_margin_recalculates_after_discount_fees_and_freight() -> None:
         analysis.meets(D("1"))
     with pytest.raises(SalesChannelError):
         ChannelMarginAnalysis(D("0"), D("0"))
+
+
+def test_channel_persistence_records_are_immutable_and_versioned() -> None:
+    order = snapshot()
+    account = SalesChannelAccount.create(
+        company_id=order.reference.company_id,
+        account_id=order.reference.account_id,
+        marketplace=order.reference.marketplace,
+        display_name="Shopee principal",
+        credential_reference="secret://sales/shopee/principal",
+    )
+    mapping = ChannelSkuMappingEntry.create(
+        channel_config_id=account.id,
+        mapping=order.items[0].mapping,
+    )
+    captured = MultichannelSalesOrder.capture(
+        channel_config_id=account.id,
+        snapshot=order,
+    )
+    assert len(channel_order_fingerprint(order)) == 64
+    assert account.set_active(False).record_version == 2
+    assert mapping.remap(uuid4()).record_version == 2
+    assert captured.revise(order.transition(ChannelOrderStatus.PAID)).record_version == 2
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("marketplace", "UNKNOWN"),
+        ("credential_reference", ""),
+        ("credential_reference", " spaced "),
+        ("credential_reference", "x" * 256),
+        ("active", 1),
+        ("record_version", 0),
+    ],
+)
+def test_invalid_channel_account_record(field: str, value: object) -> None:
+    order = snapshot()
+    account = SalesChannelAccount.create(
+        company_id=order.reference.company_id,
+        account_id=order.reference.account_id,
+        marketplace=order.reference.marketplace,
+        display_name="Shopee principal",
+        credential_reference="secret://sales/shopee/principal",
+    )
+    with pytest.raises(SalesChannelError):
+        invalid_replace(account, **{field: value})
+
+
+@pytest.mark.parametrize("active", [True, 1])
+def test_channel_account_state_requires_a_real_change(active: object) -> None:
+    order = snapshot()
+    account = SalesChannelAccount.create(
+        company_id=order.reference.company_id,
+        account_id=order.reference.account_id,
+        marketplace=order.reference.marketplace,
+        display_name="Shopee principal",
+        credential_reference="secret://sales/shopee/principal",
+    )
+    with pytest.raises(SalesChannelError):
+        account.set_active(cast(Any, active))
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("mapping", None), ("active", 1), ("record_version", 0)],
+)
+def test_invalid_sku_mapping_record(field: str, value: object) -> None:
+    order = snapshot()
+    entry = ChannelSkuMappingEntry.create(
+        channel_config_id=uuid4(), mapping=order.items[0].mapping
+    )
+    with pytest.raises(SalesChannelError):
+        invalid_replace(entry, **{field: value})
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("snapshot", None),
+        ("source_fingerprint", "INVALID"),
+        ("source_fingerprint", "g" * 64),
+        ("record_version", 0),
+    ],
+)
+def test_invalid_multichannel_order_record(field: str, value: object) -> None:
+    order = MultichannelSalesOrder.capture(
+        channel_config_id=uuid4(), snapshot=snapshot()
+    )
+    with pytest.raises(SalesChannelError):
+        invalid_replace(order, **{field: value})
+
+
+def test_fingerprint_and_revision_require_canonical_snapshot_identity() -> None:
+    order = snapshot()
+    captured = MultichannelSalesOrder.capture(
+        channel_config_id=uuid4(), snapshot=order
+    )
+    with pytest.raises(SalesChannelError):
+        channel_order_fingerprint(cast(Any, None))
+    with pytest.raises(SalesChannelError):
+        captured.revise(replace(order, reference=replace(order.reference, external_order_id="NEW")))
+
+    conflict = SalesChannelVersionConflictError(4)
+    assert conflict.expected_version == 4
+    assert conflict.code == "VERSION_CONFLICT"

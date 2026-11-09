@@ -1,5 +1,16 @@
 """Public M15 persistence adapters."""
 
+from erp.modules.sales.infrastructure.channel_model import (
+    ChannelSalesOrderModel,
+    ExternalOrderMappingModel,
+    SalesChannelConfigModel,
+)
+from erp.modules.sales.infrastructure.channel_repository import (
+    ChannelOrderIngestion,
+    ChannelSkuMappingRepository,
+    MultichannelSalesOrderRepository,
+    SalesChannelConfigRepository,
+)
 from erp.modules.sales.infrastructure.conversion import PostgresSalesOrderConversion
 from erp.modules.sales.infrastructure.discount_approval import PostgresDiscountApproval
 from erp.modules.sales.infrastructure.lifecycle import PostgresSalesQuoteLifecycle
@@ -33,6 +44,11 @@ from erp.modules.sales.infrastructure.reservation_projection import (
 __all__ = [
     "INVENTORY_RESERVATION_EXPIRED",
     "SALES_RESERVATION_PROJECTOR",
+    "ChannelOrderIngestion",
+    "ChannelSalesOrderModel",
+    "ChannelSkuMappingRepository",
+    "ExternalOrderMappingModel",
+    "MultichannelSalesOrderRepository",
     "PostgresDiscountApproval",
     "PostgresSalesOrderCancellation",
     "PostgresSalesOrderConversion",
@@ -42,6 +58,8 @@ __all__ = [
     "PostgresSalesQuotes",
     "QuoteRevisionItemModel",
     "QuoteRevisionModel",
+    "SalesChannelConfigModel",
+    "SalesChannelConfigRepository",
     "SalesOrderItemModel",
     "SalesOrderModel",
     "SalesOrderRepository",

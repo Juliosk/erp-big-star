@@ -1,13 +1,31 @@
 """Immutable canonical channel orders; no transport or persistence dependencies."""
 
+import hashlib
+import json
 from dataclasses import dataclass, replace
 from decimal import ROUND_HALF_UP, Decimal
 from enum import StrEnum
-from uuid import UUID
+from uuid import UUID, uuid4
 
 
 class SalesChannelError(ValueError):
     code = "INVALID_CHANNEL_ORDER"
+
+
+class SalesChannelScopeError(SalesChannelError):
+    code = "SALES_CHANNEL_SCOPE_VIOLATION"
+
+
+class SalesChannelConflictError(SalesChannelError):
+    code = "SALES_CHANNEL_CONFLICT"
+
+
+class SalesChannelVersionConflictError(SalesChannelError):
+    code = "VERSION_CONFLICT"
+
+    def __init__(self, expected_version: int) -> None:
+        self.expected_version = expected_version
+        super().__init__(f"The sales channel resource changed after version {expected_version}.")
 
 
 class Marketplace(StrEnum):
@@ -31,6 +49,11 @@ def _uuid(value: UUID) -> None:
 def _text(value: str) -> None:
     if not isinstance(value, str) or not 1 <= len(value) <= 128 or value != value.strip():
         raise SalesChannelError("Identifier must contain 1 to 128 trimmed characters.")
+
+
+def _version(value: int) -> None:
+    if type(value) is not int or value < 1:
+        raise SalesChannelError("Record version must be a positive integer.")
 
 
 def _decimal(value: Decimal, precision: str, *, positive: bool = False) -> None:
@@ -171,6 +194,174 @@ class ChannelOrderSnapshot:
         return replace(self, status=target)
 
 
+def channel_order_fingerprint(snapshot: ChannelOrderSnapshot) -> str:
+    """Return a stable SHA-256 for normalized replay detection."""
+
+    if not isinstance(snapshot, ChannelOrderSnapshot):
+        raise SalesChannelError("A channel order snapshot is required.")
+    payload = {
+        "reference": {
+            "company_id": str(snapshot.reference.company_id),
+            "account_id": str(snapshot.reference.account_id),
+            "marketplace": snapshot.reference.marketplace.value,
+            "external_order_id": snapshot.reference.external_order_id,
+        },
+        "status": snapshot.status.value,
+        "currency": snapshot.currency,
+        "freight_amount": str(snapshot.freight_amount),
+        "discount_amount": str(snapshot.discount_amount),
+        "items": [
+            {
+                "external_item_id": item.external_item_id,
+                "listing_id": item.mapping.listing_id,
+                "variation_id": item.mapping.variation_id,
+                "external_sku": item.mapping.external_sku,
+                "product_id": str(item.mapping.product_id),
+                "quantity": str(item.quantity),
+                "unit_price": str(item.unit_price),
+                "discount_amount": str(item.discount_amount),
+            }
+            for item in snapshot.items
+        ],
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class SalesChannelAccount:
+    """Tenant-bound configuration that stores only an external secret reference."""
+
+    id: UUID
+    company_id: UUID
+    account_id: UUID
+    marketplace: Marketplace
+    display_name: str
+    credential_reference: str
+    active: bool = True
+    record_version: int = 1
+
+    def __post_init__(self) -> None:
+        _uuid(self.id)
+        _uuid(self.company_id)
+        _uuid(self.account_id)
+        if not isinstance(self.marketplace, Marketplace):
+            raise SalesChannelError("Unknown marketplace.")
+        _text(self.display_name)
+        if (
+            not isinstance(self.credential_reference, str)
+            or not 1 <= len(self.credential_reference) <= 255
+            or self.credential_reference != self.credential_reference.strip()
+        ):
+            raise SalesChannelError("Credential reference must contain trimmed text.")
+        if type(self.active) is not bool:
+            raise SalesChannelError("Channel active flag must be boolean.")
+        _version(self.record_version)
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        company_id: UUID,
+        account_id: UUID,
+        marketplace: Marketplace,
+        display_name: str,
+        credential_reference: str,
+    ) -> SalesChannelAccount:
+        return cls(
+            id=uuid4(),
+            company_id=company_id,
+            account_id=account_id,
+            marketplace=marketplace,
+            display_name=display_name,
+            credential_reference=credential_reference,
+        )
+
+    def set_active(self, active: bool) -> SalesChannelAccount:
+        if type(active) is not bool or active is self.active:
+            raise SalesChannelError("Channel state must change explicitly.")
+        return replace(self, active=active, record_version=self.record_version + 1)
+
+
+@dataclass(frozen=True, slots=True)
+class ChannelSkuMappingEntry:
+    id: UUID
+    channel_config_id: UUID
+    mapping: ChannelSkuMapping
+    active: bool = True
+    record_version: int = 1
+
+    def __post_init__(self) -> None:
+        _uuid(self.id)
+        _uuid(self.channel_config_id)
+        if not isinstance(self.mapping, ChannelSkuMapping):
+            raise SalesChannelError("A valid SKU mapping is required.")
+        if type(self.active) is not bool:
+            raise SalesChannelError("Mapping active flag must be boolean.")
+        _version(self.record_version)
+
+    @classmethod
+    def create(
+        cls, *, channel_config_id: UUID, mapping: ChannelSkuMapping
+    ) -> ChannelSkuMappingEntry:
+        return cls(uuid4(), channel_config_id, mapping)
+
+    def remap(self, product_id: UUID) -> ChannelSkuMappingEntry:
+        _uuid(product_id)
+        return replace(
+            self,
+            mapping=replace(self.mapping, product_id=product_id),
+            record_version=self.record_version + 1,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class MultichannelSalesOrder:
+    id: UUID
+    channel_config_id: UUID
+    snapshot: ChannelOrderSnapshot
+    source_fingerprint: str
+    record_version: int = 1
+
+    def __post_init__(self) -> None:
+        _uuid(self.id)
+        _uuid(self.channel_config_id)
+        if not isinstance(self.snapshot, ChannelOrderSnapshot):
+            raise SalesChannelError("A valid channel order snapshot is required.")
+        if (
+            not isinstance(self.source_fingerprint, str)
+            or len(self.source_fingerprint) != 64
+            or any(character not in "0123456789abcdef" for character in self.source_fingerprint)
+        ):
+            raise SalesChannelError("Source fingerprint must be a lowercase SHA-256 digest.")
+        _version(self.record_version)
+
+    @classmethod
+    def capture(
+        cls,
+        *,
+        channel_config_id: UUID,
+        snapshot: ChannelOrderSnapshot,
+        order_id: UUID | None = None,
+    ) -> MultichannelSalesOrder:
+        return cls(
+            id=order_id or uuid4(),
+            channel_config_id=channel_config_id,
+            snapshot=snapshot,
+            source_fingerprint=channel_order_fingerprint(snapshot),
+        )
+
+    def revise(self, snapshot: ChannelOrderSnapshot) -> MultichannelSalesOrder:
+        if snapshot.reference != self.snapshot.reference:
+            raise SalesChannelError("An order revision cannot change its external identity.")
+        return replace(
+            self,
+            snapshot=snapshot,
+            source_fingerprint=channel_order_fingerprint(snapshot),
+            record_version=self.record_version + 1,
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class ChannelMarginAnalysis:
     """Commercial analysis only; M9 owns price resolution and authorization."""
@@ -208,6 +399,13 @@ __all__ = [
     "ChannelOrderSnapshot",
     "ChannelOrderStatus",
     "ChannelSkuMapping",
+    "ChannelSkuMappingEntry",
     "Marketplace",
+    "MultichannelSalesOrder",
+    "SalesChannelAccount",
+    "SalesChannelConflictError",
     "SalesChannelError",
+    "SalesChannelScopeError",
+    "SalesChannelVersionConflictError",
+    "channel_order_fingerprint",
 ]
