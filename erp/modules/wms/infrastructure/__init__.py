@@ -5,6 +5,15 @@ from erp.modules.wms.infrastructure.effects import (
     PICKING_WAVE_RELEASED,
     WmsEffects,
 )
+from erp.modules.wms.infrastructure.location_model import (
+    WmsAisleModel,
+    WmsBayModel,
+    WmsBinCapacityModel,
+    WmsBinModel,
+    WmsLevelModel,
+    WmsZoneModel,
+)
+from erp.modules.wms.infrastructure.location_repository import WMSLocationRepository
 from erp.modules.wms.infrastructure.packing import PostgresPackingStore
 from erp.modules.wms.infrastructure.picking import PostgresPickingTaskStore
 from erp.modules.wms.infrastructure.repository import WmsRepository
@@ -28,6 +37,13 @@ __all__ = [
     "PostgresPickingTaskStore",
     "PostgresPickingWaveStore",
     "ShipmentModel",
+    "WMSLocationRepository",
+    "WmsAisleModel",
+    "WmsBayModel",
+    "WmsBinCapacityModel",
+    "WmsBinModel",
     "WmsEffects",
+    "WmsLevelModel",
     "WmsRepository",
+    "WmsZoneModel",
 ]
