@@ -7,17 +7,22 @@ VOs canônicos multicanal definidos no [ADR 0193](../../../docs/adr/0193-sales-m
   itens, snapshots, transições externas e análise de margem com `Decimal`.
 - `contracts.py`: interface pública imutável para o M3.
 - `application/permissions.py`: permissões e autorização combinada com empresa.
-- M3 mantém a porta `ChannelConnector` em `marketplace/application`; futuros
-  adaptadores HTTP e credenciais pertencem à infraestrutura daquele módulo.
+- `application/multichannel_ingestion.py`: autorização, normalização por porta
+  e comando idempotente de ingestão sem dependência de HTTP/ORM.
+- M3 mantém a porta `ChannelConnector` em `marketplace/application`; os
+  adaptadores OAuth e dialetos homologados de Mercado Livre, Shopee e
+  Nuvemshop ficam em `marketplace/infrastructure`.
 
 `sales.order.*` continua protegendo as APIs B2B. `sales.orders.read/write` e
 `sales.channels.read/manage/ingest` são permissões explícitas para a evolução
 multicanal, sem concessão implícita entre os dois grupos.
 
-O Commit 207 não requer migration nem ativa endpoints de canal. Persistência,
-unicidade da chave de ingestão, Audit/Outbox/Inbox e conectores homologados
-serão entregues nos slices seguintes. M9 permanece autoridade de preço; a
-margem calculada aqui é diagnóstica.
+O Commit 211 usa a persistência tenant-bound do Commit 209 e não requer nova
+migration. Pedidos pagos são normalizados, resolvidos pelo De/Para e gravados
+com ID determinístico; a reserva HARD do M5, Audit e Outbox compartilham a
+mesma transação PostgreSQL. Replays idênticos retornam o pedido e a reserva já
+existentes; payload divergente ou SKU não mapeado falha fechado. M9 permanece
+autoridade de preço; a margem calculada aqui é diagnóstica.
 
 Validação do domínio:
 

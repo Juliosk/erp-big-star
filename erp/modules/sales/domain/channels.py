@@ -1,5 +1,7 @@
 """Immutable canonical channel orders; no transport or persistence dependencies."""
 
+from __future__ import annotations
+
 import hashlib
 import json
 from dataclasses import dataclass, replace
@@ -39,6 +41,79 @@ class ChannelOrderStatus(StrEnum):
     PAID = "PAID"
     SHIPPED = "SHIPPED"
     CANCELLED = "CANCELLED"
+
+
+@dataclass(frozen=True, slots=True)
+class ChannelFee:
+    """Normalized channel charge kept separate from merchandise revenue."""
+
+    code: str
+    amount: Decimal
+
+    def __post_init__(self) -> None:
+        _text(self.code)
+        _decimal(self.amount, "0.01")
+
+
+@dataclass(frozen=True, slots=True)
+class ExternalChannelOrderItem:
+    """Transport-neutral item before M3 resolves the M2 product De/Para."""
+
+    external_item_id: str
+    listing_id: str
+    variation_id: str
+    external_sku: str
+    quantity: Decimal
+    unit_price: Decimal
+    discount_amount: Decimal = Decimal("0.00")
+
+    def __post_init__(self) -> None:
+        _text(self.external_item_id)
+        _text(self.listing_id)
+        _text(self.variation_id)
+        _text(self.external_sku)
+        _decimal(self.quantity, "0.000001", positive=True)
+        _decimal(self.unit_price, "0.01", positive=True)
+        _decimal(self.discount_amount, "0.01")
+        if self.discount_amount > _money(self.quantity * self.unit_price):
+            raise SalesChannelError("External item discount exceeds gross amount.")
+
+
+@dataclass(frozen=True, slots=True)
+class ExternalChannelOrder:
+    """Canonical marketplace payload before tenant-bound SKU resolution."""
+
+    reference: ChannelOrderReference
+    status: ChannelOrderStatus
+    items: tuple[ExternalChannelOrderItem, ...]
+    freight_amount: Decimal = Decimal("0.00")
+    discount_amount: Decimal = Decimal("0.00")
+    fees: tuple[ChannelFee, ...] = ()
+    currency: str = "BRL"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.reference, ChannelOrderReference):
+            raise SalesChannelError("A scoped reference is required.")
+        if not isinstance(self.status, ChannelOrderStatus):
+            raise SalesChannelError("Unknown channel status.")
+        if not isinstance(self.items, tuple) or not self.items:
+            raise SalesChannelError("An immutable non-empty external item tuple is required.")
+        if self.currency != "BRL":
+            raise SalesChannelError("Initial channel slice supports BRL only.")
+        if any(not isinstance(item, ExternalChannelOrderItem) for item in self.items):
+            raise SalesChannelError("Invalid external channel item.")
+        if len({item.external_item_id for item in self.items}) != len(self.items):
+            raise SalesChannelError("Duplicate external item identity.")
+        if not isinstance(self.fees, tuple) or any(
+            not isinstance(fee, ChannelFee) for fee in self.fees
+        ):
+            raise SalesChannelError("Channel fees must be an immutable normalized tuple.")
+        _decimal(self.freight_amount, "0.01")
+        _decimal(self.discount_amount, "0.01")
+
+    @property
+    def total_fees(self) -> Decimal:
+        return sum((fee.amount for fee in self.fees), Decimal("0.00"))
 
 
 def _uuid(value: UUID) -> None:
@@ -393,6 +468,7 @@ class ChannelMarginAnalysis:
 
 
 __all__ = [
+    "ChannelFee",
     "ChannelMarginAnalysis",
     "ChannelOrderItem",
     "ChannelOrderReference",
@@ -400,6 +476,8 @@ __all__ = [
     "ChannelOrderStatus",
     "ChannelSkuMapping",
     "ChannelSkuMappingEntry",
+    "ExternalChannelOrder",
+    "ExternalChannelOrderItem",
     "Marketplace",
     "MultichannelSalesOrder",
     "SalesChannelAccount",

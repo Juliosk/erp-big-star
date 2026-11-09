@@ -86,6 +86,10 @@ class OrderInventoryReservationGateway(Protocol):
         self, company_id: UUID, reservation_id: UUID
     ) -> InventoryReservationReference | None: ...
 
+    async def get_order_reservation_by_reference(
+        self, company_id: UUID, order_id: UUID
+    ) -> InventoryReservationReference | None: ...
+
     async def release_order(
         self, command: ReleaseOrderInventoryContract, actor_id: UUID
     ) -> OrderInventoryReservationResultContract: ...

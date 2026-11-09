@@ -724,6 +724,22 @@ class SessionOrderInventoryReservationGateway(OrderInventoryReservationGateway):
         )
         return None if model is None else _reservation_reference(_reservation(model))
 
+    async def get_order_reservation_by_reference(
+        self, company_id: UUID, order_id: UUID
+    ) -> InventoryReservationReference | None:
+        model = await self._session.scalar(
+            select(InventoryReservationModel)
+            .options(selectinload(InventoryReservationModel.allocations))
+            .where(
+                InventoryReservationModel.company_id == company_id,
+                InventoryReservationModel.reference_type == "SALES_ORDER",
+                InventoryReservationModel.reference_id == order_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return None if model is None else _reservation_reference(_reservation(model))
+
     async def release_order(
         self, command: ReleaseOrderInventoryContract, actor_id: UUID
     ) -> OrderInventoryReservationResultContract:

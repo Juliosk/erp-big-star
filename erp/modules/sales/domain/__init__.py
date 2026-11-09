@@ -1,6 +1,7 @@
 """Public M15 domain surface."""
 
 from erp.modules.sales.domain.channels import (
+    ChannelFee,
     ChannelMarginAnalysis,
     ChannelOrderItem,
     ChannelOrderReference,
@@ -8,6 +9,8 @@ from erp.modules.sales.domain.channels import (
     ChannelOrderStatus,
     ChannelSkuMapping,
     ChannelSkuMappingEntry,
+    ExternalChannelOrder,
+    ExternalChannelOrderItem,
     Marketplace,
     MultichannelSalesOrder,
     SalesChannelAccount,
@@ -31,6 +34,7 @@ from erp.modules.sales.domain.quote import (
 )
 
 __all__ = [
+    "ChannelFee",
     "ChannelMarginAnalysis",
     "ChannelOrderItem",
     "ChannelOrderReference",
@@ -38,6 +42,8 @@ __all__ = [
     "ChannelOrderStatus",
     "ChannelSkuMapping",
     "ChannelSkuMappingEntry",
+    "ExternalChannelOrder",
+    "ExternalChannelOrderItem",
     "Marketplace",
     "MultichannelSalesOrder",
     "QuoteRevision",

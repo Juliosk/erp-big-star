@@ -14,6 +14,9 @@ from erp.modules.sales.infrastructure.channel_repository import (
 from erp.modules.sales.infrastructure.conversion import PostgresSalesOrderConversion
 from erp.modules.sales.infrastructure.discount_approval import PostgresDiscountApproval
 from erp.modules.sales.infrastructure.lifecycle import PostgresSalesQuoteLifecycle
+from erp.modules.sales.infrastructure.multichannel_ingestion import (
+    PostgresMultichannelOrderIngestion,
+)
 from erp.modules.sales.infrastructure.order_cancellation import PostgresSalesOrderCancellation
 from erp.modules.sales.infrastructure.order_model import SalesOrderItemModel, SalesOrderModel
 from erp.modules.sales.infrastructure.order_repository import SalesOrderRepository
@@ -50,6 +53,7 @@ __all__ = [
     "ExternalOrderMappingModel",
     "MultichannelSalesOrderRepository",
     "PostgresDiscountApproval",
+    "PostgresMultichannelOrderIngestion",
     "PostgresSalesOrderCancellation",
     "PostgresSalesOrderConversion",
     "PostgresSalesOrderReservations",

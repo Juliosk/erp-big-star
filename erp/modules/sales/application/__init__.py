@@ -21,6 +21,13 @@ from erp.modules.sales.application.lifecycle import (
     SalesQuoteMutationResult,
     TransitionSalesQuote,
 )
+from erp.modules.sales.application.multichannel_ingestion import (
+    IngestMultichannelOrder,
+    MarketplaceOrderGateway,
+    MultichannelOrderIngestionResult,
+    MultichannelOrderIngestionService,
+    MultichannelOrderIngestionStore,
+)
 from erp.modules.sales.application.order_cancellation import (
     CancelSalesOrder,
     SalesOrderCancellationResult,
@@ -92,6 +99,11 @@ __all__ = [
     "DiscountApprovalStore",
     "DiscountWorkflowGateway",
     "ExtendSalesOrderHold",
+    "IngestMultichannelOrder",
+    "MarketplaceOrderGateway",
+    "MultichannelOrderIngestionResult",
+    "MultichannelOrderIngestionService",
+    "MultichannelOrderIngestionStore",
     "RequestDiscountApproval",
     "ReserveSalesOrder",
     "ReviseSalesQuote",
