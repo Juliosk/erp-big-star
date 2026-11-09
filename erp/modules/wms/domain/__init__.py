@@ -1,5 +1,19 @@
 """Pure domain model for M10 WMS."""
 
+from erp.modules.wms.domain.locations import (
+    BinCapacity,
+    BinCapacityExceededError,
+    BinDimensions,
+    OccupancyStatus,
+    PutawayLoad,
+    PutawayPolicy,
+    PutawayZoneError,
+    StockCondition,
+    StorageType,
+    WarehouseAddress,
+    WarehouseBin,
+    WmsLocationError,
+)
 from erp.modules.wms.domain.package import (
     Package,
     PackageItem,
@@ -15,6 +29,10 @@ from erp.modules.wms.domain.picking import (
 from erp.modules.wms.domain.shipment import Shipment, ShipmentStatus
 
 __all__ = [
+    "BinCapacity",
+    "BinCapacityExceededError",
+    "BinDimensions",
+    "OccupancyStatus",
     "Package",
     "PackageItem",
     "PackageStatus",
@@ -23,6 +41,14 @@ __all__ = [
     "PickingTaskStatus",
     "PickingWave",
     "PickingWaveStatus",
+    "PutawayLoad",
+    "PutawayPolicy",
+    "PutawayZoneError",
     "Shipment",
     "ShipmentStatus",
+    "StockCondition",
+    "StorageType",
+    "WarehouseAddress",
+    "WarehouseBin",
+    "WmsLocationError",
 ]

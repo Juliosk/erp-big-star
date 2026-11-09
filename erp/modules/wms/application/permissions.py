@@ -19,6 +19,9 @@ WMS_PACK_EXECUTE = PermissionCode("wms.pack.execute")
 WMS_DISPATCH_EXECUTE = PermissionCode("wms.dispatch.execute")
 WMS_LABEL_REPRINT = PermissionCode("wms.label.reprint")
 WMS_SHORTAGE_OVERRIDE = PermissionCode("wms.shortage.override")
+WMS_LOCATIONS_READ = PermissionCode("wms.locations.read")
+WMS_LOCATIONS_WRITE = PermissionCode("wms.locations.write")
+WMS_INVENTORY_MOVEMENT = PermissionCode("wms.inventory.movement")
 
 
 def wms_permission_registry() -> PermissionRegistry:
@@ -30,6 +33,13 @@ def wms_permission_registry() -> PermissionRegistry:
             data_classification=DataClassification.CONFIDENTIAL,
         )
         for code, description, risk in (
+            (WMS_LOCATIONS_READ, "Read WMS physical layout", PermissionRiskLevel.MEDIUM),
+            (WMS_LOCATIONS_WRITE, "Manage WMS physical layout", PermissionRiskLevel.HIGH),
+            (
+                WMS_INVENTORY_MOVEMENT,
+                "Execute physical WMS movements",
+                PermissionRiskLevel.CRITICAL,
+            ),
             (WMS_PICK_EXECUTE, "Execute WMS picking tasks", PermissionRiskLevel.HIGH),
             (WMS_PACK_EXECUTE, "Execute WMS packing tasks", PermissionRiskLevel.HIGH),
             (WMS_DISPATCH_EXECUTE, "Execute WMS dispatch operations", PermissionRiskLevel.HIGH),
@@ -62,11 +72,13 @@ class WmsAuthorization:
 
 __all__ = [
     "WMS_DISPATCH_EXECUTE",
+    "WMS_INVENTORY_MOVEMENT",
     "WMS_LABEL_REPRINT",
+    "WMS_LOCATIONS_READ",
+    "WMS_LOCATIONS_WRITE",
     "WMS_PACK_EXECUTE",
     "WMS_PICK_EXECUTE",
     "WMS_SHORTAGE_OVERRIDE",
     "WmsAuthorization",
     "wms_permission_registry",
 ]
-

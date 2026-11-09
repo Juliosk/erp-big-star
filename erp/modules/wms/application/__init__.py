@@ -10,7 +10,10 @@ from erp.modules.wms.application.packing import (
 )
 from erp.modules.wms.application.permissions import (
     WMS_DISPATCH_EXECUTE,
+    WMS_INVENTORY_MOVEMENT,
     WMS_LABEL_REPRINT,
+    WMS_LOCATIONS_READ,
+    WMS_LOCATIONS_WRITE,
     WMS_PACK_EXECUTE,
     WMS_PICK_EXECUTE,
     WMS_SHORTAGE_OVERRIDE,
@@ -37,7 +40,10 @@ from erp.modules.wms.application.waves import (
 
 __all__ = [
     "WMS_DISPATCH_EXECUTE",
+    "WMS_INVENTORY_MOVEMENT",
     "WMS_LABEL_REPRINT",
+    "WMS_LOCATIONS_READ",
+    "WMS_LOCATIONS_WRITE",
     "WMS_PACK_EXECUTE",
     "WMS_PICK_EXECUTE",
     "WMS_SHORTAGE_OVERRIDE",
