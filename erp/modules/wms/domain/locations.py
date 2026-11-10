@@ -19,6 +19,10 @@ class PutawayZoneError(WmsLocationError):
     code = "PUTAWAY_ZONE_FORBIDDEN"
 
 
+class BinPickError(WmsLocationError):
+    code = "BIN_PICK_CONFLICT"
+
+
 class StorageType(StrEnum):
     PICKING = "PICKING"
     RESERVE = "RESERVE"
@@ -262,11 +266,48 @@ class WarehouseBin:
                 version=self.version + 1,
             )
 
+    def plan_pick(
+        self,
+        *,
+        units: int,
+        unit_weight: Decimal,
+        unit_volume: Decimal,
+    ) -> WarehouseBin:
+        """Remove a physically measured load without allowing occupancy drift."""
+
+        if type(units) is not int or units < 1:
+            raise BinPickError("Picking units must be a positive integer.")
+        for value in (unit_weight, unit_volume):
+            if not isinstance(value, Decimal) or not value.is_finite() or value <= 0:
+                raise BinPickError("Picking measures must be positive finite Decimals.")
+        if self.blocked:
+            raise BinPickError("Blocked bins cannot be picked.")
+        weight = unit_weight * units
+        volume = unit_volume * units
+        if units > self.occupied_units or weight > self.used_weight or volume > self.used_volume:
+            raise BinPickError("Picking exceeds the physical bin occupancy.")
+        if units == self.occupied_units:
+            return replace(
+                self,
+                occupied_units=0,
+                used_weight=Decimal("0"),
+                used_volume=Decimal("0"),
+                version=self.version + 1,
+            )
+        return replace(
+            self,
+            occupied_units=self.occupied_units - units,
+            used_weight=self.used_weight - weight,
+            used_volume=self.used_volume - volume,
+            version=self.version + 1,
+        )
+
 
 __all__ = [
     "BinCapacity",
     "BinCapacityExceededError",
     "BinDimensions",
+    "BinPickError",
     "OccupancyStatus",
     "PutawayLoad",
     "PutawayPolicy",

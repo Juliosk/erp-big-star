@@ -19,6 +19,14 @@ from erp.modules.wms.infrastructure.location_model import (
 from erp.modules.wms.infrastructure.location_repository import WMSLocationRepository
 from erp.modules.wms.infrastructure.packing import PostgresPackingStore
 from erp.modules.wms.infrastructure.picking import PostgresPickingTaskStore
+from erp.modules.wms.infrastructure.picking_packing import (
+    PostgresWmsPickingPackingStore,
+)
+from erp.modules.wms.infrastructure.picking_packing_model import (
+    WmsPackingVerificationModel,
+    WmsPickingItemModel,
+    WmsPickingWaveModel,
+)
 from erp.modules.wms.infrastructure.putaway import PostgresWmsPutawayStore
 from erp.modules.wms.infrastructure.putaway_effects import (
     WMS_PUTAWAY_COMPLETED,
@@ -45,6 +53,7 @@ __all__ = [
     "PostgresPackingStore",
     "PostgresPickingTaskStore",
     "PostgresPickingWaveStore",
+    "PostgresWmsPickingPackingStore",
     "PostgresWmsPutawayStore",
     "SessionOutboundShipmentGateway",
     "ShipmentModel",
@@ -55,6 +64,9 @@ __all__ = [
     "WmsBinModel",
     "WmsEffects",
     "WmsLevelModel",
+    "WmsPackingVerificationModel",
+    "WmsPickingItemModel",
+    "WmsPickingWaveModel",
     "WmsPutawayEffects",
     "WmsRepository",
     "WmsZoneModel",
