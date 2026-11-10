@@ -12,6 +12,15 @@ from erp.modules.sales.application.discount_approval import (
     DiscountWorkflowGateway,
     RequestDiscountApproval,
 )
+from erp.modules.sales.application.fulfillment import (
+    FulfillSalesOrder,
+    SalesFulfillmentCandidate,
+    SalesFulfillmentResult,
+    SalesFulfillmentService,
+    SalesFulfillmentStore,
+    ShippingLabelGateway,
+    ShippingLabelRequest,
+)
 from erp.modules.sales.application.lifecycle import (
     CommandMetadata,
     ReviseSalesQuote,
@@ -99,6 +108,7 @@ __all__ = [
     "DiscountApprovalStore",
     "DiscountWorkflowGateway",
     "ExtendSalesOrderHold",
+    "FulfillSalesOrder",
     "IngestMultichannelOrder",
     "MarketplaceOrderGateway",
     "MultichannelOrderIngestionResult",
@@ -109,6 +119,10 @@ __all__ = [
     "ReviseSalesQuote",
     "RevisionLine",
     "SalesAuthorization",
+    "SalesFulfillmentCandidate",
+    "SalesFulfillmentResult",
+    "SalesFulfillmentService",
+    "SalesFulfillmentStore",
     "SalesOrderCancellationResult",
     "SalesOrderCancellationService",
     "SalesOrderCancellationStore",
@@ -128,6 +142,8 @@ __all__ = [
     "SalesQuotePage",
     "SalesQuoteService",
     "SalesQuoteStore",
+    "ShippingLabelGateway",
+    "ShippingLabelRequest",
     "TransitionSalesQuote",
     "sales_permission_registry",
 ]

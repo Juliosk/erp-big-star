@@ -5,6 +5,9 @@ from erp.modules.wms.infrastructure.effects import (
     PICKING_WAVE_RELEASED,
     WmsEffects,
 )
+from erp.modules.wms.infrastructure.fulfillment_gateway import (
+    SessionOutboundShipmentGateway,
+)
 from erp.modules.wms.infrastructure.location_model import (
     WmsAisleModel,
     WmsBayModel,
@@ -43,6 +46,7 @@ __all__ = [
     "PostgresPickingTaskStore",
     "PostgresPickingWaveStore",
     "PostgresWmsPutawayStore",
+    "SessionOutboundShipmentGateway",
     "ShipmentModel",
     "WMSLocationRepository",
     "WmsAisleModel",

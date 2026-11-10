@@ -417,6 +417,18 @@ class MultichannelSalesOrderRepository(_TenantRepository):
         )
         return None if model is None else _order(model)
 
+    async def get_for_update(self, order_id: UUID) -> MultichannelSalesOrder | None:
+        model = await self._session.scalar(
+            select(ChannelSalesOrderModel)
+            .where(
+                ChannelSalesOrderModel.company_id == self._company_id,
+                ChannelSalesOrderModel.id == order_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return None if model is None else _order(model)
+
     async def get_by_external_reference(
         self, reference: ChannelOrderReference
     ) -> MultichannelSalesOrder | None:

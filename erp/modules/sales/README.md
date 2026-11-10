@@ -24,6 +24,16 @@ mesma transação PostgreSQL. Replays idênticos retornam o pedido e a reserva j
 existentes; payload divergente ou SKU não mapeado falha fechado. M9 permanece
 autoridade de preço; a margem calculada aqui é diagnóstica.
 
+O Commit 213 mantém o WMS como autoridade da expedição física: somente uma
+remessa `READY_TO_DISPATCH`, com ao menos um pacote `FINALIZED`, pode avançar.
+O serviço de fulfillment gera a etiqueta de forma idempotente, despacha a
+remessa e os pacotes no WMS, transiciona o pedido multicanal de `PAID` para
+`SHIPPED` e persiste o vínculo comercial em `sales.sales_shipment`. Audit,
+logs de fulfillment e o evento `MarketplaceFulfillmentSyncRequested` são
+gravados na mesma transação PostgreSQL; a atualização externa do status e do
+rastreio é executada pelos adaptadores de canal a partir da Outbox, sem chamada
+de rede dentro da transação.
+
 Validação do domínio:
 
 ```powershell

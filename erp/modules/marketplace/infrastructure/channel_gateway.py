@@ -8,6 +8,7 @@ from typing import Protocol
 
 from erp.modules.sales.contracts import (
     ChannelFee,
+    ChannelFulfillmentUpdate,
     ChannelOrderReference,
     ChannelOrderStatus,
     ExternalChannelOrder,
@@ -68,6 +69,12 @@ class MarketplaceTransport(Protocol):
         access_token: str,
     ) -> Mapping[str, object]: ...
 
+    async def update_fulfillment(
+        self,
+        update: ChannelFulfillmentUpdate,
+        access_token: str,
+    ) -> None: ...
+
 
 class InMemoryChannelCredentialStore:
     """Secret-store test double; production keeps only its reference in Sales."""
@@ -99,6 +106,7 @@ class HomologationMarketplaceTransport:
         self._now = now or datetime.now(UTC)
         self.refresh_count = 0
         self.fetch_count = 0
+        self.fulfillment_updates: list[ChannelFulfillmentUpdate] = []
 
     async def refresh_token(
         self, marketplace: Marketplace, credentials: ChannelOAuthCredentials
@@ -123,6 +131,15 @@ class HomologationMarketplaceTransport:
             return dict(self._orders[(marketplace, external_order_id)])
         except KeyError as error:
             raise MarketplacePayloadError("Homologation order was not found.") from error
+
+    async def update_fulfillment(
+        self,
+        update: ChannelFulfillmentUpdate,
+        access_token: str,
+    ) -> None:
+        if not access_token:
+            raise MarketplacePayloadError("OAuth access token is required.")
+        self.fulfillment_updates.append(update)
 
 
 class MarketplaceGatewayAdapter:
@@ -159,16 +176,35 @@ class MarketplaceGatewayAdapter:
         credential_reference: str,
     ) -> ExternalChannelOrder:
         self._require_scope(reference)
+        token = await self._access_token(credential_reference)
+        payload = await self._transport.fetch_order(
+            self._marketplace, reference.external_order_id, token.access_token
+        )
+        return await self.normalize_webhook(reference, payload)
+
+    async def sync_fulfillment(
+        self,
+        update: ChannelFulfillmentUpdate,
+        credential_reference: str,
+    ) -> None:
+        if update.marketplace is not self._marketplace:
+            raise MarketplacePayloadError(
+                "Gateway and fulfillment marketplace do not match."
+            )
+        token = await self._access_token(credential_reference)
+        await self._transport.update_fulfillment(
+            update,
+            token.access_token,
+        )
+
+    async def _access_token(self, credential_reference: str) -> ChannelOAuthToken:
         credentials = await self._credentials.get(credential_reference)
         token = credentials.token
         now = self._fixed_now or datetime.now(UTC)
         if not token.is_usable(now):
             token = await self._transport.refresh_token(self._marketplace, credentials)
             await self._credentials.save_token(credential_reference, token)
-        payload = await self._transport.fetch_order(
-            self._marketplace, reference.external_order_id, token.access_token
-        )
-        return await self.normalize_webhook(reference, payload)
+        return token
 
     def _require_scope(self, reference: ChannelOrderReference) -> None:
         if reference.marketplace is not self._marketplace:

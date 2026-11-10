@@ -3,7 +3,11 @@
 from collections.abc import Mapping
 from typing import Protocol
 
-from erp.modules.sales.contracts import ChannelOrderReference, ExternalChannelOrder
+from erp.modules.sales.contracts import (
+    ChannelFulfillmentUpdate,
+    ChannelOrderReference,
+    ExternalChannelOrder,
+)
 
 
 class ChannelConnector(Protocol):
@@ -24,6 +28,12 @@ class ChannelConnector(Protocol):
         reference: ChannelOrderReference,
         credential_reference: str,
     ) -> ExternalChannelOrder: ...
+
+    async def sync_fulfillment(
+        self,
+        update: ChannelFulfillmentUpdate,
+        credential_reference: str,
+    ) -> None: ...
 
 
 __all__ = ["ChannelConnector"]

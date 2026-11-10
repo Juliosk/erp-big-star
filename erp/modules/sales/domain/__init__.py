@@ -20,6 +20,12 @@ from erp.modules.sales.domain.channels import (
     SalesChannelVersionConflictError,
     channel_order_fingerprint,
 )
+from erp.modules.sales.domain.fulfillment import (
+    SalesFulfillmentError,
+    SalesShipment,
+    SalesShipmentStatus,
+    ShippingLabel,
+)
 from erp.modules.sales.domain.order import SalesOrder, SalesOrderItem, SalesOrderStatus
 from erp.modules.sales.domain.order_reservation import (
     SalesOrderReservation,
@@ -53,6 +59,7 @@ __all__ = [
     "SalesChannelError",
     "SalesChannelScopeError",
     "SalesChannelVersionConflictError",
+    "SalesFulfillmentError",
     "SalesOrder",
     "SalesOrderItem",
     "SalesOrderReservation",
@@ -61,5 +68,8 @@ __all__ = [
     "SalesOrderStatus",
     "SalesQuote",
     "SalesQuoteStatus",
+    "SalesShipment",
+    "SalesShipmentStatus",
+    "ShippingLabel",
     "channel_order_fingerprint",
 ]
