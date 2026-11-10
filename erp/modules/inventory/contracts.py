@@ -177,7 +177,7 @@ class InventoryBalanceReference:
     warehouse_id: UUID
     location_id: UUID | None
     lot_id: UUID | None
-    pool_id: UUID
+    pool_id: UUID | None
     state: str
     on_hand: Decimal
     reserved: Decimal

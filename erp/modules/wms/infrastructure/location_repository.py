@@ -129,6 +129,18 @@ class WMSLocationRepository:
         row = (await self._session.execute(statement)).one_or_none()
         return None if row is None else _bin(row[0], row[1], row[2], row[3], row[4], row[5])
 
+    async def get_for_update(self, inventory_location_id: UUID) -> WarehouseBin | None:
+        statement = (
+            self._base_statement()
+            .where(
+                WmsBinModel.company_id == self._company_id,
+                WmsBinModel.id == inventory_location_id,
+            )
+            .with_for_update(of=WmsBinModel)
+        )
+        row = (await self._session.execute(statement)).one_or_none()
+        return None if row is None else _bin(row[0], row[1], row[2], row[3], row[4], row[5])
+
     async def get_by_address(self, address: WarehouseAddress) -> WarehouseBin | None:
         if not isinstance(address, WarehouseAddress):
             raise TypeError("address must be a WarehouseAddress.")

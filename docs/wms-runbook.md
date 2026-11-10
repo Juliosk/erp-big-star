@@ -2,9 +2,10 @@
 
 ## Escopo
 
-O M10 WMS cobre a fundação operacional de expedição: ondas de separação,
-tarefas de picking, bipagem por código de barras, pacotes e embalagem. O módulo
-é dono de `erp.modules.wms` e mantém escopo obrigatório por `company_id`.
+O M10 WMS cobre a fundação operacional de expedição e armazenagem: layout
+cartesiano, guarda física (putaway), ondas de separação, tarefas de picking,
+bipagem por código de barras, pacotes e embalagem. O módulo é dono de
+`erp.modules.wms` e mantém escopo obrigatório por `company_id`.
 
 Ficam fora deste runbook: pedido comercial M4, emissão fiscal M11, CT-e/MDF-e,
 financeiro M12 e integrações externas de transportadora.
@@ -17,6 +18,9 @@ financeiro M12 e integrações externas de transportadora.
 - `wms.dispatch.execute`: reservado para despacho em sprint posterior.
 - `wms.label.reprint`: reservado para reimpressão auditada de etiquetas.
 - `wms.shortage.override`: reservado para override formal de falta.
+- `wms.locations.read`: consultar zonas, corredores, estantes, níveis e bins.
+- `wms.locations.write`: manter a estrutura física e suas capacidades.
+- `wms.inventory.movement`: executar movimentações físicas e guarda em bins.
 
 Em `local` e `test`, o Dev Auth pode expor essas permissões quando
 `DEV_AUTH_ENABLED=true`.
@@ -54,15 +58,33 @@ Pacotes só recebem itens em `DRAFT`. A quantidade embalada por tarefa não pode
 exceder a quantidade já bipada. `verify` exige ao menos um item e `finalize`
 exige pacote `VERIFIED`. As transições usam `If-Match` e retornam `ETag`.
 
+### Guarda física (putaway)
+
+O `WMSPutawayService` recebe saldo em `RECEIVING_STAGE`, originado por compras
+ou produção, e o transfere para um bin de `PICKING` ou `RESERVE`. Antes do
+lançamento, o domínio valida empresa, armazém, zoneamento, bloqueio, dimensões,
+peso, volume e quantidade máxima. O bin é bloqueado com `SELECT FOR UPDATE` e
+a versão informada pelo chamador precisa ser atual; disputas retornam
+`VERSION_CONFLICT` e somente uma movimentação vence.
+
+O comando exige `Idempotency-Key` e a permissão
+`wms.inventory.movement`. Repetir a mesma chave e o mesmo payload devolve o
+resultado original sem novo lançamento. Chave reutilizada com payload diferente
+é rejeitada pelo contrato corporativo de idempotência.
+
 ## Efeitos transacionais
 
 O M10 já publica eventos de domínio via Outbox para:
 
 - `PickingWaveReleased`
 - `PickingTaskScanned`
+- `WmsPutawayCompleted`
 
 Os mesmos comandos registram Audit com snapshots antes/depois na transação da
-mutação. Consumers e dispatch físico ficam reservados para slices posteriores.
+mutação. No putaway, a atualização da ocupação do bin, os dois postings do
+ledger M5 (`RECEIVING_STAGE` negativo e destino positivo), os saldos, Audit,
+Outbox e resultado idempotente compartilham a mesma transação PostgreSQL.
+Consumers e dispatch físico ficam reservados para slices posteriores.
 
 ## Interface Web
 
@@ -87,6 +109,7 @@ Fluxo operacional mínimo:
 .\.venv\Scripts\python.exe -m ruff check erp tests migrations
 .\.venv\Scripts\python.exe -m mypy erp tests migrations
 .\.venv\Scripts\python.exe -m pytest --import-mode=importlib tests\unit\modules\wms tests\integration\test_wms_schema.py tests\integration\test_wms_repositories.py tests\integration\test_wms_api.py tests\integration\test_wms_browser.py tests\unit\test_architecture_boundaries.py -q
+.\.venv\Scripts\python.exe -m pytest --import-mode=importlib tests\integration\test_wms_putaway_service.py -q
 ```
 
 Para E2E visual, os screenshots esperados são:

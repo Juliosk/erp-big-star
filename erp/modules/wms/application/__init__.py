@@ -26,6 +26,13 @@ from erp.modules.wms.application.picking import (
     ScanPickingTask,
     WmsPickingTaskStore,
 )
+from erp.modules.wms.application.putaway import (
+    ExecutePutaway,
+    PutawaySourceType,
+    WmsPutawayResult,
+    WMSPutawayService,
+    WmsPutawayStore,
+)
 from erp.modules.wms.application.waves import (
     CommandMetadata,
     CreatePickingWave,
@@ -51,6 +58,7 @@ __all__ = [
     "CommandMetadata",
     "CreatePackage",
     "CreatePickingWave",
+    "ExecutePutaway",
     "PackageCommand",
     "PackageDetail",
     "PackingService",
@@ -59,13 +67,17 @@ __all__ = [
     "PickingTaskScanService",
     "PickingWaveDetail",
     "PickingWaveService",
+    "PutawaySourceType",
     "ReleasePickingWave",
     "ScanPickingTask",
+    "WMSPutawayService",
     "WmsAuthorization",
     "WmsCommandResult",
     "WmsPackingStore",
     "WmsPage",
     "WmsPickingTaskStore",
+    "WmsPutawayResult",
+    "WmsPutawayStore",
     "WmsWaveStore",
     "wms_permission_registry",
 ]
