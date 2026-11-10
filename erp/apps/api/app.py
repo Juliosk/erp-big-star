@@ -18,6 +18,7 @@ from erp.apps.api.procurement_matching_governance import (
 from erp.apps.api.procurement_receipts import PostgresGoodsReceiptOperations
 from erp.apps.api.production_cockpit import router as production_router
 from erp.apps.api.routes import health_router
+from erp.apps.api.sales_cockpit_costs import PostgresSalesCockpitCostProvider
 from erp.apps.api.sales_workflow import WorkflowDiscountGateway
 from erp.apps.api.treasury_candidates import PostgresTreasuryPaymentCandidateProvider
 from erp.apps.api.treasury_execution import M22PaymentBatchApprovalGateway
@@ -144,6 +145,7 @@ from erp.modules.sales.api import router as sales_router
 from erp.modules.sales.application import (
     DiscountApprovalService,
     SalesAuthorization,
+    SalesCockpitService,
     SalesOrderCancellationService,
     SalesOrderConversionService,
     SalesOrderReservationService,
@@ -153,6 +155,7 @@ from erp.modules.sales.application import (
 )
 from erp.modules.sales.infrastructure import (
     PostgresDiscountApproval,
+    PostgresSalesCockpitReader,
     PostgresSalesOrderCancellation,
     PostgresSalesOrderConversion,
     PostgresSalesOrderReservations,
@@ -166,11 +169,13 @@ from erp.modules.wms.application import (
     PickingTaskScanService,
     PickingWaveService,
     WmsAuthorization,
+    WmsCockpitService,
 )
 from erp.modules.wms.infrastructure import (
     PostgresPackingStore,
     PostgresPickingTaskStore,
     PostgresPickingWaveStore,
+    PostgresWmsCockpitReader,
 )
 from erp.modules.workflow.api import router as workflow_router
 from erp.modules.workflow.application import (
@@ -242,6 +247,8 @@ def create_app(
     pricing_simulation: PricingSimulationService | None = None,
     pricing_snapshots: PricingSnapshotQueryService | None = None,
     production_cockpit: ProductionCockpitService | None = None,
+    sales_channel_cockpit: SalesCockpitService | None = None,
+    wms_operations_cockpit: WmsCockpitService | None = None,
     wms_picking_waves: PickingWaveService | None = None,
     wms_picking_tasks: PickingTaskScanService | None = None,
     wms_packing: PackingService | None = None,
@@ -309,6 +316,8 @@ def create_app(
     resolved_pricing_simulation = pricing_simulation
     resolved_pricing_snapshots = pricing_snapshots
     resolved_production_cockpit = production_cockpit
+    resolved_sales_channel_cockpit = sales_channel_cockpit
+    resolved_wms_operations_cockpit = wms_operations_cockpit
     resolved_wms_picking_waves = wms_picking_waves
     resolved_wms_picking_tasks = wms_picking_tasks
     resolved_wms_packing = wms_packing
@@ -446,6 +455,23 @@ def create_app(
         resolved_production_cockpit = ProductionCockpitService(
             PostgresProductionCockpitReader(resolved_database),
             ProductionAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
+    if resolved_sales_channel_cockpit is None and isinstance(resolved_database, Database):
+        resolved_sales_channel_cockpit = SalesCockpitService(
+            PostgresSalesCockpitReader(
+                resolved_database,
+                PostgresSalesCockpitCostProvider(resolved_database),
+            ),
+            SalesAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
+    if resolved_wms_operations_cockpit is None and isinstance(resolved_database, Database):
+        resolved_wms_operations_cockpit = WmsCockpitService(
+            PostgresWmsCockpitReader(resolved_database),
+            WmsAuthorization(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
             ),
         )
@@ -834,6 +860,8 @@ def create_app(
     application.state.pricing_simulation = resolved_pricing_simulation
     application.state.pricing_snapshots = resolved_pricing_snapshots
     application.state.production_cockpit = resolved_production_cockpit
+    application.state.sales_channel_cockpit = resolved_sales_channel_cockpit
+    application.state.wms_operations_cockpit = resolved_wms_operations_cockpit
     application.state.wms_picking_waves = resolved_wms_picking_waves
     application.state.wms_picking_tasks = resolved_wms_picking_tasks
     application.state.wms_packing = resolved_wms_packing

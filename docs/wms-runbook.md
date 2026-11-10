@@ -7,8 +7,10 @@ cartesiano, guarda física (putaway), ondas de separação, tarefas de picking,
 bipagem por código de barras, pacotes e embalagem. O módulo é dono de
 `erp.modules.wms` e mantém escopo obrigatório por `company_id`.
 
-Ficam fora deste runbook: pedido comercial M4, emissão fiscal M11, CT-e/MDF-e,
-financeiro M12 e integrações externas de transportadora.
+O pedido comercial continua no contexto Sales e o ledger no M5. O WMS recebe
+demandas por contratos e eventos, executa o movimento físico e devolve
+evidências de picking, packing e despacho sem escrever diretamente nos
+agregados vizinhos.
 
 ## Permissões
 
@@ -21,6 +23,7 @@ financeiro M12 e integrações externas de transportadora.
 - `wms.locations.read`: consultar zonas, corredores, estantes, níveis e bins.
 - `wms.locations.write`: manter a estrutura física e suas capacidades.
 - `wms.inventory.movement`: executar movimentações físicas e guarda em bins.
+- `wms.inventory.read`: consultar ocupação, ondas e fila do cockpit WMS.
 
 Em `local` e `test`, o Dev Auth pode expor essas permissões quando
 `DEV_AUTH_ENABLED=true`.
@@ -57,6 +60,19 @@ onda em `RELEASED` ou `IN_PROGRESS`. O domínio impede over-picking e retorna
 Pacotes só recebem itens em `DRAFT`. A quantidade embalada por tarefa não pode
 exceder a quantidade já bipada. `verify` exige ao menos um item e `finalize`
 exige pacote `VERIFIED`. As transições usam `If-Match` e retornam `ETag`.
+
+### Rotas cartesianas, packing e manifesto (Migration 0060)
+
+As tabelas `wms_picking_wave`, `wms_picking_item` e
+`wms_packing_verification` suportam a jornada física integrada aos pedidos de
+marketplace. A criação da onda ordena os itens por
+`Zona/Corredor/Estante/Nível/Bin`, reduzindo retornos do operador. Cada scan de
+packing exige EAN correto, chave idempotente e saldo previamente separado.
+
+O manifesto só é gerado quando todos os itens estão `PACKED`. No mesmo
+transaction boundary, o WMS registra a baixa física no ledger M5 e preserva a
+evidência de conferência. Divergências de EAN ou quantidade bloqueiam o
+manifesto com `WMS_PACKING_DIVERGENCE`; nunca faça ajuste direto nas tabelas.
 
 ### Guarda física (putaway)
 
@@ -102,6 +118,18 @@ Fluxo operacional mínimo:
 6. Verificar o pacote.
 7. Finalizar o pacote.
 
+O cockpit operacional consolidado fica em `/ui/wms/cockpit` e exige
+`wms.inventory.read`. Ele apresenta:
+
+- ocupação por zona com capacidade e bins bloqueados;
+- ondas ordenadas pela rota cartesiana e próximo endereço;
+- progresso combinado de picking e packing;
+- fila explicável da doca com itens a separar, conferir e despachar.
+
+O painel é somente leitura. Ações continuam nas APIs/comandos oficiais com as
+permissões de execução. O Bearer token permanece apenas em memória e a troca de
+empresa dispara uma nova consulta tenant-bound.
+
 ## Validação local
 
 ```powershell
@@ -116,6 +144,20 @@ Para E2E visual, os screenshots esperados são:
 
 - `test-results/wms-cockpit-desktop.png`
 - `test-results/wms-cockpit-mobile.png`
+- `test-results/wms-operations-cockpit-desktop.png`
+- `test-results/wms-operations-cockpit-mobile.png`
+
+## Recuperação e resiliência
+
+- Bin lotado/incompatível: revise capacidade e zoneamento; não mova saldo por
+  SQL. Reexecute o putaway com outro bin e nova chave idempotente.
+- Onda parada: confira item/rota, reservation HARD e status do saldo no M5.
+- Divergência de packing: reconte fisicamente, valide EAN do M2 e só então
+  repita a conferência.
+- Evento atrasado: acompanhe Outbox, retry e DLQ. Replays são seguros pelo
+  Inbox/idempotência; preserve a ordem monotônica do agregado.
+- Ambiente Docker: preserve volumes PostgreSQL/Redis/MinIO. Não use factory
+  reset nem `docker system prune -a --volumes` em recuperação operacional.
 
 ## Critérios de aceite da Sprint 9
 

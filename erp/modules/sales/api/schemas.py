@@ -9,6 +9,42 @@ from pydantic import BaseModel, ConfigDict, Field
 from erp.modules.sales.domain import SalesQuoteStatus
 
 
+class SalesCockpitOrderResponse(BaseModel):
+    id: UUID
+    external_order_id: str
+    marketplace: str
+    status: str
+    reconciliation_status: str
+    total_amount: Decimal
+    margin_amount: Decimal | None
+    margin_percent: Decimal | None
+    shipment_status: str | None
+    tracking_code: str | None
+    updated_at: datetime
+
+
+class SalesChannelPulseResponse(BaseModel):
+    marketplace: str
+    order_count: int
+    pending_count: int
+    paid_count: int
+    shipped_count: int
+    cancelled_count: int
+    sales_amount: Decimal
+    margin_amount: Decimal | None
+    margin_percent: Decimal | None
+    margin_pending_orders: int
+
+
+class SalesCockpitResponse(BaseModel):
+    company_id: UUID
+    generated_at: datetime
+    reconciled_orders: int
+    margin_pending_orders: int
+    channels: list[SalesChannelPulseResponse]
+    orders: list[SalesCockpitOrderResponse]
+
+
 class CreateSalesQuoteRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     company_id: UUID
@@ -195,6 +231,9 @@ __all__ = [
     "ReserveSalesOrderRequest",
     "ReviseSalesQuoteRequest",
     "RevisionLineRequest",
+    "SalesChannelPulseResponse",
+    "SalesCockpitOrderResponse",
+    "SalesCockpitResponse",
     "SalesOrderCancellationResponse",
     "SalesOrderConversionResponse",
     "SalesOrderItemResponse",

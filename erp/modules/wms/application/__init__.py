@@ -1,5 +1,13 @@
 """Application services and policies for M10 WMS."""
 
+from erp.modules.wms.application.cockpit import (
+    WmsCockpitReader,
+    WmsCockpitService,
+    WmsCockpitSnapshot,
+    WmsCockpitWave,
+    WmsDispatchQueueEntry,
+    WmsZoneOccupancy,
+)
 from erp.modules.wms.application.packing import (
     AddPackageItem,
     CreatePackage,
@@ -11,6 +19,7 @@ from erp.modules.wms.application.packing import (
 from erp.modules.wms.application.permissions import (
     WMS_DISPATCH_EXECUTE,
     WMS_INVENTORY_MOVEMENT,
+    WMS_INVENTORY_READ,
     WMS_LABEL_REPRINT,
     WMS_LOCATIONS_READ,
     WMS_LOCATIONS_WRITE,
@@ -60,6 +69,7 @@ from erp.modules.wms.application.waves import (
 __all__ = [
     "WMS_DISPATCH_EXECUTE",
     "WMS_INVENTORY_MOVEMENT",
+    "WMS_INVENTORY_READ",
     "WMS_LABEL_REPRINT",
     "WMS_LOCATIONS_READ",
     "WMS_LOCATIONS_WRITE",
@@ -93,7 +103,12 @@ __all__ = [
     "WMSPickingPackingService",
     "WMSPutawayService",
     "WmsAuthorization",
+    "WmsCockpitReader",
+    "WmsCockpitService",
+    "WmsCockpitSnapshot",
+    "WmsCockpitWave",
     "WmsCommandResult",
+    "WmsDispatchQueueEntry",
     "WmsPackingStore",
     "WmsPage",
     "WmsPickingPackingStore",
@@ -101,5 +116,6 @@ __all__ = [
     "WmsPutawayResult",
     "WmsPutawayStore",
     "WmsWaveStore",
+    "WmsZoneOccupancy",
     "wms_permission_registry",
 ]

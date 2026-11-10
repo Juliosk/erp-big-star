@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Cockpit de Canais · Big Star ERP</title>
+    <link rel="stylesheet" href="/ui/operations-cockpit.css" />
+    <script type="module" src="/ui/sales/cockpit/cockpit.js"></script>
+  </head>
+  <body class="sales-theme">
+    <section id="access" class="access-shell" aria-labelledby="access-title">
+      <form id="access-form" class="access-card" autocomplete="off">
+        <p class="eyebrow">BIG STAR · CENTRAL DE CANAIS</p>
+        <h1 id="access-title">Abrir cockpit comercial</h1>
+        <p>Pedidos, conciliação de SKUs e margem em uma única mesa de operação.</p>
+        <label for="access-token">Token de acesso</label>
+        <input id="access-token" type="password" autocomplete="off" required />
+        <p id="access-error" class="form-error" role="alert"></p>
+        <button type="submit">Conectar aos canais</button>
+      </form>
+    </section>
+
+    <section id="denied" class="access-shell" hidden aria-labelledby="denied-title">
+      <div class="access-card">
+        <span class="denied-mark" aria-hidden="true">!</span>
+        <p class="eyebrow">ACESSO RESTRITO</p>
+        <h1 id="denied-title">Permissão de pedidos multicanal necessária</h1>
+        <p>Solicite <code>sales.orders.read</code> para visualizar este cockpit.</p>
+        <button id="denied-back" type="button">Voltar ao acesso</button>
+      </div>
+    </section>
+
+    <main id="cockpit" hidden>
+      <header class="command-bar">
+        <a class="brand" href="/ui/" aria-label="Voltar ao ERP Big Star"><span class="brand-star">★</span><span>BIG STAR</span><small>ERP</small></a>
+        <div class="command-title"><p>VENDAS · MARKETPLACES</p><h1>Cockpit de canais</h1></div>
+        <div class="command-actions">
+          <a class="switch-link" href="/ui/wms/cockpit">Ir para WMS →</a>
+          <label for="company">Empresa de trabalho</label><select id="company"></select>
+          <button id="refresh" type="button">Atualizar</button>
+        </div>
+      </header>
+      <div class="signal-rail" aria-hidden="true"></div>
+      <div class="workspace">
+        <section class="summary-strip" aria-label="Resumo comercial">
+          <div class="summary-lead"><p>POSIÇÃO DOS CANAIS</p><strong id="generated">—</strong></div>
+          <div class="metric"><span>Pedidos</span><strong id="metric-orders">0</strong></div>
+          <div class="metric"><span>Conciliados</span><strong id="metric-reconciled">0</strong></div>
+          <div class="metric"><span>Margem pendente</span><strong id="metric-margin-gaps">0</strong></div>
+        </section>
+
+        <div class="section-head"><div><p class="eyebrow">ESTEIRA DE CANAIS</p><h2>Ritmo comercial por marketplace</h2></div><p>Margens usam o custo padrão vigente no M9; lacunas permanecem explícitas.</p></div>
+        <section id="channels" class="channel-grid" aria-label="Canais de venda"></section>
+
+        <div class="section-head"><div><p class="eyebrow">PEDIDOS NORMALIZADOS</p><h2>Fila multicanal</h2></div><span id="order-count">0 pedidos exibidos</span></div>
+        <section class="panel">
+          <div class="table-wrap"><table><thead><tr><th>Canal / pedido</th><th>Status</th><th>Conciliação</th><th>Valor</th><th>Margem</th><th>Expedição</th><th>Atualização</th></tr></thead><tbody id="orders"></tbody></table></div>
+          <p id="orders-empty" class="empty" hidden>Nenhum pedido multicanal nesta empresa.</p>
+        </section>
+        <footer><span>Escopo isolado por company_id · RBAC sales.orders.read</span><span>Custos M9 · Fulfillment Sales/WMS · Migration 0059</span></footer>
+      </div>
+      <div id="notice" class="notice" role="status" aria-live="polite"></div>
+    </main>
+  </body>
+</html>

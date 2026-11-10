@@ -1,5 +1,6 @@
 """Public WMS request and response schemas."""
 
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -7,6 +8,54 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from erp.modules.wms.domain.package import PackageStatus, PackageType
 from erp.modules.wms.domain.picking import PickingTaskStatus, PickingWaveStatus
+
+
+class WmsCockpitWaveResponse(BaseModel):
+    id: UUID
+    code: str
+    warehouse_id: UUID
+    status: str
+    item_count: int
+    picked_items: int
+    packed_items: int
+    progress_percent: Decimal
+    first_address: str | None
+    next_address: str | None
+    manifest_number: str | None
+    updated_at: datetime
+
+
+class WmsZoneOccupancyResponse(BaseModel):
+    zone_id: UUID
+    code: str
+    storage_type: str
+    bin_count: int
+    occupied_bins: int
+    blocked_bins: int
+    occupied_units: int
+    max_units: int
+    occupancy_percent: Decimal
+
+
+class WmsDispatchQueueResponse(BaseModel):
+    wave_id: UUID
+    wave_code: str
+    status: str
+    pending_pick_items: int
+    pending_pack_items: int
+    ready_items: int
+    manifest_number: str | None
+
+
+class WmsCockpitResponse(BaseModel):
+    company_id: UUID
+    generated_at: datetime
+    total_bins: int
+    blocked_bins: int
+    occupancy_percent: Decimal
+    waves: list[WmsCockpitWaveResponse]
+    zones: list[WmsZoneOccupancyResponse]
+    dispatch_queue: list[WmsDispatchQueueResponse]
 
 
 class PageMetadata(BaseModel):
@@ -158,4 +207,8 @@ __all__ = [
     "PickingWaveListResponse",
     "PickingWaveResponse",
     "ScanPickingTaskRequest",
+    "WmsCockpitResponse",
+    "WmsCockpitWaveResponse",
+    "WmsDispatchQueueResponse",
+    "WmsZoneOccupancyResponse",
 ]

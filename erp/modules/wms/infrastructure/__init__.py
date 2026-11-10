@@ -1,5 +1,6 @@
 """Internal M10 persistence adapters, wired only at the composition boundary."""
 
+from erp.modules.wms.infrastructure.cockpit_query import PostgresWmsCockpitReader
 from erp.modules.wms.infrastructure.effects import (
     PICKING_TASK_SCANNED,
     PICKING_WAVE_RELEASED,
@@ -53,6 +54,7 @@ __all__ = [
     "PostgresPackingStore",
     "PostgresPickingTaskStore",
     "PostgresPickingWaveStore",
+    "PostgresWmsCockpitReader",
     "PostgresWmsPickingPackingStore",
     "PostgresWmsPutawayStore",
     "SessionOutboundShipmentGateway",

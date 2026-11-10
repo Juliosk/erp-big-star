@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Cockpit WMS · Big Star ERP</title>
+    <link rel="stylesheet" href="/ui/operations-cockpit.css" />
+    <script type="module" src="/ui/wms/cockpit/cockpit.js"></script>
+  </head>
+  <body class="wms-theme">
+    <section id="access" class="access-shell" aria-labelledby="access-title">
+      <form id="access-form" class="access-card" autocomplete="off">
+        <p class="eyebrow">BIG STAR · TORRE LOGÍSTICA</p>
+        <h1 id="access-title">Abrir cockpit WMS</h1>
+        <p>Ocupação física, rota cartesiana e despacho acompanhados em tempo real.</p>
+        <label for="access-token">Token de acesso</label>
+        <input id="access-token" type="password" autocomplete="off" required />
+        <p id="access-error" class="form-error" role="alert"></p>
+        <button type="submit">Conectar ao armazém</button>
+      </form>
+    </section>
+
+    <section id="denied" class="access-shell" hidden aria-labelledby="denied-title">
+      <div class="access-card">
+        <span class="denied-mark" aria-hidden="true">!</span>
+        <p class="eyebrow">ACESSO RESTRITO</p>
+        <h1 id="denied-title">Permissão de inventário WMS necessária</h1>
+        <p>Solicite <code>wms.inventory.read</code> para visualizar este cockpit.</p>
+        <button id="denied-back" type="button">Voltar ao acesso</button>
+      </div>
+    </section>
+
+    <main id="cockpit" hidden>
+      <header class="command-bar">
+        <a class="brand" href="/ui/" aria-label="Voltar ao ERP Big Star"><span class="brand-star">★</span><span>BIG STAR</span><small>ERP</small></a>
+        <div class="command-title"><p>WMS · EXPEDIÇÃO FÍSICA</p><h1>Torre do armazém</h1></div>
+        <div class="command-actions">
+          <a class="switch-link" href="/ui/sales/cockpit">← Ir para Vendas</a>
+          <label for="company">Empresa de trabalho</label><select id="company"></select>
+          <button id="refresh" type="button">Atualizar</button>
+        </div>
+      </header>
+      <div class="signal-rail" aria-hidden="true"></div>
+      <div class="workspace">
+        <section class="summary-strip" aria-label="Resumo do armazém">
+          <div class="summary-lead"><p>POSIÇÃO OPERACIONAL</p><strong id="generated">—</strong></div>
+          <div class="metric"><span>Ondas ativas</span><strong id="metric-waves">0</strong></div>
+          <div class="metric"><span>Ocupação</span><strong id="metric-occupancy">0%</strong></div>
+          <div class="metric"><span>Bins bloqueados</span><strong id="metric-blocked">0</strong></div>
+        </section>
+
+        <div class="section-head"><div><p class="eyebrow">MAPA CARTESIANO</p><h2>Ocupação por zona</h2></div><p>A leitura considera unidades ocupadas versus capacidade física configurada em cada bin.</p></div>
+        <section id="zones" class="zone-grid" aria-label="Mapa de ocupação por zona"></section>
+        <p id="zones-empty" class="panel empty" hidden>Nenhuma estrutura física cadastrada nesta empresa.</p>
+
+        <div class="section-head"><div><p class="eyebrow">FLUXO PICK → PACK → SHIP</p><h2>Ondas e fila de despacho</h2></div><span id="wave-count">0 ondas exibidas</span></div>
+        <section class="wms-layout">
+          <article class="panel"><div class="table-wrap"><table><thead><tr><th>Onda</th><th>Status</th><th>Rota</th><th>Progresso</th><th>Conferência</th><th>Atualização</th></tr></thead><tbody id="waves"></tbody></table></div><p id="waves-empty" class="empty" hidden>Nenhuma onda operacional nesta empresa.</p></article>
+          <aside class="panel"><div class="section-head queue-head"><div><p class="eyebrow">DOCA DE SAÍDA</p><h2>Fila de packing</h2></div></div><div id="dispatch-queue" class="queue"></div><p id="queue-empty" class="empty" hidden>Fila sem pendências.</p></aside>
+        </section>
+        <footer><span>Escopo isolado por company_id · RBAC wms.inventory.read</span><span>Ledger M5 · Rotas e Packing · Migration 0060</span></footer>
+      </div>
+      <div id="notice" class="notice" role="status" aria-live="polite"></div>
+    </main>
+  </body>
+</html>

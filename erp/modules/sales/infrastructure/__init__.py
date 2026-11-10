@@ -11,6 +11,7 @@ from erp.modules.sales.infrastructure.channel_repository import (
     MultichannelSalesOrderRepository,
     SalesChannelConfigRepository,
 )
+from erp.modules.sales.infrastructure.cockpit_query import PostgresSalesCockpitReader
 from erp.modules.sales.infrastructure.conversion import PostgresSalesOrderConversion
 from erp.modules.sales.infrastructure.discount_approval import PostgresDiscountApproval
 from erp.modules.sales.infrastructure.fulfillment import PostgresSalesFulfillment
@@ -71,6 +72,7 @@ __all__ = [
     "MultichannelSalesOrderRepository",
     "PostgresDiscountApproval",
     "PostgresMultichannelOrderIngestion",
+    "PostgresSalesCockpitReader",
     "PostgresSalesFulfillment",
     "PostgresSalesOrderCancellation",
     "PostgresSalesOrderConversion",

@@ -21,6 +21,7 @@ WMS_LABEL_REPRINT = PermissionCode("wms.label.reprint")
 WMS_SHORTAGE_OVERRIDE = PermissionCode("wms.shortage.override")
 WMS_LOCATIONS_READ = PermissionCode("wms.locations.read")
 WMS_LOCATIONS_WRITE = PermissionCode("wms.locations.write")
+WMS_INVENTORY_READ = PermissionCode("wms.inventory.read")
 WMS_INVENTORY_MOVEMENT = PermissionCode("wms.inventory.movement")
 
 
@@ -35,6 +36,11 @@ def wms_permission_registry() -> PermissionRegistry:
         for code, description, risk in (
             (WMS_LOCATIONS_READ, "Read WMS physical layout", PermissionRiskLevel.MEDIUM),
             (WMS_LOCATIONS_WRITE, "Manage WMS physical layout", PermissionRiskLevel.HIGH),
+            (
+                WMS_INVENTORY_READ,
+                "Read WMS inventory, occupancy and expedition cockpit",
+                PermissionRiskLevel.MEDIUM,
+            ),
             (
                 WMS_INVENTORY_MOVEMENT,
                 "Execute physical WMS movements",
@@ -73,6 +79,7 @@ class WmsAuthorization:
 __all__ = [
     "WMS_DISPATCH_EXECUTE",
     "WMS_INVENTORY_MOVEMENT",
+    "WMS_INVENTORY_READ",
     "WMS_LABEL_REPRINT",
     "WMS_LOCATIONS_READ",
     "WMS_LOCATIONS_WRITE",

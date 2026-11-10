@@ -1,5 +1,13 @@
 """Public M15 application surface."""
 
+from erp.modules.sales.application.cockpit import (
+    SalesChannelPulse,
+    SalesCockpitCostProvider,
+    SalesCockpitOrder,
+    SalesCockpitReader,
+    SalesCockpitService,
+    SalesCockpitSnapshot,
+)
 from erp.modules.sales.application.conversion import (
     ConvertQuoteToOrder,
     SalesOrderConversionResult,
@@ -119,6 +127,12 @@ __all__ = [
     "ReviseSalesQuote",
     "RevisionLine",
     "SalesAuthorization",
+    "SalesChannelPulse",
+    "SalesCockpitCostProvider",
+    "SalesCockpitOrder",
+    "SalesCockpitReader",
+    "SalesCockpitService",
+    "SalesCockpitSnapshot",
     "SalesFulfillmentCandidate",
     "SalesFulfillmentResult",
     "SalesFulfillmentService",
