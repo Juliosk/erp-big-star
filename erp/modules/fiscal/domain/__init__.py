@@ -17,8 +17,11 @@ from erp.modules.fiscal.domain.exceptions import (
     InvalidInboundFiscalDocumentError,
     InvalidManifestationError,
     InvalidStateTransitionError,
+    InvalidTaxRuleError,
+    InvalidTaxRuleTransitionError,
     InvalidTaxSnapshotError,
     TaxMismatchError,
+    TaxRuleSodViolationError,
 )
 from erp.modules.fiscal.domain.fiscal_document import (
     LEGAL_ROUNDING_TOLERANCE,
@@ -36,6 +39,14 @@ from erp.modules.fiscal.domain.inbound import (
     RecipientManifestationStatus,
     RecipientManifestationType,
 )
+from erp.modules.fiscal.domain.tax_rule import (
+    FiscalFlow,
+    TaxJurisdiction,
+    TaxRateProfile,
+    TaxRule,
+    TaxRuleCriteria,
+    TaxRuleStatus,
+)
 from erp.modules.fiscal.domain.tax_snapshot import (
     TaxComponentSnapshot,
     TaxKind,
@@ -52,6 +63,7 @@ __all__ = [
     "FiscalDocumentStatus",
     "FiscalDocumentTotals",
     "FiscalDomainError",
+    "FiscalFlow",
     "FiscalPartySnapshot",
     "FiscalScopeError",
     "FiscalVersionConflictError",
@@ -64,6 +76,8 @@ __all__ = [
     "InvalidInboundFiscalDocumentError",
     "InvalidManifestationError",
     "InvalidStateTransitionError",
+    "InvalidTaxRuleError",
+    "InvalidTaxRuleTransitionError",
     "InvalidTaxSnapshotError",
     "NFeAccessKey",
     "RecipientManifestation",
@@ -71,7 +85,13 @@ __all__ = [
     "RecipientManifestationType",
     "SefazResponseSnapshot",
     "TaxComponentSnapshot",
+    "TaxJurisdiction",
     "TaxKind",
     "TaxMismatchError",
+    "TaxRateProfile",
+    "TaxRule",
+    "TaxRuleCriteria",
+    "TaxRuleSodViolationError",
+    "TaxRuleStatus",
     "TaxSnapshot",
 ]

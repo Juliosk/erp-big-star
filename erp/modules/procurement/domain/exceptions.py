@@ -69,6 +69,14 @@ class InvalidProcurementTransitionError(ProcurementDomainError):
     """A requisition or purchase order lifecycle transition is not allowed."""
 
 
+class InvalidRequestForQuotationError(ProcurementDomainError):
+    """An RFQ, supplier quote or award invariant was violated."""
+
+
+class InvalidRequestForQuotationTransitionError(InvalidRequestForQuotationError):
+    """An RFQ lifecycle transition is not allowed."""
+
+
 __all__ = [
     "DuplicateSupplierSiteError",
     "InvalidGoodsReceiptError",
@@ -79,6 +87,8 @@ __all__ = [
     "InvalidMatchingTransitionError",
     "InvalidProcurementTransitionError",
     "InvalidPurchaseOrderError",
+    "InvalidRequestForQuotationError",
+    "InvalidRequestForQuotationTransitionError",
     "InvalidRequisitionError",
     "InvalidSupplierDataError",
     "InvalidSupplierIdentityError",

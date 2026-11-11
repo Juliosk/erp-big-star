@@ -10,6 +10,9 @@ from erp.modules.procurement.application import (
     PROCUREMENT_RECEIPT_READ,
     PROCUREMENT_REQUISITION_MANAGE,
     PROCUREMENT_REQUISITION_READ,
+    PROCUREMENT_RFQ_AWARD,
+    PROCUREMENT_RFQ_MANAGE,
+    PROCUREMENT_RFQ_READ,
     PROCUREMENT_SUPPLIER_MANAGE,
     PROCUREMENT_SUPPLIER_READ,
     procurement_permission_registry,
@@ -29,6 +32,9 @@ def test_procurement_registry_exposes_the_canonical_m6_permissions() -> None:
         PROCUREMENT_RECEIPT_MANAGE,
         PROCUREMENT_MATCHING_READ,
         PROCUREMENT_MATCHING_EXECUTE,
+        PROCUREMENT_RFQ_READ,
+        PROCUREMENT_RFQ_MANAGE,
+        PROCUREMENT_RFQ_AWARD,
     }
 
     assert frozenset(item.code for item in registry.all()) == frozenset(expected)
@@ -45,3 +51,6 @@ def test_procurement_mutation_risks_are_fail_closed() -> None:
     assert registry.get(PROCUREMENT_SUPPLIER_MANAGE).risk_level is PermissionRiskLevel.HIGH
     assert registry.get(PROCUREMENT_ORDER_MANAGE).risk_level is PermissionRiskLevel.HIGH
     assert registry.get(PROCUREMENT_MATCHING_EXECUTE).risk_level is PermissionRiskLevel.CRITICAL
+    assert registry.get(PROCUREMENT_RFQ_READ).risk_level is PermissionRiskLevel.MEDIUM
+    assert registry.get(PROCUREMENT_RFQ_MANAGE).risk_level is PermissionRiskLevel.HIGH
+    assert registry.get(PROCUREMENT_RFQ_AWARD).risk_level is PermissionRiskLevel.CRITICAL

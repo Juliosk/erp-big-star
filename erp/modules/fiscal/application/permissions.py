@@ -20,6 +20,9 @@ FISCAL_NFE_CANCEL = PermissionCode("fiscal.nfe.cancel")
 FISCAL_NFE_CORRECT = PermissionCode("fiscal.nfe.correct")
 FISCAL_INBOUND_READ = PermissionCode("fiscal.inbound.read")
 FISCAL_INBOUND_MANAGE = PermissionCode("fiscal.inbound.manage")
+FISCAL_TAX_RULE_READ = PermissionCode("fiscal.tax_rule.read")
+FISCAL_TAX_RULE_MANAGE = PermissionCode("fiscal.tax_rule.manage")
+FISCAL_TAX_RULE_ACTIVATE = PermissionCode("fiscal.tax_rule.activate")
 
 
 def fiscal_permission_registry() -> PermissionRegistry:
@@ -32,6 +35,17 @@ def fiscal_permission_registry() -> PermissionRegistry:
         (
             FISCAL_INBOUND_MANAGE,
             "Upload and manifest inbound fiscal documents",
+            PermissionRiskLevel.CRITICAL,
+        ),
+        (FISCAL_TAX_RULE_READ, "Read fiscal tax-rule versions", PermissionRiskLevel.HIGH),
+        (
+            FISCAL_TAX_RULE_MANAGE,
+            "Create and edit draft fiscal tax rules",
+            PermissionRiskLevel.CRITICAL,
+        ),
+        (
+            FISCAL_TAX_RULE_ACTIVATE,
+            "Activate fiscal tax-rule versions under maker-checker",
             PermissionRiskLevel.CRITICAL,
         ),
     )
@@ -72,6 +86,9 @@ __all__ = [
     "FISCAL_NFE_CORRECT",
     "FISCAL_NFE_ISSUE",
     "FISCAL_NFE_READ",
+    "FISCAL_TAX_RULE_ACTIVATE",
+    "FISCAL_TAX_RULE_MANAGE",
+    "FISCAL_TAX_RULE_READ",
     "FiscalAuthorization",
     "fiscal_permission_registry",
 ]

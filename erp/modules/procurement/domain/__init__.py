@@ -17,6 +17,8 @@ from erp.modules.procurement.domain.exceptions import (
     InvalidMatchingTransitionError,
     InvalidProcurementTransitionError,
     InvalidPurchaseOrderError,
+    InvalidRequestForQuotationError,
+    InvalidRequestForQuotationTransitionError,
     InvalidRequisitionError,
     InvalidSupplierDataError,
     InvalidSupplierIdentityError,
@@ -75,6 +77,14 @@ from erp.modules.procurement.domain.requisition import (
     RequisitionStatus,
     RequisitionUrgency,
 )
+from erp.modules.procurement.domain.rfq import (
+    QuotationAward,
+    RequestForQuotation,
+    RequestForQuotationItem,
+    RequestForQuotationStatus,
+    SupplierQuote,
+    SupplierQuoteLine,
+)
 from erp.modules.procurement.domain.site import SupplierAddress, SupplierSite
 from erp.modules.procurement.domain.supplier import Supplier, SupplierKind, SupplierStatus
 
@@ -96,6 +106,8 @@ __all__ = [
     "InvalidMatchingTransitionError",
     "InvalidProcurementTransitionError",
     "InvalidPurchaseOrderError",
+    "InvalidRequestForQuotationError",
+    "InvalidRequestForQuotationTransitionError",
     "InvalidRequisitionError",
     "InvalidSupplierDataError",
     "InvalidSupplierIdentityError",
@@ -119,10 +131,14 @@ __all__ = [
     "PurchaseOrderStatus",
     "PurchaseRequisition",
     "QualityInspectionResult",
+    "QuotationAward",
     "ReceiptItem",
     "ReceiptQuantityVariance",
     "ReceiptTolerance",
     "ReceivingFiscalMatchSnapshot",
+    "RequestForQuotation",
+    "RequestForQuotationItem",
+    "RequestForQuotationStatus",
     "RequisitionItem",
     "RequisitionStatus",
     "RequisitionUrgency",
@@ -130,6 +146,8 @@ __all__ = [
     "SupplierAddress",
     "SupplierIdentityKind",
     "SupplierKind",
+    "SupplierQuote",
+    "SupplierQuoteLine",
     "SupplierSite",
     "SupplierStatus",
     "SupplierTaxIdentity",

@@ -49,6 +49,18 @@ class InvalidManifestationError(FiscalDomainError):
     """Raised when an MDE event or transition is invalid."""
 
 
+class InvalidTaxRuleError(FiscalDomainError):
+    """Raised when a tax-rule value object or aggregate is inconsistent."""
+
+
+class InvalidTaxRuleTransitionError(InvalidTaxRuleError):
+    """Raised when a tax-rule lifecycle transition is forbidden."""
+
+
+class TaxRuleSodViolationError(InvalidTaxRuleError):
+    """Raised when a tax-rule editor attempts to activate the same rule."""
+
+
 __all__ = [
     "FiscalDocumentConflictError",
     "FiscalDomainError",
@@ -60,6 +72,9 @@ __all__ = [
     "InvalidInboundFiscalDocumentError",
     "InvalidManifestationError",
     "InvalidStateTransitionError",
+    "InvalidTaxRuleError",
+    "InvalidTaxRuleTransitionError",
     "InvalidTaxSnapshotError",
     "TaxMismatchError",
+    "TaxRuleSodViolationError",
 ]

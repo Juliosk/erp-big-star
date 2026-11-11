@@ -24,6 +24,9 @@ PROCUREMENT_RECEIPT_READ = PermissionCode("procurement.receipt.read")
 PROCUREMENT_RECEIPT_MANAGE = PermissionCode("procurement.receipt.manage")
 PROCUREMENT_MATCHING_READ = PermissionCode("procurement.matching.read")
 PROCUREMENT_MATCHING_EXECUTE = PermissionCode("procurement.matching.execute")
+PROCUREMENT_RFQ_READ = PermissionCode("procurement.rfq.read")
+PROCUREMENT_RFQ_MANAGE = PermissionCode("procurement.rfq.manage")
+PROCUREMENT_RFQ_AWARD = PermissionCode("procurement.rfq.award")
 
 
 def procurement_permission_registry() -> PermissionRegistry:
@@ -78,6 +81,17 @@ def procurement_permission_registry() -> PermissionRegistry:
             "Create and execute three-way matching sessions",
             PermissionRiskLevel.CRITICAL,
         ),
+        (PROCUREMENT_RFQ_READ, "Read requests for quotation", PermissionRiskLevel.MEDIUM),
+        (
+            PROCUREMENT_RFQ_MANAGE,
+            "Create RFQs and register supplier quotes",
+            PermissionRiskLevel.HIGH,
+        ),
+        (
+            PROCUREMENT_RFQ_AWARD,
+            "Award an RFQ under maker-checker governance",
+            PermissionRiskLevel.CRITICAL,
+        ),
     )
     return PermissionRegistry(
         Permission(
@@ -118,6 +132,9 @@ __all__ = [
     "PROCUREMENT_RECEIPT_READ",
     "PROCUREMENT_REQUISITION_MANAGE",
     "PROCUREMENT_REQUISITION_READ",
+    "PROCUREMENT_RFQ_AWARD",
+    "PROCUREMENT_RFQ_MANAGE",
+    "PROCUREMENT_RFQ_READ",
     "PROCUREMENT_SUPPLIER_MANAGE",
     "PROCUREMENT_SUPPLIER_READ",
     "ProcurementAuthorization",

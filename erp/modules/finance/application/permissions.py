@@ -28,6 +28,8 @@ FINANCE_RECONCILIATION_EXECUTE = PermissionCode("finance.reconciliation.execute"
 FINANCE_CASH_FLOW_READ = PermissionCode("finance.cash_flow.read")
 FINANCE_CASH_FLOW_PROJECT = PermissionCode("finance.cash_flow.project")
 FINANCE_CASH_FLOW_SCENARIO = PermissionCode("finance.cash_flow.scenario")
+FINANCE_PAYMENT_REQUEST = PermissionCode("finance.payment.request")
+FINANCE_PAYMENT_APPROVE = PermissionCode("finance.payment.approve")
 
 
 def finance_permission_registry() -> PermissionRegistry:
@@ -94,6 +96,16 @@ def finance_permission_registry() -> PermissionRegistry:
             "Create and compare non-authoritative liquidity scenarios",
             PermissionRiskLevel.CRITICAL,
         ),
+        (
+            FINANCE_PAYMENT_REQUEST,
+            "Create treasury payment requests from eligible obligations",
+            PermissionRiskLevel.CRITICAL,
+        ),
+        (
+            FINANCE_PAYMENT_APPROVE,
+            "Approve payment requests under authority and segregation rules",
+            PermissionRiskLevel.CRITICAL,
+        ),
     )
     return PermissionRegistry(
         Permission(
@@ -133,6 +145,8 @@ __all__ = [
     "FINANCE_PAYABLE_APPROVE",
     "FINANCE_PAYABLE_CREATE",
     "FINANCE_PAYABLE_READ",
+    "FINANCE_PAYMENT_APPROVE",
+    "FINANCE_PAYMENT_REQUEST",
     "FINANCE_RECONCILIATION_EXECUTE",
     "FINANCE_RECONCILIATION_IMPORT",
     "FINANCE_RECONCILIATION_READ",

@@ -20,6 +20,8 @@ from erp.modules.finance.application import (
     FINANCE_PAYABLE_APPROVE,
     FINANCE_PAYABLE_CREATE,
     FINANCE_PAYABLE_READ,
+    FINANCE_PAYMENT_APPROVE,
+    FINANCE_PAYMENT_REQUEST,
     FINANCE_RECONCILIATION_EXECUTE,
     FINANCE_RECONCILIATION_IMPORT,
     FINANCE_RECONCILIATION_READ,
@@ -43,6 +45,8 @@ def test_finance_registry_exposes_canonical_payable_and_treasury_permissions() -
         FINANCE_PAYABLE_CREATE,
         FINANCE_PAYABLE_APPROVE,
         FINANCE_PAYABLE_ADJUST,
+        FINANCE_PAYMENT_REQUEST,
+        FINANCE_PAYMENT_APPROVE,
         FINANCE_RECONCILIATION_READ,
         FINANCE_RECONCILIATION_IMPORT,
         FINANCE_RECONCILIATION_EXECUTE,
@@ -66,6 +70,8 @@ def test_finance_sensitive_operations_are_fail_closed_by_risk() -> None:
     assert registry.get(FINANCE_PAYABLE_CREATE).risk_level is PermissionRiskLevel.HIGH
     assert registry.get(FINANCE_PAYABLE_APPROVE).risk_level is PermissionRiskLevel.CRITICAL
     assert registry.get(FINANCE_PAYABLE_ADJUST).risk_level is PermissionRiskLevel.CRITICAL
+    assert registry.get(FINANCE_PAYMENT_REQUEST).risk_level is PermissionRiskLevel.CRITICAL
+    assert registry.get(FINANCE_PAYMENT_APPROVE).risk_level is PermissionRiskLevel.CRITICAL
     assert registry.get(FINANCE_TREASURY_READ).risk_level is PermissionRiskLevel.HIGH
     assert registry.get(FINANCE_TREASURY_BATCH_CREATE).risk_level is PermissionRiskLevel.CRITICAL
     assert registry.get(FINANCE_TREASURY_BATCH_APPROVE).risk_level is PermissionRiskLevel.CRITICAL

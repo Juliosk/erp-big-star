@@ -117,6 +117,16 @@ class TreasuryScopeError(FinanceDomainError):
     code = "TREASURY_SCOPE_ERROR"
 
 
+class InvalidPaymentRequestError(FinanceDomainError):
+    """A treasury payment-request invariant is invalid."""
+
+    code = "INVALID_PAYMENT_REQUEST"
+
+
+class InvalidPaymentRequestTransitionError(InvalidPaymentRequestError):
+    """A treasury payment-request transition is forbidden."""
+
+
 class InvalidBankStatementError(FinanceDomainError):
     """A bank statement, movement or reconciliation rule is inconsistent."""
 
@@ -181,6 +191,8 @@ __all__ = [
     "InvalidFinanceContractError",
     "InvalidPayableError",
     "InvalidPayableStateError",
+    "InvalidPaymentRequestError",
+    "InvalidPaymentRequestTransitionError",
     "InvalidProvisionalEntryError",
     "InvalidSegregationPolicyError",
     "InvalidTreasuryRuleError",
