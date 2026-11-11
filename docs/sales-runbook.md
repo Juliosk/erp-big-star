@@ -140,3 +140,17 @@ O E2E Chromium gera:
 - Audit/Outbox no mesmo transaction boundary.
 - Cockpit responsivo validado no Chromium real.
 - Ruff, Mypy, fronteiras arquiteturais e suíte global verdes.
+
+## Fechamento da Sprint Dupla — Commit 216
+
+- `/ui/sales/cockpit` é o cockpit oficial de Marketplaces e permanece isolado
+  por `company_id` sob `sales.orders.read`.
+- `/ui/` continua sendo a superfície legada suportada para Cotações, Pedidos e
+  Reserva M5. A pasta **Visão geral** preserva todos os controles históricos;
+  as pastas especializadas apenas reorganizam a apresentação.
+- A troca de empresa sempre retorna a Vendas para **Visão geral**, descarta a
+  seleção visual anterior e recarrega os dados com o tenant corrente.
+- Os grupos do menu iniciam expandidos para preservar navegação por seletores,
+  teclado e leitores de tela; podem ser recolhidos sem alterar RBAC.
+- A regressão Chromium deve incluir `test_sales_browser.py` e
+  `test_sales_wms_cockpit_browser.py` antes de uma publicação Web.

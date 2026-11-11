@@ -2076,9 +2076,33 @@
               A identidade de cada produto, do desenvolvimento à descontinuação.
             </p>
           </div>
-          <button id="new-product" hidden>+ Novo produto</button>
+        </div>
+        <div class="actionbar" role="toolbar" aria-label="Ações do cadastro">
+          <button id="px-view" class="secondary" type="button" disabled>
+            Visualizar
+          </button>
+          <button
+            id="new-product"
+            type="button"
+            aria-label="+ Novo produto"
+            hidden
+          >
+            Incluir
+          </button>
+          <button id="px-edit" class="secondary" type="button" disabled>
+            Alterar
+          </button>
         </div>
         <div class="toolbar">
+          <div>
+            <label for="px-find">Localizar nesta página</label
+            ><input
+              id="px-find"
+              type="search"
+              placeholder="Código, SKU ou nome"
+              autocomplete="off"
+            />
+          </div>
           <div>
             <label for="lifecycle-filter">Situação do produto</label
             ><select id="lifecycle-filter">

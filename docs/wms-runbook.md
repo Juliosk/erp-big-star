@@ -170,3 +170,16 @@ Para E2E visual, os screenshots esperados são:
 - Audit/Outbox transacionais nos comandos já definidos para eventos M10.
 - UI `/ui/` sem armazenar token em `localStorage`/`sessionStorage`.
 - Ruff, Mypy, testes focados e E2E Chromium aprovados.
+
+## Fechamento da Sprint Dupla — Commit 216
+
+- `/ui/wms/cockpit` é o painel oficial consolidado de ocupação, picking,
+  packing e despacho e exige `wms.inventory.read`.
+- `/ui/` permanece compatível com os fluxos legados de ondas, scan e pacotes;
+  os links canônicos conservam seus IDs e são os únicos alvos de navegação e
+  autorização.
+- A árvore de módulos apenas agrupa os links oficiais. Ela não clona contexto,
+  não substitui permissões e não altera o escopo `company_id`.
+- A regressão Chromium deve incluir `test_wms_browser.py` e
+  `test_sales_wms_cockpit_browser.py`, além da matriz legada global.
+- O head homologado para este fechamento é a Migration 0060.
