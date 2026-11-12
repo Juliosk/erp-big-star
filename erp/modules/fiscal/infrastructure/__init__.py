@@ -42,6 +42,7 @@ from erp.modules.fiscal.infrastructure.sefaz_gateway import (
     SefazMockScenario,
     SefazTransientError,
 )
+from erp.modules.fiscal.infrastructure.tax_rule_cockpit import PostgresFiscalCockpitReader
 from erp.modules.fiscal.infrastructure.tax_rule_effects import PostgresTaxRuleEffects
 from erp.modules.fiscal.infrastructure.tax_rule_model import TaxRuleModel
 from erp.modules.fiscal.infrastructure.tax_rule_repository import TaxRuleRepository
@@ -63,6 +64,7 @@ __all__ = [
     "InboundFiscalDocumentModel",
     "InboundFiscalDocumentRepository",
     "MdeEventModel",
+    "PostgresFiscalCockpitReader",
     "PostgresFiscalDocumentStore",
     "PostgresFiscalIssuanceStore",
     "PostgresInboundFiscalOperations",

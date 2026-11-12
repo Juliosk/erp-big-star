@@ -74,6 +74,12 @@ from erp.modules.finance.application.payables import (
     PayableStore,
     SchedulePayable,
 )
+from erp.modules.finance.application.payment_cockpit import (
+    FinanceCockpitPayment,
+    FinanceCockpitReader,
+    FinanceCockpitService,
+    FinanceCockpitSnapshot,
+)
 from erp.modules.finance.application.payment_requests import (
     PAYMENT_REQUEST_APPROVED,
     PAYMENT_REQUEST_REJECTED,
@@ -235,6 +241,10 @@ __all__ = [
     "CreatePaymentBatch",
     "CreateTreasuryBatch",
     "FinanceAuthorization",
+    "FinanceCockpitPayment",
+    "FinanceCockpitReader",
+    "FinanceCockpitService",
+    "FinanceCockpitSnapshot",
     "IngestBankStatement",
     "InstallmentInput",
     "MatchBankStatement",

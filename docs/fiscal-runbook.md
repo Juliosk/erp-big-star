@@ -75,3 +75,19 @@ Critérios: jornada Chromium completa, PDF iniciado por `%PDF`, XML `nfeProc`/`p
 - Sprint 17: M12 Contas a Pagar — títulos, parcelas, vencimentos, baixas e eventos, sem acoplar ao schema M11.
 - Sprint 18: three-way match M6/M11/M12 por contratos e Workflow M22 para divergências.
 - Hardening: certificado por empresa, rotação segura, observabilidade SEFAZ, testes de carga e contingência controlada.
+
+## Cockpit oficial de regras fiscais — Commit 220
+
+- API: `GET /api/v1/fiscal/cockpit?company_id={uuid}`.
+- UI: `/ui/fiscal/cockpit`.
+- RBAC mínimo: `fiscal.tax_rule.read`; ativação continua exigindo
+  `fiscal.tax_rule.activate` pelo serviço governado, nunca pela projeção.
+- O snapshot lista versões, fluxo, NCM/CFOP, alíquotas e vigência. A resposta
+  usa `Cache-Control: no-store` e somente agrega registros do `company_id`
+  autorizado.
+- O token informado no acesso Web permanece apenas na memória da página. Não
+  é gravado em storage do navegador nem incluído em URL ou logs.
+
+Em `403`, confirme permissão e escopo da empresa. Em `404`, trate como proteção
+anti-enumeração e revise o Company Selector. Em `503`, valide `/health/ready` e
+a composição de `fiscal_cockpit`; não consulte tabelas fiscais diretamente.

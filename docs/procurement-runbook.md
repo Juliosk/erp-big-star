@@ -142,3 +142,20 @@ A Sprint 14 inicia o recebimento físico integrado:
 
 Ficam fora do slice inicial a escrituração fiscal M11, o contas a pagar M12 e o
 three-way match financeiro completo.
+
+## Cockpit oficial de RFQs — Commit 220
+
+- API: `GET /api/v1/procurement/cockpit?company_id={uuid}`.
+- UI: `/ui/procurement/cockpit`.
+- RBAC mínimo: `procurement.rfq.read`; registro de propostas e adjudicação
+  permanecem nos casos de uso governados com `procurement.rfq.manage` e
+  `procurement.rfq.award`.
+- A mesa exibe estado, prazo, quantidade de itens/fornecedores, propostas e o
+  menor valor apenas quando as moedas são comparáveis. Não há conversão cambial
+  implícita.
+- O criador da RFQ não pode adjudicar a própria concorrência. A UI é projeção
+  operacional e não contorna SoD, Audit ou Outbox.
+
+Em fila vazia, confirme a empresa de trabalho antes de diagnosticar dados. Em
+`403`, revise RBAC. Em divergência entre cockpit e operação, use o histórico de
+Audit/Outbox pelo ID da RFQ e nunca altere as tabelas `procurement` manualmente.

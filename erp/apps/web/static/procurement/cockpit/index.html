@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Mesa de Cotações · Big Star ERP</title>
+    <link rel="stylesheet" href="/ui/triple-track-cockpit.css" />
+    <script type="module" src="/ui/triple-track-cockpit.js"></script>
+  </head>
+  <body data-track="procurement">
+    <section id="access" class="access-shell" aria-labelledby="access-title">
+      <form id="access-form" class="access-card" autocomplete="off">
+        <p class="eyebrow">BIG STAR · SOURCING GOVERNADO</p>
+        <h1 id="access-title">Abrir mesa de cotações</h1>
+        <p>Acompanhe concorrências, propostas comparáveis e adjudicações por empresa.</p>
+        <label for="access-token">Token de acesso</label>
+        <input id="access-token" type="password" autocomplete="off" required />
+        <p id="access-error" class="form-error" role="alert"></p>
+        <button type="submit">Conectar a Compras</button>
+      </form>
+    </section>
+    <section id="denied" class="access-shell" hidden aria-labelledby="denied-title">
+      <div class="access-card denied-card">
+        <span class="denied-mark" aria-hidden="true">!</span>
+        <p class="eyebrow">ACESSO RESTRITO</p>
+        <h1 id="denied-title">Permissão de cotações necessária</h1>
+        <p>Solicite <code id="permission-code"></code> para visualizar este painel.</p>
+        <button id="denied-back" type="button">Voltar ao acesso</button>
+      </div>
+    </section>
+    <main id="cockpit" hidden>
+      <header class="command-bar">
+        <a class="brand" href="/ui/" aria-label="Voltar ao ERP Big Star"><span class="brand-star">★</span><span>BIG STAR</span><small>ERP</small></a>
+        <div class="command-title"><p>TRILHO PROCUREMENT · M6</p><h1>Mesa de concorrências</h1></div>
+        <div class="command-actions"><label for="company">Empresa de trabalho</label><select id="company"></select><button id="refresh" type="button">Atualizar posição</button></div>
+      </header>
+      <nav class="governance-rail" aria-label="Trilhos de governança">
+        <a href="/ui/fiscal/cockpit">Fiscal · regras</a><a class="active" href="/ui/procurement/cockpit">Compras · RFQ</a><a href="/ui/finance/cockpit">Financeiro · alçadas</a>
+      </nav>
+      <div class="workspace">
+        <section class="position-line"><div><p class="eyebrow">POSIÇÃO TENANT-BOUND</p><h2>Pipeline competitivo de fornecedores</h2></div><time id="generated">—</time></section>
+        <section id="metrics" class="metrics" aria-label="Indicadores de cotações"></section>
+        <section class="panel"><header class="panel-head"><div><p class="eyebrow">FILA EXPLICÁVEL</p><h2 id="queue-title"></h2></div><p id="queue-subtitle"></p></header><div class="table-wrap"><table><thead id="queue-head"></thead><tbody id="queue-body"></tbody></table></div><p id="queue-empty" class="empty" hidden></p></section>
+        <footer><span>Escopo isolado por empresa · leitura sem cache</span><span>Adjudicação protegida por SoD e Audit/Outbox</span></footer>
+      </div>
+      <div id="notice" class="notice" role="status" aria-live="polite"></div>
+    </main>
+  </body>
+</html>

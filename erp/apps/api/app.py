@@ -58,6 +58,7 @@ from erp.modules.finance.application import (
     BankReconciliationApplicationService,
     CashFlowApplicationService,
     FinanceAuthorization,
+    FinanceCockpitService,
     PayableApplicationService,
     TreasuryApplicationService,
     TreasuryQueryService,
@@ -65,6 +66,7 @@ from erp.modules.finance.application import (
 from erp.modules.finance.infrastructure import (
     PostgresBankReconciliationStore,
     PostgresCashFlowStore,
+    PostgresFinanceCockpitReader,
     PostgresPayableStore,
     PostgresTreasuryStore,
 )
@@ -72,6 +74,7 @@ from erp.modules.fiscal.api import router as fiscal_router
 from erp.modules.fiscal.application import (
     FiscalArtifactStoragePort,
     FiscalAuthorization,
+    FiscalCockpitService,
     FiscalDocumentService,
     FiscalDocumentStorageService,
     FiscalIssuanceWorker,
@@ -80,6 +83,7 @@ from erp.modules.fiscal.application import (
     InboundFiscalDocumentService,
 )
 from erp.modules.fiscal.infrastructure import (
+    PostgresFiscalCockpitReader,
     PostgresFiscalDocumentStore,
     PostgresFiscalIssuanceStore,
     PostgresInboundFiscalOperations,
@@ -120,10 +124,15 @@ from erp.modules.procurement.application import (
     MatchingGovernanceService,
     MatchingQueryService,
     ProcurementAuthorization,
+    ProcurementCockpitService,
     PurchasingService,
     SupplierService,
 )
-from erp.modules.procurement.infrastructure import PostgresPurchasingStore, PostgresSupplierStore
+from erp.modules.procurement.infrastructure import (
+    PostgresProcurementCockpitReader,
+    PostgresPurchasingStore,
+    PostgresSupplierStore,
+)
 from erp.modules.product.api import router as product_router
 from erp.modules.product.application import ProductQueries
 from erp.modules.product.application.barcodes import ProductBarcodeService
@@ -226,16 +235,19 @@ def create_app(
     procurement_matching_commands: MatchingCommandService | None = None,
     procurement_matching_queries: MatchingQueryService | None = None,
     procurement_matching_governance: MatchingGovernanceService | None = None,
+    procurement_cockpit: ProcurementCockpitService | None = None,
     fiscal_documents: FiscalDocumentService | None = None,
     fiscal_operations: FiscalOperationsService | None = None,
     fiscal_receiving_reconciliation: FiscalReceivingReconciliationService | None = None,
     inbound_fiscal_documents: InboundFiscalDocumentService | None = None,
     fiscal_artifact_storage: FiscalArtifactStoragePort | None = None,
+    fiscal_cockpit: FiscalCockpitService | None = None,
     finance_payables: PayableApplicationService | None = None,
     finance_treasury: TreasuryApplicationService | None = None,
     finance_treasury_queries: TreasuryQueryService | None = None,
     finance_reconciliation: BankReconciliationApplicationService | None = None,
     finance_cash_flow: CashFlowApplicationService | None = None,
+    finance_cockpit: FinanceCockpitService | None = None,
     inventory_queries: InventoryQueries | None = None,
     inventory_creation: InventoryCatalogService | None = None,
     inventory_adjustments: InventoryAdjustmentService | None = None,
@@ -295,16 +307,19 @@ def create_app(
     resolved_procurement_matching_commands = procurement_matching_commands
     resolved_procurement_matching_queries = procurement_matching_queries
     resolved_procurement_matching_governance = procurement_matching_governance
+    resolved_procurement_cockpit = procurement_cockpit
     resolved_fiscal_documents = fiscal_documents
     resolved_fiscal_operations = fiscal_operations
     resolved_fiscal_receiving_reconciliation = fiscal_receiving_reconciliation
     resolved_inbound_fiscal_documents = inbound_fiscal_documents
     resolved_fiscal_document_storage: FiscalDocumentStorageService | None = None
+    resolved_fiscal_cockpit = fiscal_cockpit
     resolved_finance_payables = finance_payables
     resolved_finance_treasury = finance_treasury
     resolved_finance_treasury_queries = finance_treasury_queries
     resolved_finance_reconciliation = finance_reconciliation
     resolved_finance_cash_flow = finance_cash_flow
+    resolved_finance_cockpit = finance_cockpit
     resolved_inventory_queries = inventory_queries
     resolved_inventory_creation = inventory_creation
     resolved_inventory_adjustments = inventory_adjustments
@@ -631,11 +646,25 @@ def create_app(
                 WorkflowAuthorization(companies),
             ),
         )
+    if resolved_procurement_cockpit is None and isinstance(resolved_database, Database):
+        resolved_procurement_cockpit = ProcurementCockpitService(
+            PostgresProcurementCockpitReader(resolved_database),
+            ProcurementAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
     if resolved_fiscal_documents is None and isinstance(resolved_database, Database):
         resolved_fiscal_documents = FiscalDocumentService(
             PostgresFiscalDocumentStore(
                 resolved_database, ttl_seconds=resolved_settings.idempotency_ttl_seconds
             ),
+            FiscalAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
+    if resolved_fiscal_cockpit is None and isinstance(resolved_database, Database):
+        resolved_fiscal_cockpit = FiscalCockpitService(
+            PostgresFiscalCockpitReader(resolved_database),
             FiscalAuthorization(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
             ),
@@ -727,6 +756,13 @@ def create_app(
                 resolved_database,
                 ttl_seconds=resolved_settings.idempotency_ttl_seconds,
             ),
+            FinanceAuthorization(
+                CompanyAccessService(PostgresCorporateDirectory(resolved_database))
+            ),
+        )
+    if resolved_finance_cockpit is None and isinstance(resolved_database, Database):
+        resolved_finance_cockpit = FinanceCockpitService(
+            PostgresFinanceCockpitReader(resolved_database),
             FinanceAuthorization(
                 CompanyAccessService(PostgresCorporateDirectory(resolved_database))
             ),
@@ -839,16 +875,19 @@ def create_app(
     application.state.procurement_matching_commands = resolved_procurement_matching_commands
     application.state.procurement_matching_queries = resolved_procurement_matching_queries
     application.state.procurement_matching_governance = resolved_procurement_matching_governance
+    application.state.procurement_cockpit = resolved_procurement_cockpit
     application.state.fiscal_documents = resolved_fiscal_documents
     application.state.fiscal_operations = resolved_fiscal_operations
     application.state.fiscal_receiving_reconciliation = resolved_fiscal_receiving_reconciliation
     application.state.inbound_fiscal_documents = resolved_inbound_fiscal_documents
     application.state.fiscal_document_storage = resolved_fiscal_document_storage
+    application.state.fiscal_cockpit = resolved_fiscal_cockpit
     application.state.finance_payables = resolved_finance_payables
     application.state.finance_treasury = resolved_finance_treasury
     application.state.finance_treasury_queries = resolved_finance_treasury_queries
     application.state.finance_reconciliation = resolved_finance_reconciliation
     application.state.finance_cash_flow = resolved_finance_cash_flow
+    application.state.finance_cockpit = resolved_finance_cockpit
     application.state.inventory_queries = resolved_inventory_queries
     application.state.inventory_creation = resolved_inventory_creation
     application.state.inventory_adjustments = resolved_inventory_adjustments

@@ -1,5 +1,11 @@
 """Public M11 application surface."""
 
+from erp.modules.fiscal.application.cockpit import (
+    FiscalCockpitReader,
+    FiscalCockpitRule,
+    FiscalCockpitService,
+    FiscalCockpitSnapshot,
+)
 from erp.modules.fiscal.application.documents import (
     CreateFiscalDocument,
     FiscalDocumentPage,
@@ -133,6 +139,10 @@ __all__ = [
     "FiscalArtifact",
     "FiscalArtifactStoragePort",
     "FiscalAuthorization",
+    "FiscalCockpitReader",
+    "FiscalCockpitRule",
+    "FiscalCockpitService",
+    "FiscalCockpitSnapshot",
     "FiscalDocumentAuthorized",
     "FiscalDocumentCancelled",
     "FiscalDocumentDenied",

@@ -197,3 +197,20 @@ O próximo slice deve começar com DoR específico para:
 Antes do código, definir bancos/layouts piloto, timezone/data-valor, tolerâncias,
 regras de duplicidade, contas internas, tratamento de arquivos corrigidos e
 limites de auto-match.
+
+## Cockpit oficial de alçadas de pagamento — Commit 220
+
+- API: `GET /api/v1/finance/cockpit?company_id={uuid}`.
+- UI: `/ui/finance/cockpit`.
+- RBAC mínimo: `finance.treasury.read`; solicitar e decidir pagamentos exigem,
+  respectivamente, `finance.payment.request` e `finance.payment.approve`.
+- A projeção separa solicitações em elaboração, pendentes, aprovadas e em lote,
+  apresentando valores sem executar remessa ou liquidação.
+- O limite de alçada é obtido de fonte confiável no backend. O solicitante não
+  pode aprovar a própria solicitação e a UI não recebe nem envia teto de alçada.
+- O token Web é efêmero e permanece apenas na memória da página.
+
+Em `403`, valide permissão, nível de autenticação e escopo da empresa. Em
+posição desatualizada, recarregue o cockpit e confira Audit/Outbox da solicitação.
+Somente confirmação bancária pode marcar parcelas como pagas; a aprovação
+mostrada neste painel não equivale a liquidação.

@@ -104,6 +104,9 @@ from erp.modules.finance.infrastructure.payable_model import (
 )
 from erp.modules.finance.infrastructure.payable_repository import PayableRepository
 from erp.modules.finance.infrastructure.payable_store import PostgresPayableStore
+from erp.modules.finance.infrastructure.payment_cockpit import (
+    PostgresFinanceCockpitReader,
+)
 from erp.modules.finance.infrastructure.payment_request_effects import (
     PostgresPaymentRequestEffects,
 )
@@ -234,6 +237,7 @@ __all__ = [
     "PostgresBankReconciliationStore",
     "PostgresCashFlowAlertRecorder",
     "PostgresCashFlowStore",
+    "PostgresFinanceCockpitReader",
     "PostgresPayableCommitmentProvider",
     "PostgresPayableStore",
     "PostgresPaymentBatchEventPublisher",

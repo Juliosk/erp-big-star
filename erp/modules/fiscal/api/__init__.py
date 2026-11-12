@@ -2,10 +2,12 @@
 
 from fastapi import APIRouter
 
+from erp.modules.fiscal.api.cockpit_routes import router as cockpit_router
 from erp.modules.fiscal.api.inbound_routes import router as inbound_router
 from erp.modules.fiscal.api.routes import router as document_router
 
 router = APIRouter()
+router.include_router(cockpit_router)
 router.include_router(document_router)
 router.include_router(inbound_router)
 

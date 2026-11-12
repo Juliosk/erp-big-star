@@ -90,6 +90,12 @@ from erp.modules.procurement.application.rfq import (
     RequestForQuotationMutationResult,
     RequestForQuotationStore,
 )
+from erp.modules.procurement.application.rfq_cockpit import (
+    ProcurementCockpitReader,
+    ProcurementCockpitRfq,
+    ProcurementCockpitService,
+    ProcurementCockpitSnapshot,
+)
 from erp.modules.procurement.application.suppliers import (
     CreateSupplier,
     SupplierPage,
@@ -159,6 +165,10 @@ __all__ = [
     "MatchingWorkflowView",
     "PostGoodsReceiptToInventory",
     "ProcurementAuthorization",
+    "ProcurementCockpitReader",
+    "ProcurementCockpitRfq",
+    "ProcurementCockpitService",
+    "ProcurementCockpitSnapshot",
     "ProcurementCommandMetadata",
     "PurchaseOrderAction",
     "PurchaseOrderLineInput",
