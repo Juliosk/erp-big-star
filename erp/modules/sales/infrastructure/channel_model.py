@@ -15,6 +15,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     func,
+    true,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -65,7 +66,7 @@ class SalesChannelConfigModel(OptimisticLockMixin, Base):
     marketplace: Mapped[str] = mapped_column(String(24), nullable=False)
     display_name: Mapped[str] = mapped_column(String(128), nullable=False)
     credential_reference: Mapped[str] = mapped_column(String(255), nullable=False)
-    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=true())
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -139,7 +140,7 @@ class ExternalOrderMappingModel(OptimisticLockMixin, Base):
     variation_id: Mapped[str] = mapped_column(String(128), nullable=False)
     external_sku: Mapped[str] = mapped_column(String(128), nullable=False)
     product_id: Mapped[UUID] = mapped_column(nullable=False)
-    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=true())
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

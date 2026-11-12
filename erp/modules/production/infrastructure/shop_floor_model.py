@@ -13,6 +13,7 @@ from sqlalchemy import (
     Numeric,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -87,7 +88,7 @@ class ShopFloorOperationLogModel(Base):
     work_center_code: Mapped[str] = mapped_column(String(32), nullable=False)
     good_quantity: Mapped[Decimal] = mapped_column(Numeric(24, 6), nullable=False)
     material_consumptions: Mapped[list[dict[str, str]]] = mapped_column(
-        JSONB, nullable=False, default=list
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
     )
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     actor_id: Mapped[UUID] = mapped_column(nullable=False)

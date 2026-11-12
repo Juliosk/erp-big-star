@@ -91,3 +91,13 @@ Critérios: jornada Chromium completa, PDF iniciado por `%PDF`, XML `nfeProc`/`p
 Em `403`, confirme permissão e escopo da empresa. Em `404`, trate como proteção
 anti-enumeração e revise o Company Selector. Em `503`, valide `/health/ready` e
 a composição de `fiscal_cockpit`; não consulte tabelas fiscais diretamente.
+
+## Fechamento operacional da Trilha Tripla — Commit 221
+
+O cockpit é uma projeção de somente leitura. A ativação de regras fiscais
+exige `fiscal.tax_rule.activate` e grava Audit e Outbox na mesma transação.
+Para investigar uma falha de ativação, consulte o histórico da regra pelo ID
+e confirme a versão antes de reenviar a operação.
+
+Os comandos e as evidências de homologação estão no
+[relatório de encerramento da Trilha Tripla](triple-track-closure.md).

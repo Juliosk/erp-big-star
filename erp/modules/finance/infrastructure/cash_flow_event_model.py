@@ -79,7 +79,7 @@ class CashFlowRecompositionRequestModel(Base):
     request_id: Mapped[UUID] = mapped_column(nullable=False)
     correlation_id: Mapped[UUID] = mapped_column(nullable=False)
     requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
 __all__ = ["CashFlowRecompositionRequestModel", "CashFlowSourceCursorModel"]

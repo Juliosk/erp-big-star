@@ -39,7 +39,7 @@ class InboxEventModel(Base):
     )
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default=InboxStatus.PROCESSING)
-    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 

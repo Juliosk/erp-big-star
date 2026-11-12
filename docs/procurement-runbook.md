@@ -159,3 +159,17 @@ three-way match financeiro completo.
 Em fila vazia, confirme a empresa de trabalho antes de diagnosticar dados. Em
 `403`, revise RBAC. Em divergência entre cockpit e operação, use o histórico de
 Audit/Outbox pelo ID da RFQ e nunca altere as tabelas `procurement` manualmente.
+
+## Fechamento operacional da Trilha Tripla — Commit 221
+
+O cockpit é uma projeção de somente leitura. Em `SOD_VIOLATION`, encaminhe a
+adjudicação a outro ator autorizado. Em propostas com moedas diferentes,
+consulte os valores originais de cada fornecedor. O cockpit omite a menor
+proposta quando a comparação exigiria conversão cambial implícita.
+
+A API usa `Cache-Control: no-store` e o token fica apenas na memória da página.
+Em `404`, revise a empresa selecionada. Em `503`, verifique `/health/ready` e a
+configuração da projeção de RFQs.
+
+Os comandos e as evidências de homologação estão no
+[relatório de encerramento da Trilha Tripla](triple-track-closure.md).

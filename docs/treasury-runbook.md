@@ -214,3 +214,15 @@ Em `403`, valide permissão, nível de autenticação e escopo da empresa. Em
 posição desatualizada, recarregue o cockpit e confira Audit/Outbox da solicitação.
 Somente confirmação bancária pode marcar parcelas como pagas; a aprovação
 mostrada neste painel não equivale a liquidação.
+
+## Fechamento operacional da Trilha Tripla — Commit 221
+
+O cockpit é uma projeção de somente leitura. Em `SOD_VIOLATION`, encaminhe a
+decisão a um aprovador autorizado com alçada suficiente. Para confirmar a
+liquidação, consulte a trilha de retorno bancário vinculada ao lote e à parcela.
+
+A API usa `Cache-Control: no-store`. Em `404`, revise a empresa selecionada.
+Em `503`, verifique `/health/ready` e a configuração da projeção de pagamentos.
+
+Os comandos e as evidências de homologação estão no
+[relatório de encerramento da Trilha Tripla](triple-track-closure.md).

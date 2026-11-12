@@ -11,6 +11,7 @@ from sqlalchemy import (
     Index,
     String,
     UniqueConstraint,
+    false,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -57,7 +58,9 @@ class CustomerContactModel(Base):
     kind: Mapped[str] = mapped_column(String(8), nullable=False)
     value: Mapped[str] = mapped_column(String(180), nullable=False)
     name: Mapped[str | None] = mapped_column(String(120), nullable=True)
-    is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_primary: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -107,7 +110,9 @@ class CustomerAddressModel(Base):
     country_code: Mapped[str] = mapped_column(String(2), nullable=False)
     line2: Mapped[str | None] = mapped_column(String(180), nullable=True)
     district: Mapped[str | None] = mapped_column(String(120), nullable=True)
-    is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_primary: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

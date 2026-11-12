@@ -4,7 +4,16 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKeyConstraint, Numeric, String, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKeyConstraint,
+    Index,
+    Numeric,
+    String,
+    false,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from erp.platform.concurrency import OptimisticLockMixin
@@ -25,13 +34,20 @@ class PayableGovernanceModel(OptimisticLockMixin, Base):
             name="approval_status",
         ),
         CheckConstraint("version >= 1", name="version"),
+        Index(
+            "ix_payable_governance_company_status", "company_id", "approval_status", "payable_id"
+        ),
         {"schema": "finance"},
     )
 
     company_id: Mapped[UUID] = mapped_column(primary_key=True)
     payable_id: Mapped[UUID] = mapped_column(primary_key=True)
-    fiscal_blocked: Mapped[bool] = mapped_column(nullable=False, default=False)
-    purchasing_blocked: Mapped[bool] = mapped_column(nullable=False, default=False)
+    fiscal_blocked: Mapped[bool] = mapped_column(
+        nullable=False, default=False, server_default=false()
+    )
+    purchasing_blocked: Mapped[bool] = mapped_column(
+        nullable=False, default=False, server_default=false()
+    )
     approval_status: Mapped[str] = mapped_column(String(24), nullable=False)
     workflow_instance_id: Mapped[UUID | None] = mapped_column(nullable=True)
     authority_limit: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)

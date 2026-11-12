@@ -16,6 +16,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -125,7 +126,7 @@ class ProductionOrderModel(OptimisticLockMixin, Base):
     )
     engineering_approved_by: Mapped[UUID] = mapped_column(nullable=False)
     output_lots: Mapped[list[dict[str, str]]] = mapped_column(
-        JSONB, nullable=False, default=list
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
     )
     released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     released_by: Mapped[UUID | None] = mapped_column()
@@ -193,7 +194,7 @@ class ProductionOrderItemPlanModel(OptimisticLockMixin, Base):
     planned_quantity: Mapped[Decimal] = mapped_column(Numeric(24, 6), nullable=False)
     uom: Mapped[str] = mapped_column(String(12), nullable=False)
     consumptions: Mapped[list[dict[str, str]]] = mapped_column(
-        JSONB, nullable=False, default=list
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
     )
 
 

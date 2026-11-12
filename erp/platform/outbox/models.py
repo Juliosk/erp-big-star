@@ -35,7 +35,9 @@ class OutboxEventModel(Base):
     causation_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     request_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    publish_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    publish_attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
