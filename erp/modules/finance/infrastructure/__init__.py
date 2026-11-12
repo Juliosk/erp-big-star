@@ -104,6 +104,13 @@ from erp.modules.finance.infrastructure.payable_model import (
 )
 from erp.modules.finance.infrastructure.payable_repository import PayableRepository
 from erp.modules.finance.infrastructure.payable_store import PostgresPayableStore
+from erp.modules.finance.infrastructure.payment_request_model import (
+    PaymentRequestItemModel,
+    PaymentRequestModel,
+)
+from erp.modules.finance.infrastructure.payment_request_repository import (
+    PaymentRequestRepository,
+)
 from erp.modules.finance.infrastructure.provisional_repository import (
     ProvisionalEntryRepository,
 )
@@ -215,6 +222,9 @@ __all__ = [
     "PaymentBatchModel",
     "PaymentBatchRepository",
     "PaymentBatchReviewModel",
+    "PaymentRequestItemModel",
+    "PaymentRequestModel",
+    "PaymentRequestRepository",
     "PixApiRemittanceAdapter",
     "PixCallbackParser",
     "PostgresBankPositionProvider",

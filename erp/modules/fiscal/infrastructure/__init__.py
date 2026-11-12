@@ -42,6 +42,8 @@ from erp.modules.fiscal.infrastructure.sefaz_gateway import (
     SefazMockScenario,
     SefazTransientError,
 )
+from erp.modules.fiscal.infrastructure.tax_rule_model import TaxRuleModel
+from erp.modules.fiscal.infrastructure.tax_rule_repository import TaxRuleRepository
 
 __all__ = [
     "CertificateAdapter",
@@ -70,4 +72,6 @@ __all__ = [
     "SefazMockAdapter",
     "SefazMockScenario",
     "SefazTransientError",
+    "TaxRuleModel",
+    "TaxRuleRepository",
 ]

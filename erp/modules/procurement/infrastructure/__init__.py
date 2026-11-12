@@ -60,6 +60,15 @@ from erp.modules.procurement.infrastructure.purchasing_repository import (
     PurchaseRequisitionRepository,
 )
 from erp.modules.procurement.infrastructure.purchasing_store import PostgresPurchasingStore
+from erp.modules.procurement.infrastructure.rfq_model import (
+    RequestForQuotationItemModel,
+    RequestForQuotationModel,
+    RequestForQuotationQuoteLineModel,
+    RequestForQuotationSupplierModel,
+)
+from erp.modules.procurement.infrastructure.rfq_repository import (
+    RequestForQuotationRepository,
+)
 from erp.modules.procurement.infrastructure.supplier_model import (
     SupplierModel,
     SupplierSiteModel,
@@ -107,6 +116,11 @@ __all__ = [
     "PurchaseRequisitionModel",
     "PurchaseRequisitionRepository",
     "ReceiptItemModel",
+    "RequestForQuotationItemModel",
+    "RequestForQuotationModel",
+    "RequestForQuotationQuoteLineModel",
+    "RequestForQuotationRepository",
+    "RequestForQuotationSupplierModel",
     "RequisitionItemModel",
     "SupplierConflictError",
     "SupplierModel",

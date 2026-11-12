@@ -61,6 +61,18 @@ class TaxRuleSodViolationError(InvalidTaxRuleError):
     """Raised when a tax-rule editor attempts to activate the same rule."""
 
 
+class TaxRuleConflictError(FiscalDomainError):
+    """Raised when a tax-rule version conflicts inside its tenant scope."""
+
+
+class TaxRuleVersionConflictError(FiscalDomainError):
+    """Raised when an optimistic tax-rule write targets a stale version."""
+
+
+class TaxRuleScopeError(FiscalDomainError):
+    """Raised when a tax rule crosses its explicit tenant scope."""
+
+
 __all__ = [
     "FiscalDocumentConflictError",
     "FiscalDomainError",
@@ -76,5 +88,8 @@ __all__ = [
     "InvalidTaxRuleTransitionError",
     "InvalidTaxSnapshotError",
     "TaxMismatchError",
+    "TaxRuleConflictError",
+    "TaxRuleScopeError",
     "TaxRuleSodViolationError",
+    "TaxRuleVersionConflictError",
 ]

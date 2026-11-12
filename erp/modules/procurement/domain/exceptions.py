@@ -77,6 +77,18 @@ class InvalidRequestForQuotationTransitionError(InvalidRequestForQuotationError)
     """An RFQ lifecycle transition is not allowed."""
 
 
+class RequestForQuotationConflictError(ProcurementDomainError):
+    """An RFQ identity conflicts inside its tenant scope."""
+
+
+class RequestForQuotationVersionConflictError(ProcurementDomainError):
+    """An optimistic RFQ write targeted a stale version."""
+
+
+class RequestForQuotationScopeError(ProcurementDomainError):
+    """An RFQ crossed its explicit tenant scope."""
+
+
 __all__ = [
     "DuplicateSupplierSiteError",
     "InvalidGoodsReceiptError",
@@ -97,4 +109,7 @@ __all__ = [
     "MatchingSessionConflictError",
     "MatchingVersionConflictError",
     "ProcurementDomainError",
+    "RequestForQuotationConflictError",
+    "RequestForQuotationScopeError",
+    "RequestForQuotationVersionConflictError",
 ]

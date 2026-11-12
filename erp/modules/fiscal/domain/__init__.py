@@ -21,7 +21,10 @@ from erp.modules.fiscal.domain.exceptions import (
     InvalidTaxRuleTransitionError,
     InvalidTaxSnapshotError,
     TaxMismatchError,
+    TaxRuleConflictError,
+    TaxRuleScopeError,
     TaxRuleSodViolationError,
+    TaxRuleVersionConflictError,
 )
 from erp.modules.fiscal.domain.fiscal_document import (
     LEGAL_ROUNDING_TOLERANCE,
@@ -90,8 +93,11 @@ __all__ = [
     "TaxMismatchError",
     "TaxRateProfile",
     "TaxRule",
+    "TaxRuleConflictError",
     "TaxRuleCriteria",
+    "TaxRuleScopeError",
     "TaxRuleSodViolationError",
     "TaxRuleStatus",
+    "TaxRuleVersionConflictError",
     "TaxSnapshot",
 ]

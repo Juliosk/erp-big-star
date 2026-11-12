@@ -22,6 +22,10 @@ from erp.modules.procurement.infrastructure import (
     PurchaseOrderModel,
     PurchaseRequisitionModel,
     ReceiptItemModel,
+    RequestForQuotationItemModel,
+    RequestForQuotationModel,
+    RequestForQuotationQuoteLineModel,
+    RequestForQuotationSupplierModel,
     RequisitionItemModel,
     SupplierModel,
     SupplierSiteModel,
@@ -57,7 +61,11 @@ def test_procurement_migration_matches_orm_and_tenant_constraints() -> None:
             "matching_session_item",
             "matching_source_cursor",
             "receipt_item",
+            "request_for_quotation",
             "requisition_item",
+            "rfq_item",
+            "rfq_supplier",
+            "rfq_supplier_quote_line",
             "supplier",
             "supplier_site",
         }
@@ -70,6 +78,10 @@ def test_procurement_migration_matches_orm_and_tenant_constraints() -> None:
             ("purchase_order_item", PurchaseOrderItemModel),
             ("goods_receipt", GoodsReceiptModel),
             ("receipt_item", ReceiptItemModel),
+            ("request_for_quotation", RequestForQuotationModel),
+            ("rfq_item", RequestForQuotationItemModel),
+            ("rfq_supplier", RequestForQuotationSupplierModel),
+            ("rfq_supplier_quote_line", RequestForQuotationQuoteLineModel),
             ("matching_session", MatchingSessionModel),
             ("matching_session_item", MatchingSessionItemModel),
             ("matching_audit_log", MatchingAuditLogModel),
@@ -116,17 +128,15 @@ def test_procurement_migration_matches_orm_and_tenant_constraints() -> None:
             "company_id",
             "purchase_order_id",
         ) in {tuple(item["constrained_columns"]) for item in receipt_fks}
-        reevaluation_fks = inspector.get_foreign_keys(
-            "matching_reevaluation", "procurement"
-        )
+        reevaluation_fks = inspector.get_foreign_keys("matching_reevaluation", "procurement")
         assert (
             "company_id",
             "matching_session_id",
         ) in {tuple(item["constrained_columns"]) for item in reevaluation_fks}
         assert tuple(
-            inspector.get_pk_constraint(
-                "matching_source_cursor", "procurement"
-            )["constrained_columns"]
+            inspector.get_pk_constraint("matching_source_cursor", "procurement")[
+                "constrained_columns"
+            ]
         ) == (
             "company_id",
             "producer_module",
