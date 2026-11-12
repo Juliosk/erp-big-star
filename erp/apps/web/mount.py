@@ -45,9 +45,10 @@ class WebFiles(StaticFiles):
 
 
 def mount_web(application: FastAPI) -> None:
-    application.mount(
-        "/ui", WebFiles(directory=Path(__file__).parent / "static", html=True), name="product-web"
-    )
+    web_root = Path(__file__).parent
+    application.mount("/ui", WebFiles(directory=web_root / "static", html=True), name="product-web")
+    # Front novo (estilo Protheus), em paralelo ao /ui/ anterior.
+    application.mount("/app", WebFiles(directory=web_root / "app", html=True), name="erp-app")
 
 
 __all__ = ["mount_web"]
