@@ -29,6 +29,7 @@ from erp.modules.procurement.domain.exceptions import (
     ProcurementDomainError,
     RequestForQuotationConflictError,
     RequestForQuotationScopeError,
+    RequestForQuotationSodViolationError,
     RequestForQuotationVersionConflictError,
 )
 from erp.modules.procurement.domain.goods_receipt import (
@@ -143,6 +144,7 @@ __all__ = [
     "RequestForQuotationConflictError",
     "RequestForQuotationItem",
     "RequestForQuotationScopeError",
+    "RequestForQuotationSodViolationError",
     "RequestForQuotationStatus",
     "RequestForQuotationVersionConflictError",
     "RequisitionItem",

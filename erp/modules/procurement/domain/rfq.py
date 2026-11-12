@@ -11,6 +11,7 @@ from uuid import UUID
 from erp.modules.procurement.domain.exceptions import (
     InvalidRequestForQuotationError,
     InvalidRequestForQuotationTransitionError,
+    RequestForQuotationSodViolationError,
 )
 from erp.modules.procurement.domain.support import (
     currency,
@@ -216,7 +217,9 @@ class RequestForQuotation:
         self._require(RequestForQuotationStatus.CLOSED)
         actor = require_uuid(actor_id, "actor_id")
         if actor == self.created_by:
-            raise InvalidRequestForQuotationError("RFQ creator cannot award the same competition.")
+            raise RequestForQuotationSodViolationError(
+                "RFQ creator cannot award the same competition."
+            )
         selected = next((quote for quote in self.supplier_quotes if quote.id == quote_id), None)
         if selected is None:
             raise InvalidRequestForQuotationError("Selected supplier quote does not exist.")
@@ -236,7 +239,9 @@ class RequestForQuotation:
             RequestForQuotationStatus.OPEN,
             RequestForQuotationStatus.CLOSED,
         }:
-            raise InvalidRequestForQuotationTransitionError("RFQ cannot be cancelled in this state.")
+            raise InvalidRequestForQuotationTransitionError(
+                "RFQ cannot be cancelled in this state."
+            )
         return replace(
             self,
             status=RequestForQuotationStatus.CANCELLED,
@@ -256,7 +261,9 @@ class RequestForQuotation:
         if self.closed_at is not None:
             _aware(self.closed_at, "closed_at")
         if any(not isinstance(quote, SupplierQuote) for quote in self.supplier_quotes):
-            raise InvalidRequestForQuotationError("supplier_quotes must contain SupplierQuote values.")
+            raise InvalidRequestForQuotationError(
+                "supplier_quotes must contain SupplierQuote values."
+            )
         for quote in self.supplier_quotes:
             self._validate_quote(quote)
         quote_suppliers = [quote.supplier_id for quote in self.supplier_quotes]
@@ -266,16 +273,24 @@ class RequestForQuotation:
             self.opened_at is not None or self.supplier_quotes
         ):
             raise InvalidRequestForQuotationError("Draft RFQ cannot contain execution evidence.")
-        if self.status in {
-            RequestForQuotationStatus.OPEN,
-            RequestForQuotationStatus.CLOSED,
-            RequestForQuotationStatus.AWARDED,
-        } and self.opened_at is None:
+        if (
+            self.status
+            in {
+                RequestForQuotationStatus.OPEN,
+                RequestForQuotationStatus.CLOSED,
+                RequestForQuotationStatus.AWARDED,
+            }
+            and self.opened_at is None
+        ):
             raise InvalidRequestForQuotationError("Opened RFQ states require opened_at.")
-        if self.status in {
-            RequestForQuotationStatus.CLOSED,
-            RequestForQuotationStatus.AWARDED,
-        } and self.closed_at is None:
+        if (
+            self.status
+            in {
+                RequestForQuotationStatus.CLOSED,
+                RequestForQuotationStatus.AWARDED,
+            }
+            and self.closed_at is None
+        ):
             raise InvalidRequestForQuotationError("Closed RFQ states require closed_at.")
         if (
             self.opened_at is not None
@@ -299,7 +314,9 @@ class RequestForQuotation:
         if (self.status is RequestForQuotationStatus.CANCELLED) != (
             self.cancellation_reason is not None
         ):
-            raise InvalidRequestForQuotationError("Cancellation reason is exclusive to cancelled RFQs.")
+            raise InvalidRequestForQuotationError(
+                "Cancellation reason is exclusive to cancelled RFQs."
+            )
         if self.cancellation_reason is not None:
             object.__setattr__(
                 self,
@@ -318,7 +335,9 @@ class RequestForQuotation:
         if {line.rfq_item_id for line in quote.lines} != set(expected):
             raise InvalidRequestForQuotationError("Supplier quote must cover every RFQ item once.")
         if any(line.offered_quantity < expected[line.rfq_item_id].quantity for line in quote.lines):
-            raise InvalidRequestForQuotationError("Supplier quote cannot offer less than requested.")
+            raise InvalidRequestForQuotationError(
+                "Supplier quote cannot offer less than requested."
+            )
 
 
 __all__ = [

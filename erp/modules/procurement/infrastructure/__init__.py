@@ -60,6 +60,9 @@ from erp.modules.procurement.infrastructure.purchasing_repository import (
     PurchaseRequisitionRepository,
 )
 from erp.modules.procurement.infrastructure.purchasing_store import PostgresPurchasingStore
+from erp.modules.procurement.infrastructure.rfq_effects import (
+    PostgresRequestForQuotationEffects,
+)
 from erp.modules.procurement.infrastructure.rfq_model import (
     RequestForQuotationItemModel,
     RequestForQuotationModel,
@@ -106,6 +109,7 @@ __all__ = [
     "MatchingSourceCursorModel",
     "PostgresMatchingEventPublisher",
     "PostgresPurchasingStore",
+    "PostgresRequestForQuotationEffects",
     "PostgresSupplierStore",
     "ProcurementApprovalDecisionConsumer",
     "PurchaseOrderConflictError",

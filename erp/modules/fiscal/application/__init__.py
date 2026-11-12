@@ -95,6 +95,16 @@ from erp.modules.fiscal.application.sefaz import (
     SefazSubmissionMode,
     SefazSubmissionResult,
 )
+from erp.modules.fiscal.application.tax_rules import (
+    TAX_RULE_ACTIVATED,
+    TAX_RULE_RETIRED,
+    ChangeTaxRule,
+    TaxRuleApplicationService,
+    TaxRuleCommandMetadata,
+    TaxRuleEffectsPort,
+    TaxRuleMutationResult,
+    TaxRuleStore,
+)
 
 __all__ = [
     "FISCAL_DOCUMENT_AUTHORIZED",
@@ -111,9 +121,12 @@ __all__ = [
     "FISCAL_TAX_RULE_MANAGE",
     "FISCAL_TAX_RULE_READ",
     "PDF_CONTENT_TYPE",
+    "TAX_RULE_ACTIVATED",
+    "TAX_RULE_RETIRED",
     "XML_CONTENT_TYPE",
     "CancelAuthorizedFiscalDocument",
     "CancelFiscalDocument",
+    "ChangeTaxRule",
     "ContingencyMode",
     "CreateFiscalDocument",
     "DanfeGenerator",
@@ -168,6 +181,11 @@ __all__ = [
     "SefazServiceStatus",
     "SefazSubmissionMode",
     "SefazSubmissionResult",
+    "TaxRuleApplicationService",
+    "TaxRuleCommandMetadata",
+    "TaxRuleEffectsPort",
+    "TaxRuleMutationResult",
+    "TaxRuleStore",
     "TransmitFiscalDocument",
     "fiscal_permission_registry",
     "integration_effects",

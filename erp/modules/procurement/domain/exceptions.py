@@ -77,6 +77,10 @@ class InvalidRequestForQuotationTransitionError(InvalidRequestForQuotationError)
     """An RFQ lifecycle transition is not allowed."""
 
 
+class RequestForQuotationSodViolationError(InvalidRequestForQuotationError):
+    """The RFQ creator attempted to adjudicate the same competition."""
+
+
 class RequestForQuotationConflictError(ProcurementDomainError):
     """An RFQ identity conflicts inside its tenant scope."""
 
@@ -111,5 +115,6 @@ __all__ = [
     "ProcurementDomainError",
     "RequestForQuotationConflictError",
     "RequestForQuotationScopeError",
+    "RequestForQuotationSodViolationError",
     "RequestForQuotationVersionConflictError",
 ]
